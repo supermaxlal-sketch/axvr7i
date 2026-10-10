@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Deck v490</title>
+<title>Hockey Deck v491</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1241,7 +1241,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v490';
+var GAME_VERSION='v491';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3710,6 +3710,7 @@ function puckBattle(pair, L, onDone){
       render();
       setTimeout(function(){
         if(_tok!==BATTLE_SEQ){ return; }
+        if(stale()){ render(); return; }   // v491 : un autre l'a prise pendant la ramasse (glisse) -> il la garde ; avant, la possession allait QUAND MEME au vainqueur (tour B, rondelle a A : plus rien de selectionnable)
         var ot=pickupLoose(champ, champ.c, champ.r);
         if(S.puckOwner!==champ.id && S.puckLoose){ S.puckOwner=champ.id; S.puckLoose=null; }
         sfx('catch'); render();
