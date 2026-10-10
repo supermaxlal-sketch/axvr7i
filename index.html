@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Deck v493</title>
+<title>Hockey Deck v494</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -790,6 +790,11 @@ body:not(.vrink) .thumbx{display:none !important;}
 @keyframes ibIn{from{opacity:0;margin-top:6px;}to{opacity:1;margin-top:0;}}
 @keyframes ibOut{to{opacity:0;}}
 @media (prefers-reduced-motion: reduce){ .icebubble{animation:none;} }
+/* v494 : BULLES DE CHOIX de l'embuscade (and then?) sur la glace, pres de la case ; aussi sur la 3D */
+.choicebub{position:absolute;z-index:46;transform:translate(-50%,-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:230px;}
+.choicebub .cbo{font-family:var(--pxu);font-size:12px;font-weight:800;letter-spacing:.02em;color:#10233a;background:#f4f8fc;border:2px solid #2fb3a8;border-radius:14px;padding:5px 9px;min-height:32px;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;}
+.choicebub .cbo.ordC{border-color:#cf2d2d;} .choicebub .cbo.ordP{border-color:#e0a12a;} .choicebub .cbo.ordB{border-color:#3b7fd0;}
+.choicebub .cbo:focus-visible{outline:3px solid #ffd34d;outline-offset:1px;}
 .tbsteps{display:flex;gap:6px;}
 .tbstep{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:5px;font-family:var(--pxu);font-size:12px;font-weight:700;color:#e9f2fb;}
 .tbstep::before{content:'';height:6px;border-radius:3px;background:#2a4262;}
@@ -1241,7 +1246,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v493';
+var GAME_VERSION='v494';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4593,7 +4598,28 @@ function defOrderPctsRaw(){   // % des ordres defensifs du defenseur selectionne
            sblock: Math.round(sblockOdds(dPos)*100), block: car?pctFromThr(blockPassThr(dPos,car)):null,
            _fo: !!(car && S.foPress && S.foPress.id===car.id && S.foPress.oppId===d.id) };
 }
-function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); var dc=S.defCommit; if(!dc){ db.style.display='none'; db.innerHTML=''; return; } var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
+// v494 (choix du concepteur) : les choix and then? de l'embuscade aussi en BULLES sur la glace, pres de la case ou le
+// defenseur glisse (2D et 3D) ; memes effets que la barre (qui reste). Etape encore une case : Done seul.
+function renderDefChoice(){
+  var bw=document.querySelector('.boardwrap'); if(!bw) return; var el=bw.querySelector('.choicebub'), dc=S.defCommit;
+  if(!(dc && dc.selDef && dc.pendingMove && !S.paused)){ if(el) el.parentNode.removeChild(el); return; }
+  if(!el){ el=document.createElement('div'); el.className='choicebub'; bw.appendChild(el);
+    el.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation(); var o=b.getAttribute('data-o'); if(o==='done') defSlideDone(); else finalizeDefPick(o); }); }
+  var key=dc.selDef+'|'+dc.pendingMove.toC+','+dc.pendingMove.toR+'|'+(dc.extend?1:0);
+  if(el.getAttribute('data-k')!==key){ el.setAttribute('data-k', key); var op=defOrderPcts()||{}; var pc=function(v){ return v!=null ? ' '+v+'%' : ''; };
+    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : '<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'); }
+  placeDefChoice(el);
+}
+function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pas la place), dans la zone de glace
+  var dc=S.defCommit, bw=document.querySelector('.boardwrap'); if(!dc || !dc.pendingMove || !bw) return;
+  var B=bw.getBoundingClientRect(), W=B.width||bw.clientWidth||390, H=B.height||bw.clientHeight||560;
+  var p=screenOfCell(dc.pendingMove.toC, dc.pendingMove.toR), cw=cellPx(dc.pendingMove.toC, dc.pendingMove.toR), w=el.offsetWidth||200, h=el.offsetHeight||70;
+  var x=p ? p.x : W/2, y=p ? (p.y-cw*0.9-h/2) : (h/2+8);
+  if(p && y-h/2<4) y=p.y+cw*0.9+h/2;
+  x=Math.max(w/2+4, Math.min(W-w/2-4, x)); y=Math.max(h/2+4, Math.min(H-h/2-4, y));
+  el.style.left=x.toFixed(1)+'px'; el.style.top=y.toFixed(1)+'px';
+}
+function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); renderDefChoice(); var dc=S.defCommit; if(!dc){ db.style.display='none'; db.innerHTML=''; return; } var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
   var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
@@ -5003,11 +5029,25 @@ var BUBBLE_T={onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MI
   dumpin:'DUMP IN',dumpoff:'DUMP OFF',shield:'PROTECTED',stuffed:'STOPPED',blockmiss:'BLOCK MISSED',whiff:'BEATEN',blowby:'BLOWN BY'};
 var BUBBLE_MISS={otwhiff:1,passmiss:1,pokemiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
 function logPlain(i){ var h=(S.log&&S.log[i||0])||''; var d=document.createElement('div'); d.innerHTML=h; return (d.textContent||'').replace(/\s+/g,' ').trim(); }
+// v494 : OU EST UNE CASE A L'ECRAN (coordonnees de .boardwrap). 2D : la grille (glace verticale ou non). 3D : la camera
+// de Godot (hj3d.cam : projection x vue, colonne par colonne) projette le point monde de la case sur le canevas #g3d --
+// les bulles se placent sur la 3D (avant : sur la 2D cachee dessous). h = hauteur au-dessus de la glace (m).
+function screenOfCell(c, r, h){
+  var bw=document.querySelector('.boardwrap'); if(!bw) return null; var B=bw.getBoundingClientRect();
+  if(hj3dActive() && HJ3D.cam && HJ3D.cam.m){ var cv=document.getElementById('g3d'); if(!cv) return null; var R=cv.getBoundingClientRect(); if(!(R.width>0 && R.height>0)) return null;
+    var m=HJ3D.cam.m, X=(c-(COLS-1)/2)*2, Y=h||0, Z=(r-(ROWS-1)/2)*2;
+    var cx=m[0]*X+m[4]*Y+m[8]*Z+m[12], cy=m[1]*X+m[5]*Y+m[9]*Z+m[13], cw=m[3]*X+m[7]*Y+m[11]*Z+m[15];
+    if(!(cw>0.0001)) return null;   // derriere la camera
+    return {x:R.left+(cx/cw*0.5+0.5)*R.width-B.left, y:R.top+(0.5-0.5*cy/cw)*R.height-B.top}; }
+  var grid=document.getElementById('grid'); if(!grid) return null; var g=grid.getBoundingClientRect(); if(!(g.width>0 && g.height>0)) return null;
+  if(isVRink()){ var vw=g.width/ROWS, vh=g.height/COLS; return {x:g.left+(r+0.5)*vw-B.left, y:g.top+(COLS-1-c+0.5)*vh-B.top}; }
+  var pw=g.width/COLS, ph=g.height/ROWS; return {x:g.left+(c+0.5)*pw-B.left, y:g.top+(r+0.5)*ph-B.top};
+}
+function cellPx(c, r){ var a=screenOfCell(c, r), b=screenOfCell(c, r+1); return (a && b) ? Math.max(8, Math.hypot(b.x-a.x, b.y-a.y)) : 20; }   // taille d'une case la (3D : perspective)
 function iceBubble(type, c, r, fallback){
-  var bw=document.querySelector('.boardwrap'), grid=document.getElementById('grid'); if(!bw||!grid) return;
-  var g=grid.getBoundingClientRect(), B=bw.getBoundingClientRect(); if(!(g.width>0&&g.height>0)) return;
-  var cw=g.width/ROWS, ch=g.height/COLS;
-  var ex=g.left+(r+0.5)*cw-B.left, ey=g.top+(COLS-1-c+0.5)*ch-B.top;   // centre de l'evenement (ecran, dans la zone de glace)
+  var bw=document.querySelector('.boardwrap'); if(!bw) return;
+  var B=bw.getBoundingClientRect(), e0=screenOfCell(c, r); if(!e0) return;
+  var cw=cellPx(c, r), ex=e0.x, ey=e0.y;   // v494 : centre de l'evenement a l'ecran (2D ou 3D)
   var W=B.width||bw.clientWidth||390, H=B.height||bw.clientHeight||560;
   var old=bw.querySelectorAll('.icebubble'); if(old.length>=2) old[0].parentNode.removeChild(old[0]);
   var el=document.createElement('div');
@@ -5018,7 +5058,7 @@ function iceBubble(type, c, r, fallback){
   // v405 : la bulle ne cache plus le jeu -- on essaie des places autour de l'evenement et on garde la premiere qui
   // ne recouvre AUCUN joueur (ni l'evenement) et reste dans la zone ; sinon en haut de la glace.
   var bwid=el.offsetWidth||110, bht=el.offsetHeight||30;
-  var pcs=[]; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce||q.c<0) continue; pcs.push({x:g.left+(q.r+0.5)*cw-B.left, y:g.top+(COLS-1-q.c+0.5)*ch-B.top}); }
+  var pcs=[]; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce||q.c<0) continue; var sq=screenOfCell(q.c, q.r); if(sq) pcs.push(sq); }
   pcs.push({x:ex, y:ey});
   var rad=cw*0.5+4, OFF=[[0,-1.9],[0,1.9],[-2.4,0],[2.4,0],[-2.2,-1.9],[2.2,-1.9],[-2.2,1.9],[2.2,1.9],[0,-3.2],[0,3.2],[-3.4,-1],[3.4,-1],[-3.4,1],[3.4,1]];
   function free(cx,cy){ if(cx-bwid/2<4||cx+bwid/2>W-4||cy-bht/2<4||cy+bht/2>H-4) return false;
@@ -5030,7 +5070,7 @@ function iceBubble(type, c, r, fallback){
   setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1350);   // v405 : plus court (etait 2,3 s)
 }
 function checkFx(type, c, r){ var fx=document.getElementById('checkfx'); if(!fx) return; var txt=type==='body'?'BODY CHECK':(type==='poke'?'POKE !':(type==='whiff'?'BEATEN!':
-    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED'))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink()) iceBubble(type, c, r, txt);
+    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED'))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
   if(type==='body'){ sfx('bang'); } else if(type==='poke'){ sfx('poke'); } else if(type==='block'){ sfx('block'); }
   else if(type==='shot'){ sfx('shot'); } else if(type==='pass'){ sfx('pass'); }
   else if(type==='blockshot'||type==='blockpass'){ sfx('block'); } else if(type==='save'){ sfx('save'); }
@@ -7783,6 +7823,7 @@ var hj3d={
     var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
     var t=magnetPick(c, r, fc, fr, px/(HJ3D.k||1)); onCell(t.c, t.r); return true; },
   drag:function(phase, c, r){ return hj3dDrag(phase, c, r); },
+  cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); return true; },   // v494 : la camera 3D (les bulles se placent sur la 3D)
   aim:function(t){   // v479 : toucher une cible du filet 3D = toucher le bouton 2D du meme coin
     var saim=document.getElementById('saim');
     if(!S.aiming || !saim || saim.style.display==='none' || ['TL','TR','BL','BR','5H'].indexOf(t)<0) return false;
@@ -9188,7 +9229,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":130596,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":132068,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
