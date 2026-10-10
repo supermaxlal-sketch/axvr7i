@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Deck v492</title>
+<title>Hockey Deck v493</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1241,7 +1241,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v492';
+var GAME_VERSION='v493';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2882,6 +2882,7 @@ function routeBegin(id){   // commence un trace sur le joueur id
   if(S.defCommit){ if(defPickedAlready(id)) return; }
   else if(!S.planning){ if(!isHumanLoose() || !canSel(p) || p.type!=='sk') return; }   // v415 : en rondelle libre, ton geste
   else {
+    mirrorRelease(id);   // v493 : tracer depuis le partenaire miroir le libere aussi
     if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); return; }   // v386 : une action par joueur
     if(planHasId(id) && !canGo(id)) return;   // v430 : sauf le va ; v396 : il a deja patine -> seulement un jeu attache, pas un 2e trace
   }
@@ -4050,7 +4051,7 @@ function resolvePlan(){
   var defs=(S.hiddenDef||[]).slice();
   if(!plan.length && !defs.length){ endExchange(); return; }
   document.getElementById('outcome').innerHTML='<b>Plans revealed</b> — both sides move together.';
-  var seqHu=newSeq(HUMAN_TEAM, plan, defs);
+  var seqHu=newSeq(HUMAN_TEAM, plan, defs); seqHu.noMirror=S.mirrorFree||{};   // v493 : les partenaires liberes ne suivent pas
   matchRec('plan', {team:HUMAN_TEAM, atk:matchActs(plan), def:matchActs(defs)});   // v434
   S.currentSeq=seqHu;
   resolveSeq(seqHu);
@@ -4074,7 +4075,7 @@ function planTakeover(){
 }
 function startPlan(){
   cineExit();   // CINE : phase de CHOIX -> la camera remonte au plateau du dessus
-  S.planning=true; S.atkPlan=[]; S.ghost={}; S.planBeep=0; clearSel();
+  S.planning=true; S.atkPlan=[]; S.ghost={}; S.planBeep=0; S.mirrorFree={}; clearSel();   // v493 : personne n'est libere du miroir au depart
   S.planClock = goalieHolding() ? GK_SECS : PLAN_SECS;
   document.getElementById('outcome').innerHTML='<b>Plan up to 3 actions.</b> They stay hidden, then everything resolves at once.';
   setHint('PLAN: pick a player, then a square — or Shoot / Pass. Up to 3 actions.');
@@ -4102,9 +4103,18 @@ function seqCommands(seq, id){ if(!seq) return false;
   if(seq.atk){ for(var i=0;i<seq.atk.length;i++){ if(seq.atk[i] && seq.atk[i].id===id) return true; } }
   if(seq.def){ for(var j=0;j<seq.def.length;j++){ if(seq.def[j] && seq.def[j].defId===id) return true; } }   // le partenaire deja commande en defense ne se re-mirrore pas
   return false; }
+// v493 (choix du concepteur) : toucher (ou tracer depuis) le partenaire MIROIR le libere -- il ne suit plus, il redevient
+// selectionnable et recoit sa propre action (elle compte dans les 3) ; le joueur qu'il suivait garde son deplacement.
+function mirrorRelease(id){
+  var g=S.planning && S.ghost && S.ghost[id]; if(!g || !g.mirror || planHasId(id)) return false;
+  delete S.ghost[id]; (S.mirrorFree=S.mirrorFree||{})[id]=true;
+  var q=byId(id); if(q) pushLog('<span style="color:#9fd1c0">Mirror</span>: '+q.name+' no longer follows — give him his own action.');
+  return true;
+}
 function mirrorMoveNow(seq, p, oc, orr, nc, nr){
   if(!S.mirror || !p || p.type!=='sk') return;
   var mp=mirrorPartnerOf(p); if(!mp) return;
+  if(seq && seq.noMirror && seq.noMirror[mp.id]) return;   // v493 : libere du miroir pendant le plan
   if(seqCommands(seq, mp.id)) return;                 // le partenaire est deja commande : il bouge tout seul
   var dc=nc-oc, dr=nr-orr; if(!dc && !dr) return;
   var _mt=mirrorReach(mp, dc, -dr); if(!_mt) return;   // colonne MEME sens, rangee INVERSEE ; v392 : borne a la portee du partenaire
@@ -4115,7 +4125,7 @@ function mirrorMoveNow(seq, p, oc, orr, nc, nr){
   pushLog('<span style="color:#9fd1c0">Mirror</span>: '+mp.name+' follows '+p.name+'.');
 }
 function mirrorGhostTarget(p, toC, toR){
-  if(!S.mirror) return null; var mp=mirrorPartnerOf(p); if(!mp || (S.atkPlan&&planHasId(mp.id))) return null;
+  if(!S.mirror) return null; var mp=mirrorPartnerOf(p); if(!mp || (S.atkPlan&&planHasId(mp.id)) || (S.mirrorFree&&S.mirrorFree[mp.id])) return null;   // v493 : libere -> plus de fantome miroir
   var dc=toC-p.c, dr=toR-p.r; if(!dc && !dr) return null;
   var t=mirrorReach(mp, dc, -dr); if(!t) return null;
   return { id:mp.id, c:t.c, r:t.r };
@@ -7579,10 +7589,10 @@ function onCellCore(c,r,_tp){
     if(!S.coachPush && p && bankEntry(p.id)){ doBankPass(sel,p.id); return; }
     if(!S.coachPush && p && passEntry(p.id)){ doPass(sel,p.id); return; }
     if(!S.coachPush && p && S.duelT.indexOf(p.id)>=0){ doDuel(sel,p.id); return; }
-    if(canSel(p)){ setSel(p.id); return; }
+    if(canSel(p)){ mirrorRelease(p.id); setSel(p.id); return; }   // v493 : le partenaire miroir se libere
     return;
   }
-  if(canSel(p)) setSel(p.id);
+  if(canSel(p)){ mirrorRelease(p.id); setSel(p.id); }   // v493 : le partenaire miroir se libere
 }
 
 // ---- Trace par glissement : entrees pointeur (souris + tactile) sur la grille ----
