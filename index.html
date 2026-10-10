@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Deck v489</title>
+<title>Hockey Deck v490</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1241,7 +1241,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v489';
+var GAME_VERSION='v490';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1712,7 +1712,7 @@ function resolveSeq(seq){
   seq.rank++; resolveSeq(seq);
 }
 
-var PLAN_N=3, PLAN_SECS=15;
+var PLAN_N=3, PLAN_SECS=20;   // v490 : 20 s pour faire tes choix (avant 15 s ; demande du concepteur)
 var PLAN_CLOCK_COST=6;   // v440 : secondes de chrono de periode par plan joue (la reflexion ne compte plus) -- reglable ; v463 : 4 -> 6 (parties ~15 min)
 function chargePlanClock(){ if(S.tut) return;   /* v451 : lecon */ var _c0=S.clock||0; S.clock=Math.max(0, _c0-PLAN_CLOCK_COST); if(S.clock<1) S.clock=0; penClockDown(_c0-S.clock); paintClock(); }
 // v442 : la periode est finie quand le TABLEAU affiche 0:00 (il arrondit vers le bas : moins d'1 s = 0:00). Le jeu en
@@ -8548,7 +8548,7 @@ var TUT_LESSONS=[
   explain:function(S,seq){ return seq.team===HUMAN_TEAM && S.tut.phase==='guided' && S.tut.plans===1; },
   onTap:function(S,c,r){ if(S.tut.phase!=='free') return false; var p=pieceAt(c,r); if(p && p.team===AI_TEAM && p.type==='sk') S.tut.quiz=(p.id==='B_BG')?'ok':'bad'; return true; },
   steps:[
-    {say:"Welcome to Hockey Deck! Both teams plan at the same time, in secret. Each team plans up to 3 actions, one action per player. In a real game you have 15 seconds. In lessons, take your time.", next:true},
+    {say:"Welcome to Hockey Deck! Both teams plan at the same time, in secret. Each team plans up to 3 actions, one action per player. In a real game you have 20 seconds. In lessons, take your time.", next:true},
     {say:"To move a player, press on him and drag your finger to a square, then let go. Drag Roy to the lit square.", hl:['p:A_RO','c:10,2'], allow:['r:A_RO'],
       reject:function(){ return tutMovedWrong('A_RO',10,2); }, until:function(){ return tutMovedTo('A_RO',10,2); }},
     {say:"You can also tap: tap Belanger, then tap his lit square.", hl:['p:A_BE','c:10,8'], allow:['p:A_BE','c:10,8'], until:function(){ return tutPlanHas('A_BE','move'); }},
