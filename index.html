@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Deck v491</title>
+<title>Hockey Deck v492</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1241,7 +1241,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v491';
+var GAME_VERSION='v492';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1295,7 +1295,7 @@ function aiBonusPlan(p, release){
     if(bt) return [{kind:'pass', id:p.id, target:bt.id}];
     return [];
   }
-  var opts=freeMoves(p, moveBudget(p)).filter(function(o){ return reachOK(p, p.c, p.r, o.c, o.r) && lineClearOf(p.c, p.r, o.c, o.r, occBy(p.id)); });   // v443 : ligne droite degagee
+  var opts=freeMoves(p, moveBudget(p)).filter(function(o){ return reachOK(p, p.c, p.r, o.c, o.r) && (lineClearOf(p.c, p.r, o.c, o.r, occBy(p.id)) || !!detourPath(p, p.c, p.r, o.c, o.r, whoAt(p.id))); });   // v443 : ligne droite degagee ; v492 : ou contournable
   if(car){
     // v442 : un coequipier deja dans la zone -> le porteur n'y entre pas (ni pour patiner court + tirer) : attend la remise en jeu
     var mateIn=false, arr=onIceSkaters(AI_TEAM); for(var j=0;j<arr.length;j++){ if(arr[j].id!==p.id && inOffZone(AI_TEAM, arr[j].c)) mateIn=true; }
@@ -1347,11 +1347,12 @@ function resolveSeqDefStepCore(seq){
   if(!df || !df.onIce) return null;
   if(dMove.role){ var _rt=defRoleTarget(dMove.role); if(_rt){ dMove.toC=_rt.c; dMove.toR=_rt.r; } }   // v383 : cible recalculee au moment du coup
   var pb=dMove.path ? {blocker:null} : pathBlocked(df, dMove.toC, dMove.toR);   // v410 : un trace se revalide case par case
-  var tc=pb.blocker?pb.spot.c:dMove.toC, tr=pb.blocker?pb.spot.r:dMove.toR;
-  if(pb.blocker) pushLog('<b>'+pb.blocker.name+'</b> blocks the lane — '+df.name+' stops short.');
-  var spot=dMove.path ? (routeSpot(df, dMove.path, 'def') || {c:df.c, r:df.r}) : landSpot(df, tc, tr, {});   // v410 : trace dessine
+  var _ddt=(!dMove.path && (pb.blocker||pb.mate)) ? detourPath(df, df.c, df.r, dMove.toC, dMove.toR, whoAt(df.id)) : null;   // v492 : la defense contourne aussi
+  var tc=(pb.blocker&&!_ddt)?pb.spot.c:dMove.toC, tr=(pb.blocker&&!_ddt)?pb.spot.r:dMove.toR;
+  if(pb.blocker && !_ddt) pushLog('<b>'+pb.blocker.name+'</b> blocks the lane — '+df.name+' stops short.');
+  var spot=_ddt ? detourSpot(df, _ddt) : (dMove.path ? (routeContacts(df, routeSpot(df, dMove.path, 'def')) || {c:df.c, r:df.r}) : landSpot(df, tc, tr, {}));   // v410 : trace dessine
   var _cvd=dMove.path ? {c:df.c, r:df.r} : slideToward(df, dMove.toC, dMove.toR, {}), _dT={c:dMove.toC, r:dMove.toR};   // v408 : lance dans le mauvais sens -> la COURBE si elle rapproche plus que le freinage
-  if(_cvd.path && cheb(_cvd,_dT) < cheb(spot,_dT)) spot=_cvd;
+  if(!_ddt && _cvd.path && cheb(_cvd,_dT) < cheb(spot,_dT)) spot=_cvd;
   if(spot.c===df.c && spot.r===df.r) return null;
   var oc=df.c, orr=df.r;
   S.checkRun={id:df.id, dist:Math.max(Math.abs(spot.c-oc), Math.abs(spot.r-orr))};
@@ -1448,9 +1449,11 @@ function resolveSeq(seq){
     var _bend=(a.viaC!=null && a.viaR!=null && planCanBendMove(p, a.viaC, a.viaR, a.toC, a.toR));   // trace coude valide : on passe par le point de virage
     var _crv=!!(a.path && a.path.length);   // v408 : COURBE planifiee (virage serre, elan garde)
     var _pb=(_bend||_crv)?{blocker:null}:pathBlocked(p, a.toC, a.toR);
-    var _cut0=!_bend && !_crv && (_pb.spot.c!==a.toC || _pb.spot.r!==a.toR);   // v443 : adversaire OU coequipier sur la ligne -> arret devant
+    var _dt0=(!_bend && !_crv && (_pb.blocker||_pb.mate)) ? detourPath(p, p.c, p.r, a.toC, a.toR, whoAt(p.id)) : null;   // v492 : il contournera (revalide apres le defenseur)
+    var _cut0=!_bend && !_crv && !_dt0 && (_pb.spot.c!==a.toC || _pb.spot.r!==a.toR);   // v443 : adversaire OU coequipier sur la ligne -> arret devant
     var atc=_cut0?_pb.spot.c:a.toC, atr=_cut0?_pb.spot.r:a.toR;
-    if(_pb.blocker) pushLog('<b>'+_pb.blocker.name+'</b> stands in the way — '+p.name+' has to stop.');
+    if(_dt0){}   // v492 : pas d'arret : il contourne
+    else if(_pb.blocker) pushLog('<b>'+_pb.blocker.name+'</b> stands in the way — '+p.name+' has to stop.');
     else if(_pb.mate) pushLog(p.name+' pulls up behind '+_pb.mate.name+'.');
     if(!_bend && !_crv && Math.max(Math.abs(atc-p.c), Math.abs(atr-p.r))>stepMax(p)){
       pushLog(p.name+' cannot cover that much ice in one move.');
@@ -1466,11 +1469,13 @@ function resolveSeq(seq){
     // Le defenseur vient de bouger : il a pu se GLISSER dans le couloir du porteur. On revalide le
     // chemin pour ne JAMAIS traverser un adversaire (bug : passer par-dessus un joueur).
     if(_bend && !planCanBendMove(p, a.viaC, a.viaR, a.toC, a.toR)){ _bend=false; atc=a.viaC; atr=a.viaR; }   // coude desormais bloque -> on vise le point de virage en ligne droite
-    if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr); if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
+    var _det=null;   // v492 : le chemin du contournement, positions du moment (le defenseur a pu bouger)
+    if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr); if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id)); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
       else if(_pb2.mate){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog(p.name+' pulls up behind '+_pb2.mate.name+'.'); } }   // v443
     var oc=p.c, orr=p.r, sp;
-    if(_crv){   // v408 : l'arc est revalide case par case (un joueur a pu s'y glisser) : il s'arrete avant
-      var _rsp=routeSpot(p, a.path, 'atk');   // v410 : part de ce tour du trace, revalidee ; la suite est rangee sur le joueur
+    if(_det){ skateToSpot(p, detourSpot(p, _det)); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
+    else if(_crv){   // v408 : l'arc est revalide case par case (un joueur a pu s'y glisser) : il s'arrete avant
+      var _rsp=routeContacts(p, routeSpot(p, a.path, 'atk'));   // v492 : contacts du contournement   // v410 : part de ce tour du trace, revalidee ; la suite est rangee sur le joueur
       if(!_rsp || _rsp.blocked) pushLog(p.name+' is cut off in his turn and stops short.');
       // v428 : PASSE DANS LE TRAJET -- la passe suivante le vise a la case k : il s'arrete la ; le reste du trajet
       // (memes cases, meme elan de fin) se joue avec la rondelle dans l'etape de la passe (routePassRest)
@@ -1493,7 +1498,7 @@ function resolveSeq(seq){
     if(!a.cont) mirrorMoveNow(seq, p, oc, orr, sp.c, sp.r);   // le partenaire miroir suit gratuitement ; v410 : jamais sur une suite de trace
     var _mv=[]; for(var _mid in (S._rankMoves||{})){ var _mq=byId(_mid); if(_mq && _mq.team===p.team) _mv.push(_mid); } resolveCrossDuels(_mv);   // v432 : contact au croisement (sans rondelle)
     if(S.diag) pushLog(p.name+' : '+oc+','+orr+(_bend?(' \u2192 '+a.viaC+','+a.viaR):'')+(_crv?' (curve)':'')+' \u2192 '+p.c+','+p.r);
-    if(!_bend && !_crv && (sp.c!==atc||sp.r!==atr)) pushLog(p.name+' is cut off and stops short.');
+    if(!_det && !_bend && !_crv && (sp.c!==atc||sp.r!==atr)) pushLog(p.name+' is cut off and stops short.');
     if(sp.c===oc && sp.r===orr && S.puckOwner===p.id) checkFx('stuffed', oc, orr);   // porteur stoppe net (aucune progression) : indice visuel STOPPED (grise)
     // v429 : RYTHME -- receveur d une passe in stride (dans la course / dans le trajet) arrive a la case : la passe part
     // AVEC son patinage (meme rendu), vole le temps du patinage, pas de pause. Sauf si un defenseur vient de se coller
@@ -2943,8 +2948,9 @@ function routeCancel(){ S.route=null; }
 // v415 : RONDELLE LIBRE -- ton geste peut etre une courbe (goutte) ou un trace dessine : il fait la part de ce geste le
 // long de l'arc ; s'il passe SUR la rondelle il s'arrete dessus et la ramasse ; la suite tombe (la phase change vite).
 function isHumanLoose(){ return !S.planning && !S.defCommit && !!S.puckLoose && !S.puckOwner && S.turn===HUMAN_TEAM && S.gestes>0 && !S.animating && !S.paused && !S.gameEnded; }
-function doMoveRouteLoose(p, path){
-  var sp=routeSpot(p, path, 'atk'); clearSel();
+function doMoveRouteLoose(p, path, det){
+  var sp=routeSpot(p, path, 'atk'); if(sp && det){ sp.around=lineBlockers(p.c, p.r, sp.c, sp.r, whoAt(p.id)); }   // v492 : le contournement propose (rondelle libre)
+  sp=routeContacts(p, sp); clearSel();
   if(!sp){ spend(); return; }
   var L=S.puckLoose, cut=null;
   if(L){ for(var i=0;i<sp.path.length;i++){ if(sp.path[i].c===L.c && sp.path[i].r===L.r){ cut=i; break; } } }
@@ -2987,7 +2993,10 @@ function computeOptions(){
         var _mkind=(_mdc===-_mf.dc)?'back':'fwd';   // binaire : plus de pivot, pleine portee des deux cotes
         _seen[_key]=1; _next.push({c:x,r:y});
         if(Math.max(Math.abs(x-_st0.c),Math.abs(y-_st0.r)) > planBudget(p, Math.sign(x-_st0.c), Math.sign(y-_st0.r))) continue;   // v384 : ligne de course
-        if(!lineClearOf(_st0.c, _st0.r, x, y, function(a,b){ return S.planning ? !!ghostBusy(a,b,p.id) : occBy(p.id)(a,b); })) continue;   // v443 : personne ne traverse personne
+        if(!lineClearOf(_st0.c, _st0.r, x, y, function(a,b){ return S.planning ? !!ghostBusy(a,b,p.id) : occBy(p.id)(a,b); })){   // v443 : personne ne traverse personne...
+          var _dp=detourPath(p, _st0.c, _st0.r, x, y, S.planning ? function(a,b){ return ghostBusy(a,b,p.id); } : whoAt(p.id));   // v492 : ... mais on contourne
+          if(_dp && _dp.path.length<=planBudget(p, Math.sign(x-_st0.c), Math.sign(y-_st0.r))) S.moves.push({c:x, r:y, kind:_mkind, curve:true, path:_dp.path, detour:true});
+          continue; }
         S.moves.push({c:x,r:y,kind:_mkind});
       }
     }
@@ -3368,13 +3377,31 @@ function routeStep(p, fc, fr, path, st){
 // part de ce tour revalidee case par case (un joueur sur le chemin l'arrete juste avant ; le reste tombe alors)
 function routeSpot(p, path, kind, avoidC, avoidR){
   if(!p || !path || !path.length) return null;
-  var rs=routeStep(p, p.c, p.r, path), cells=[], blocked=false;
+  var rs=routeStep(p, p.c, p.r, path), cells=[], blocked=false, around=[];
   for(var i=0;i<rs.n;i++){ var q=path[i], o=pieceAt(q.c,q.r);
+    if(o && o.id!==p.id && i+1<rs.n && canBypass(p, o)){   // v492 : un joueur s'est mis sur le trace -> un pas de cote, le trace reprend
+      var sd=routeSide(p, cells.length?cells[cells.length-1]:{c:p.c, r:p.r}, path[i+1], q, avoidC, avoidR);
+      if(sd){ cells.push(sd); around.push(o); continue; } }
     if(!onIce(q.c,q.r) || (o && o.id!==p.id) || (q.c===avoidC && q.r===avoidR)){ blocked=true; break; }
     cells.push(q); }
   if(!cells.length) return null;
   var end=cells[cells.length-1];
-  return {c:end.c, r:end.r, path:cells, keep:rs.gentle && !blocked, rest:blocked?[]:path.slice(rs.n), kind:kind||'atk', blocked:blocked};
+  return {c:end.c, r:end.r, path:cells, keep:rs.gentle && !blocked, rest:blocked?[]:path.slice(rs.n), kind:kind||'atk', blocked:blocked, around:around};
+}
+// v492 : la case de cote -- voisine de la case d'avant ET de la suivante, libre ; vers le centre a egalite
+function routeSide(p, pv, nx, q, avoidC, avoidR){
+  var best=null;
+  for(var k=0;k<DIRS8.length;k++){ var x=q.c+DIRS8[k][0], y=q.r+DIRS8[k][1], s={c:x, r:y};
+    if(!onIce(x,y) || (x===avoidC && y===avoidR) || cheb(s,pv)!==1 || cheb(s,nx)!==1) continue;
+    var o=pieceAt(x,y); if(o && o.id!==p.id) continue;
+    if(!best || Math.abs(y-CTR_R)<Math.abs(best.r-CTR_R)) best=s; }
+  return best;
+}
+// a la resolution : les contacts d'un trace qui a contourne (journal, accrochage, -1 elan)
+function routeContacts(p, sp){
+  if(sp && sp.around && sp.around.length){ sp.path=bypassContacts(p, sp.path, sp.around); var e=sp.path[sp.path.length-1]; sp.c=e.c; sp.r=e.r;
+    if(p._detourLoss>1){ sp.rest=[]; sp.keep=false; } }
+  return sp;
 }
 function reachOK(p, fc, fr, tc, tr, st){ var d=Math.max(Math.abs(tc-fc),Math.abs(tr-fr)); if(!d) return true; return d <= dirBudget(p, Math.sign(tc-fc), Math.sign(tr-fr), st); }
 // v381 : une cible au-dela du budget d'elan est RAMENEE sur la trajectoire (on avance au max vers elle)
@@ -3403,7 +3430,7 @@ function markSkated(p, fromC, fromR, toC, toR){
 }
 // v407 : ELAN = DISTANCE PATINEE (plafonnee). Avant : +1 cran d'acceleration par patinage, meme pour 1 case
 // (2 petits pas = pleine vitesse). Patiner a fond accelere comme avant (2 -> 4 -> 5) ; patiner court = freiner.
-function skatedMom(p){ return Math.min(ceilingMom(p), Math.max(p._skatedDist||0, p._curveKeep||0)); }   // v408 : une COURBE garde l'elan d'entree
+function skatedMom(p){ return Math.max(0, Math.min(ceilingMom(p), Math.max(p._skatedDist||0, p._curveKeep||0)) - (p._detourLoss||0)); }   /* v492 : -1 apres un contournement (accroche : tout) */   // v408 : une COURBE garde l'elan d'entree
 // GLISSEMENT / inertie visible (v379) : apres chaque geste, les pieces non commandees derivent sur leur elan.
 function clampGlideOffside(p, spot){
   // s'arrete avant la bleue si l'entree en zone offensive serait illegale (jamais de sifflet)
@@ -3450,7 +3477,7 @@ function resolveGlide(){
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction){ p.mom=skatedMom(p); }   // v384 : depuis l'elan garde (angle)
     else if((p.mom||0)>0){ var g=glide(p); if(g && !got) got=g; p.mom=Math.max(0, p.mom-2); }   // v384 : frottement -2
-    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0;
+    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0;
   }
   return got;
 }
@@ -3470,7 +3497,7 @@ function seqStepMomentum(){
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction){ p.mom=skatedMom(p); p._skatedLastStep=true; p._skatedInPlan=true; }   // v384 : depuis l'elan garde (angle) ; v393 : a patine pendant ce plan
     else p._skatedLastStep=false;
-    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0;
+    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0;
   }
 }
 // v384 : elan de depart d'un joueur qui vient de patiner = l'elan GARDE selon l'angle de son virage (markSkated)
@@ -3481,7 +3508,7 @@ function flushPlanMomentum(){
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction) p.mom=skatedMom(p);
-    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._skatedLastStep=false; p._skatedInPlan=false;
+    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0; p._skatedLastStep=false; p._skatedInPlan=false;
   }
 }
 function seqEndGlide(){
@@ -3511,7 +3538,7 @@ function planState(p){
     var base=d1?keptMom(st.mom, st.vel, d1.dc, d1.dr):st.mom, vEnd=d1;
     if(bent){ var d2=seg(a.viaC,a.viaR,a.toC,a.toR); if(d2){ base=keptMom(base, d1, d2.dc, d2.dr); vEnd=d2; } }
     var _dist=bent ? (cheb(cur,{c:a.viaC,r:a.viaR})+cheb({c:a.viaC,r:a.viaR},{c:a.toC,r:a.toR})) : cheb(cur,{c:a.toC,r:a.toR});
-    if(_dist>0) st.mom=Math.min(ceilingMom(p), _dist); if(vEnd) st.vel=vEnd;   // v407 : elan = distance patinee (base/angle : deja dans la portee autorisee)
+    if(_dist>0) st.mom=Math.min(ceilingMom(p), _dist); if(a.detour) st.mom=Math.max(0, st.mom-1); if(vEnd) st.vel=vEnd;   /* v492 : -1 elan apres un contournement */   // v407 : elan = distance patinee (base/angle : deja dans la portee autorisee)
     cur={c:a.toC, r:a.toR};
   }
   return st;
@@ -3933,6 +3960,67 @@ function lineClearOf(fc, fr, tc, tr, busy){
   return true;
 }
 function occBy(exceptId){ return function(x,y){ var o=pieceAt(x,y); return !!(o && o.id!==exceptId); }; }
+// v492 : CONTOURNER UN JOUEUR (choix du concepteur, spec 2026-10-10-contourner-un-joueur-design.md). Au lieu de s'arreter
+// derriere un joueur sur sa ligne, on se decale d'une case et on passe : un coequipier ; un adversaire si on n'a pas la
+// rondelle ; jamais le porteur (son contact reste), jamais un gardien.
+function whoAt(exceptId){ return function(x,y){ var o=pieceAt(x,y); return (o && o.id!==exceptId) ? o : null; }; }
+function canBypass(p, o){
+  if(!p || !o || p.type!=='sk' || o.type!=='sk' || ownsPuck(o.id)) return false;
+  return o.team===p.team || !ownsPuck(p.id);
+}
+// les joueurs sur la ligne droite (fc,fr)->(tc,tr), cases intermediaires (meme trace que pathBlocked / lineClearOf)
+function lineBlockers(fc, fr, tc, tr, who){
+  var dx=Math.sign(tc-fc), dy=Math.sign(tr-fr), n=Math.max(Math.abs(tc-fc), Math.abs(tr-fr)), out=[];
+  for(var k=1;k<n;k++){ var x=fc+dx*Math.min(k,Math.abs(tc-fc)), y=fr+dy*Math.min(k,Math.abs(tr-fr)), o=who(x,y); if(o) out.push(o); }
+  return out;
+}
+// le chemin du contournement : le plus court en pas de roi, a au plus 1 case de la ligne droite, sans aucun joueur ;
+// egalite -> le plus pres de la ligne, puis le cote du centre. {path:[cases sans le depart], around:[contournes], to} ou null
+function detourPath(p, fc, fr, tc, tr, who){
+  if(!p || (fc===tc && fr===tr) || !onIce(tc,tr) || who(tc,tr)) return null;
+  var around=lineBlockers(fc, fr, tc, tr, who); if(!around.length) return null;
+  for(var i=0;i<around.length;i++) if(!canBypass(p, around[i])) return null;
+  var lx=tc-fc, ly=tr-fr, LL=lx*lx+ly*ly, maxLen=Math.max(Math.abs(lx), Math.abs(ly))+1, best=null, bs=null, path=[];
+  function off(x,y){ var t=Math.max(0, Math.min(1, ((x-fc)*lx+(y-fr)*ly)/LL)), px=fc+lx*t-x, py=fr+ly*t-y; return Math.sqrt(px*px+py*py); }
+  function score(){ var a=0, b=0; for(var j=0;j<path.length;j++){ a+=off(path[j].c, path[j].r); b+=Math.abs(path[j].r-CTR_R); } return [path.length, a, b]; }
+  function better(s){ for(var j=0;j<3;j++){ if(s[j]<bs[j]-1e-9) return true; if(s[j]>bs[j]+1e-9) return false; } return false; }
+  (function dfs(x, y){
+    if(x===tc && y===tr){ var s=score(); if(!best || better(s)){ best=path.slice(); bs=s; } return; }
+    if(path.length+Math.max(Math.abs(tc-x), Math.abs(tr-y))>(best?best.length:maxLen)) return;
+    for(var k=0;k<DIRS8.length;k++){ var nx=x+DIRS8[k][0], ny=y+DIRS8[k][1];
+      if(!onIce(nx,ny) || (nx===fc && ny===fr) || off(nx,ny)>1.01 || who(nx,ny)) continue;
+      var seen=false; for(var j=0;j<path.length;j++) if(path[j].c===nx && path[j].r===ny){ seen=true; break; }
+      if(seen) continue;
+      path.push({c:nx, r:ny}); dfs(nx, ny); path.pop(); }
+  })(fc, fr);
+  return best ? {path:best, around:around, to:{c:tc, r:tr}} : null;
+}
+function hookProb(p, o){ return Math.max(0.05, Math.min(0.40, 0.20 + 0.004*(effPhys(o)-effPhys(p)))); }   // 20 % a physique egal, 5-40 %
+// a la resolution : chaque joueur contourne, dans l'ordre ; un ADVERSAIRE peut accrocher (de) -> arret sur la case a
+// cote de lui, elan 0, la suite tombe. Journal, evenement 3D 'brush'. Appeler AVANT de deplacer p. Rend le chemin.
+function bypassContacts(p, path, around){
+  var sx=p.c, sy=p.r, end=path[path.length-1], dx=end.c-sx, dy=end.r-sy, dl=Math.sqrt(dx*dx+dy*dy)||1, held=null;
+  function along(q){ return ((q.c-sx)*dx+(q.r-sy)*dy)/dl; }
+  for(var i=0;i<around.length;i++){ var o=around[i], k=-1, kd=1e9;
+    for(var j=0;j<path.length;j++){ if(cheb(path[j],o)!==1) continue; var dd=Math.abs(along(path[j])-along(o)); if(dd<kd-1e-9){ kd=dd; k=j; } }
+    if(k<0 || kd>0.75) continue;   // pas arrive a sa hauteur (portee coupee avant) : pas de contact
+    if(o.team!==p.team){
+      var ok=tutLuck(1-hookProb(p,o), p.team===HUMAN_TEAM);
+      matchEv('brush', {id:p.id, on:o.id, held:!ok, at:k+1});   // at : rang de la case de cote (pas k : matchRec s'en sert)
+      if(!ok){ held=o; path=path.slice(0, k+1); pushLog('<b>'+o.name+'</b> hooks '+p.name+' — he is held up.'); break; }
+    }
+    pushLog(p.name+' skates around '+o.name+'.');
+  }
+  p._detourLoss=held ? 99 : 1;   // -1 elan (choix du concepteur) ; accroche : elan 0
+  if(held) p.route=null;
+  return path;
+}
+function detourSpot(p, dt){   // le contournement en ligne droite : portee (diagonale : une case plus tot), contacts
+  var path=dt.path, lim=dirBudget(p, Math.sign(dt.to.c-p.c), Math.sign(dt.to.r-p.r));
+  if(path.length>lim) path=path.slice(0, Math.max(1, lim));
+  path=bypassContacts(p, path, dt.around);
+  var e=path[path.length-1]; return {c:e.c, r:e.r, path:path, keep:false};
+}
 function landSpot(p, tc, tr, taken){
   var _cl=clampToBudget(p, tc, tr); tc=_cl.c; tr=_cl.r;   // v381 : cible trop loin -> on avance au max vers elle (plus d'annulation a 0 case)
   function free(x,y){
@@ -4059,6 +4147,7 @@ function planPush(a){
   if(_att) a.att=true;
   S.atkPlan.push(a);
   if(a.kind==='move'){ S.ghost[a.id]={c:a.toC,r:a.toR,viaC:a.viaC,viaR:a.viaR,path:a.path?a.path.slice(0,a.n):null,rest:a.path?a.path.slice(a.n):null}; if(!a.cont){ var _mg=mirrorGhostTarget(byId(a.id), a.toC, a.toR); if(_mg) S.ghost[_mg.id]={c:_mg.c, r:_mg.r, mirror:true}; } }   // v410 : pas de miroir sur une suite   // apercu du deplacement (+ point de virage) miroir du partenaire
+  if(a.kind==='move' && a.detour && a.dpath && S.ghost[a.id]){ S.ghost[a.id].path=a.dpath.slice(); S.ghost[a.id].rest=[]; }   // v492 : le fantome montre le contournement
   if(a.kind==='pass' || a.kind==='bank') S.ghost['PUCK']={to:a.target};   // v457
   if(a.kind==='bankgo') S.ghost[a.id]={c:a.toC, r:a.toR, path:a.path.slice(), rest:[]};   // v457 : sa course
   if(a.kind==='cycle'){ var _cc=byId(a.id), _ct=byId(a.target);
@@ -4948,8 +5037,8 @@ function slideToward(e,tc,tr,taken){ var M=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-
 function doMove(p,c,r){
   if(S.planning){ var _mvc=null; for(var _mi=0;_mi<S.moves.length;_mi++){ if(S.moves[_mi].c===c && S.moves[_mi].r===r && S.moves[_mi].curve){ _mvc=S.moves[_mi]; break; } }
     if(S.bankGoAim===p.id){ bankGoSetRun(p, _mvc ? _mvc.path.slice() : bankLine(p, c, r)); return; }   // v457 : la course du bank and go
-    planPush(_mvc ? {kind:'move', id:p.id, toC:c, toR:r, path:_mvc.path} : {kind:'move', id:p.id, toC:c, toR:r}); return; }   // v408 : une case de COURBE garde son arc
-  if(S.sel===p.id) for(var _mj=0;_mj<S.moves.length;_mj++){ if(S.moves[_mj].c===c && S.moves[_mj].r===r && S.moves[_mj].curve){ doMoveRouteLoose(p, S.moves[_mj].path); return; } }   // v415 : hors plan (rondelle libre), une goutte suit aussi son arc
+    planPush(_mvc ? (_mvc.detour ? {kind:'move', id:p.id, toC:c, toR:r, detour:true, dpath:_mvc.path} : {kind:'move', id:p.id, toC:c, toR:r, path:_mvc.path}) : {kind:'move', id:p.id, toC:c, toR:r}); return; }   // v492 : contournement = ligne droite revalidee a la resolution   // v408 : une case de COURBE garde son arc
+  if(S.sel===p.id) for(var _mj=0;_mj<S.moves.length;_mj++){ if(S.moves[_mj].c===c && S.moves[_mj].r===r && S.moves[_mj].curve){ doMoveRouteLoose(p, S.moves[_mj].path, S.moves[_mj].detour); return; } }   // v415 : hors plan (rondelle libre), une goutte suit aussi son arc
   S.pendingReveal=null;
   var scr = !S.puckOwner && !!S.puckLoose;
   if(!S.coachPush && !scr && S.hiddenDef && S.defRevealIdx<S.hiddenDef.length){
@@ -5481,7 +5570,7 @@ function crossDuelProb(a, b, la, lb){ return Math.max(0.10, Math.min(0.90, 0.50 
 function stopAtCrossing(p, pts, idx){   // le perdant s arrete juste avant le croisement (case libre la plus proche en remontant sa course)
   for(var s=idx;s>=0;s--){ var c=pts[s], o=pieceAt(c.c,c.r);
     if(!o || o.id===p.id){ if(p.c!==c.c || p.r!==c.r){ p.c=c.c; p.r=c.r; addSlide(p.id, pts[0].c-c.c, pts[0].r-c.r); } break; } }
-  p.mom=0; p.speed=0; p._skatedThisAction=false; p._skatedDist=0; p._curveKeep=0; p._turnBase=null; p.route=null;
+  p.mom=0; p.speed=0; p._skatedThisAction=false; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0; p._turnBase=null; p.route=null;
 }
 // sans rondelle : duel physique au croisement ; le gagnant passe, le perdant est stoppe ; note pour les penalites
 function resolveCrossDuels(ids){
@@ -9089,7 +9178,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":128852,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":130596,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
