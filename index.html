@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v497</title>
+<title>Deck 3D v498</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1246,7 +1246,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v497';
+var GAME_VERSION='v498';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4343,8 +4343,8 @@ function tbTimerFrac(){ var tot=(S.defCommit||goalieHolding())?((goalieHolding()
 function updateThumbTimer(){
   var g=document.getElementById('tbGo'); if(!g || g.style.display==='none') return;
   var ring=g.querySelector('.tbring'), sec=g.querySelector('.tbsec');
-  if(ring) ring.style.setProperty('--p', timersOn() ? String(Math.round(tbTimerFrac()*1000)/10) : '100');   // v496 : contre l'IA, anneau plein
-  if(sec) sec.textContent=(S.tut || !timersOn()) ? '' : (Math.max(0,Math.ceil(S.planClock==null?0:S.planClock))+'s');   // v451 : pas de minuteur en lecon
+  if(ring) ring.style.setProperty('--p', gkTimerOn() ? String(Math.round(tbTimerFrac()*1000)/10) : '100');   // v496 : contre l'IA, anneau plein (v498 : sauf gardien)
+  if(sec) sec.textContent=(S.tut || !gkTimerOn()) ? '' : (Math.max(0,Math.ceil(S.planClock==null?0:S.planClock))+'s');   // v451 : pas de minuteur en lecon
 }
 // v399 : pendant la RESOLUTION, la barre du pouce montre les etapes du plan (un jeu attache fusionne avec son
 // patinage : « Skate + Shoot »), faite / en cours / a venir selon seq.rank, la derniere phrase du journal et Pause.
@@ -6579,12 +6579,12 @@ function paintClock(){
   var ae=document.getElementById('actClk');
   if(ae && S.defCommit){ var _dt2=Math.max(0,Math.ceil(S.planClock===null?0:S.planClock));
     var _gh2=goalieHolding();
-    ae.textContent=(_gh2?'GOALIE':'AMBUSH')+(timersOn()?' '+_dt2+'s':'');   // v496 : pas de secondes contre l'IA
-    ae.className='actclk '+(_gh2?'gk':'def')+((timersOn() && (_gh2?_dt2<=2:_dt2<=5))?' hot':''); }
+    ae.textContent=(_gh2?'GOALIE':'AMBUSH')+(gkTimerOn()?' '+_dt2+'s':'');   // v496 : pas de secondes contre l'IA (v498 : sauf gardien)
+    ae.className='actclk '+(_gh2?'gk':'def')+((gkTimerOn() && (_gh2?_dt2<=2:_dt2<=5))?' hot':''); }
   else if(ae && S.planning){ var _t=Math.max(0,Math.ceil(S.planClock===null?0:S.planClock));
     var _gh=goalieHolding();
-    ae.textContent=(_gh?'GOALIE':'PLAN')+(timersOn()?' '+_t+'s':'');   // v496
-    ae.className='actclk '+(_gh?'gk':'plan')+((timersOn() && (_gh?_t<=2:_t<=5))?' hot':''); }
+    ae.textContent=(_gh?'GOALIE':'PLAN')+(gkTimerOn()?' '+_t+'s':'');   // v496 (v498 : sauf gardien)
+    ae.className='actclk '+(_gh?'gk':'plan')+((gkTimerOn() && (_gh?_t<=2:_t<=5))?' hot':''); }
   else if(ae && S.gkClock!==null){ ae.textContent='GOALIE '+Math.max(0,Math.ceil(S.gkClock))+'s'; ae.className='actclk gk'+(S.gkClock<=1.5?' hot':''); }
   else if(ae){ ae.textContent=''; ae.className='actclk'; }
   updateThumbTimer();   /* v389 : anneau de minuterie du GO */
@@ -6594,7 +6594,7 @@ function paintClock(){
 // v470 : la jauge de temps du telephone (bande de gauche, sous la mini-carte) -- plan, embuscade, gardien
 function paintVTimer(){
   var el=document.getElementById('vTimer'); if(!el) return;
-  var on=isVRink() && !S.tut && timersOn() && (S.planning || S.defCommit) && S.planClock!==null && S.planClock!==undefined;   // v496 : pas de jauge contre l'IA
+  var on=isVRink() && !S.tut && gkTimerOn() && (S.planning || S.defCommit) && S.planClock!==null && S.planClock!==undefined;   // v496 : pas de jauge contre l'IA (v498 : sauf gardien)
   if(!on){ el.style.display='none'; return; }
   var gk=!!goalieHolding(), tot=gk?GK_SECS:PLAN_SECS, t=Math.max(0, S.planClock), secs=Math.ceil(t), frac=Math.max(0, Math.min(1, t/tot));
   var mp=document.getElementById('vMap'); el.style.top=(mp && mp.style.display!=='none' && mp.offsetHeight) ? (mp.offsetTop+mp.offsetHeight+8)+'px' : (mp && mp.style.display==='none' ? '6px' : '');
@@ -6642,31 +6642,34 @@ function rushedShot(){
 // v496 (choix du concepteur) : les minuteurs (plan, embuscade, viser le tir, ton gardien, echappee) seulement contre un
 // VRAI joueur (S.vsHuman, a venir). Contre l'IA, on prend son temps : GO quand on est pret.
 function timersOn(){ return !!(typeof S!=='undefined' && S && S.vsHuman); }
+// v498 (choix du concepteur : « on garde le timer quand le gardien a la rondelle finalement », les DEUX gardiens) : meme
+// contre l'IA, le minuteur de 3 s tourne des qu'un gardien a la rondelle (ton plan, ton embuscade, ton gardien hors plan).
+function gkTimerOn(){ return timersOn() || !!goalieHolding(); }
 function clockTick(){
   if(S.tut){ paintClock(); return; }   // v451 : lecon -- aucun minuteur ne tourne
   if(S.paused){ paintClock(); return; }
   if(S.defCommit){
     if(!clockPaused()){
-      if(timersOn()){   // v496 : le minuteur seulement contre un vrai joueur ; la fin de periode (0:00) reste
+      if(gkTimerOn()){   // v496 : le minuteur seulement contre un vrai joueur ; la fin de periode (0:00) reste ; v498 : ou un gardien a la rondelle
       S.planClock=Math.max(0, (S.planClock===null?PLAN_SECS:S.planClock)-0.1);   // v440 : le chrono de PERIODE ne tourne plus pendant la reflexion
       var _dt=Math.ceil(S.planClock);
       if(_dt<=5 && _dt>0 && _dt!==S.planBeep){ S.planBeep=_dt; sfx('tick'); }
       }
       paintClock();
-      if(timersOn() && S.planClock<=0){ S.planClock=null; confirmDefCommit(true); return; }
+      if(gkTimerOn() && S.planClock<=0){ S.planClock=null; confirmDefCommit(true); return; }
       if(S.clock<1){ endPeriod(); return; }   // v442 : 0:00 au tableau
     } else paintClock();
     return;
   }
   if(S.planning){
     if(!clockPaused()){
-      if(timersOn()){   // v496 : le minuteur seulement contre un vrai joueur ; la fin de periode (0:00) reste
+      if(gkTimerOn()){   // v496 : le minuteur seulement contre un vrai joueur ; la fin de periode (0:00) reste ; v498 : ou un gardien a la rondelle
       S.planClock=Math.max(0, (S.planClock===null?PLAN_SECS:S.planClock)-0.1);   // v440 : le chrono de PERIODE ne tourne plus pendant la reflexion
       var _pt=Math.ceil(S.planClock);
       if(_pt<=5 && _pt>0 && _pt!==S.planBeep){ S.planBeep=_pt; sfx('tick'); }
       }
       paintClock();
-      if(timersOn() && S.planClock<=0){
+      if(gkTimerOn() && S.planClock<=0){
         S.planClock=null;
         var _gk=goalieHolding();
         if(_gk && ghostOwner()===_gk.id){ S.planning=false; S.atkPlan=[]; S.ghost={}; renderPlanBar(); gkFreeze(_gk); return; }
@@ -6689,7 +6692,7 @@ function clockTick(){
   if(clockPaused()){ paintClock(); return; }
   var _c1=S.clock; S.clock=Math.max(0, S.clock-0.1); penClockDown(_c1-S.clock);   // v445 : le banc suit le chrono
   var _gk=goalieHolding();
-  if(_gk && (timersOn() || _gk.team!==HUMAN_TEAM)){   // v496
+  if(_gk){   // v498 : ton gardien aussi (v496 l'avait enleve contre l'IA)
     if(S.gkClock===null){ S.gkClock=GK_SECS; S.gkBeep=0; }
     S.gkClock=Math.max(0, S.gkClock-0.1);
     var _gt=Math.ceil(S.gkClock);
