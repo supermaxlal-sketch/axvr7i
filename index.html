@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v500</title>
+<title>Deck 3D v501</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1250,7 +1250,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v500';
+var GAME_VERSION='v501';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3933,6 +3933,7 @@ function looseBall(team, prio){ decaySpeed(S.turn); S.foPress=null; S.seqDef=nul
       // personne ne conteste de proche : le mieux place la ramasse
       if(takeLooseSolo(_L, function(p){ gainPuck(p.team); })) return;
     }
+    cineExit();   // v501 (rapport du concepteur) : phase de CHOIX -> la camera 3D remonte (avant : elle restait en bas, dans l'action)
     setHint('Loose puck — one move each until someone picks it up.'); tipTrigger('loose');   // v456
     render(); }, TEMPO.slide); }
 function passTurn(){
@@ -4684,7 +4685,7 @@ function blockOrderCheck(p,t){
 }
 function confirmDefCommit(force){ var dc=S.defCommit; if(!dc) return;
   var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); if(!force && dc.picks.length<maxn) return; if(S.tut) S.tut.ambushes=(S.tut.ambushes||0)+1;   /* v451 */ S.hiddenDef=[]; S.defOrders=[]; for(var _pi=0;_pi<dc.picks.length;_pi++){ var _pk=dc.picks[_pi]; if(_pk.kind==='order'){ S.defOrders.push({defId:_pk.defId, order:_pk.order, markId:_pk.markId||null, used:false}); } else { S.hiddenDef.push({defId:_pk.defId, toC:_pk.toC, toR:_pk.toR, order:_pk.order||null, path:_pk.path||null}); } }
-  if(S.hiddenDef.length<PLAN_N && !S.tut) pushLog('<span style="color:#9fb6cd">Time up — only '+S.hiddenDef.length+' defensive move'+(S.hiddenDef.length===1?' was':'s were')+' set.</span>');
+  if(S.hiddenDef.length<PLAN_N && !S.tut) pushLog('<span style="color:#9fb6cd">'+(force==='time' ? 'Time up — only ' : 'Only ')+S.hiddenDef.length+' defensive move'+(S.hiddenDef.length===1?' was':'s were')+' set.</span>');
   S.defRevealIdx=0; S.defCommit=null; S.planClock=null; S.moves=[]; S.ghost={}; clearSel();
   if(S.activeStrat && S.activeStrat.team===AI_TEAM){   // l'IA joue sa strategie : TA defense (hiddenDef) bouge en meme temps via stratDefMove
     render(); setHint('The '+TEAM_NAME[AI_TEAM]+' run their strategy — your ambush moves too.');
@@ -6666,7 +6667,7 @@ function clockTick(){
       if(_dt<=5 && _dt>0 && _dt!==S.planBeep){ S.planBeep=_dt; sfx('tick'); }
       }
       paintClock();
-      if(gkTimerOn() && S.planClock<=0){ S.planClock=null; confirmDefCommit(true); return; }
+      if(gkTimerOn() && S.planClock<=0){ S.planClock=null; confirmDefCommit('time'); return; }   // v501 : 'time' -> « Time up »
       if(S.clock<1){ endPeriod(); return; }   // v442 : 0:00 au tableau
     } else paintClock();
     return;
