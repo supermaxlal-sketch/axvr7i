@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v498</title>
+<title>Deck 3D v499</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -258,6 +258,7 @@
 .ov.menu .mcard{background:linear-gradient(165deg,#16283b,#0b1622);border:2px solid #26435f;border-radius:16px;padding:20px 18px;width:min(340px,90vw);box-shadow:0 12px 34px rgba(0,0,0,.55);}
 .mtitle{font-size:24px;font-weight:900;color:#fff;text-align:center;}
 .msub{font-size:12px;color:#9fb6cd;text-align:center;margin-bottom:14px;}
+.mmsg{font-size:12px;color:#ffb36b;text-align:center;margin-bottom:6px;}   /* v499 : reprise impossible */
 .mbtn{display:block;width:100%;margin-top:9px;background:#243a52;color:#eaf2fb;border:1px solid #34557a;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;text-align:center;}
 .mbtn.play{background:#1f8a8a;border-color:#2fbf7a;font-size:17px;}
 .mbtn.sm{width:auto;margin:0;padding:6px 14px;font-size:13px;}
@@ -974,6 +975,8 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
 <div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
 <div class="ov menu" id="mainMenu"><div class="mcard"><div class="mtitle">🏒 Hockey Deck</div><div class="msub">Strategy hockey</div>
+<div class="mmsg" id="mmMsg" style="display:none"></div>
+<button class="mbtn play" id="mmResume" style="display:none"></button>
 <button class="mbtn play" id="mmQuick">▶️ Quick Play</button>
 <button class="mbtn" id="mmPlay">🏒 Play — choose lineup</button>
 <button class="mbtn" id="mmSettings">⚙️ Settings</button>
@@ -981,6 +984,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <button class="mbtn" id="mmPractice">🏋️ Practice</button>
 <button class="mbtn dis" disabled>🌐 Online 1v1 — soon</button>
 <button class="mbtn" id="mmCareer">🏆 Career</button></div></div>
+<div class="ov pause" id="resumeAsk" style="z-index:260"><div class="wcard"><div class="wicon">💾</div><div class="wbig">SAVED MATCH</div><div class="wsub" id="raText"></div><button class="dconfirm" id="raResume" style="margin-top:12px">▶ Resume it</button><button class="dconfirm" id="raNew" style="margin-top:8px">Start a new game</button><button class="dconfirm" id="raCancel" style="margin-top:8px">Cancel</button></div></div>
 <div class="ov menu" id="settingsPanel"><div class="mcard"><div class="mtitle">⚙️ Settings</div>
 <div class="setrow"><label>🥅 Goal volume</label><input type="range" id="setGoal" min="0.6" max="2.4" step="0.1"><span class="setv" id="setGoalV"></span></div>
 <div class="setrow"><label>🎯 Missed shots (board rebounds)</label><input type="range" id="setWide" min="0" max="0.35" step="0.01"><span class="setv" id="setWideV"></span></div>
@@ -1246,7 +1250,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v498';
+var GAME_VERSION='v499';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2244,6 +2248,7 @@ function startPieces(){
 var S;
 function newGame(firstTeam){
   firstTeam=firstTeam||'A';
+  MSAVE_ON=false; mmMsg('');   // v499 : on sauvegarde seulement un match lance par le joueur (MSAVE_ON=true la-bas)
   if(CAREER_MATCH) careerTrackReset();   // v484 : un match de carriere (re)commence : compteur a zero
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
@@ -4419,6 +4424,7 @@ function startExchange(){
   if(S.defCommit) return;   // tu poses ton embuscade : on ne recommence pas
   if(S.currentSeq && !S.currentSeq.dead) return;   // une sequence joue encore : on nen empile pas une autre
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> plus de nouvelle possession
+  if(S.puckOwner) matchSave('x');   // v499 : moment calme -- la reprise rejoue ce debut d'echange
   var _pow=S.puckOwner?byId(S.puckOwner):null; if(_pow && penStop(_pow.team)) return;   // v445 : l equipe fautive a la rondelle -> sifflet
   penRelease();   // v445 : les punis dont le temps est fini reviennent
   flushPlanMomentum();   // v393 : une sequence coupee (passe, tir, contact) compte quand meme l'elan de ses gestes
@@ -6912,6 +6918,7 @@ function deployLineup(){
 }
 function startFaceoffRPS(dotC,dotR,reset){
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
+  matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
   cineExit();   // CINE : mise au jeu = phase de CHOIX -> la camera remonte
   if(reset){ S.pieces=applyPerks(startPieces());
@@ -7112,6 +7119,7 @@ function gameOver(winner){
   document.getElementById('goTitle').textContent='Win for the '+TEAM_NAME[winner]+' !';
   document.getElementById('goScore').textContent=TEAM_NAME.A+' '+S.score.A+'  –  '+S.score.B+' '+TEAM_NAME.B;
   document.getElementById('gameoverOverlay').classList.add('show'); careerGameOverButtons();   // v483
+  if(CAREER_MATCH) matchSave('over'); else matchSaveClear();   // v499 : carriere -> gardee jusqu'au resultat ; partie rapide -> effacee
   render();
 }
 
@@ -8071,7 +8079,7 @@ document.getElementById('draftAuto').onclick=autoFillDraft;
 // --- MENU PRINCIPAL / SETTINGS ---
 function _show(id){ var e=document.getElementById(id); if(e) e.classList.add('show'); }
 function _hide(id){ var e=document.getElementById(id); if(e) e.classList.remove('show'); }
-function showMainMenu(){ _hide('settingsPanel'); _show('mainMenu'); }
+function showMainMenu(){ _hide('settingsPanel'); _show('mainMenu'); matchSaveMenu(); }   // v499 : « Resume match » s'il y a une partie sauvegardee
 function draftIsOpen(){ var d=document.getElementById('draftOverlay'); return !!(d && d.classList.contains('show')); }
 function autoStratDraft(){   // choisit 3 stratégies (2 off + 1 def) pour le joueur puis confirme, et ferme l'écran stratégies
   var offs=STRAT_POOL.filter(function(x){return STRATS[x].side==='off';});
@@ -8080,8 +8088,8 @@ function autoStratDraft(){   // choisit 3 stratégies (2 off + 1 def) pour le jo
   confirmStratDraft();
   var ov=document.getElementById('stratDraftOverlay'); if(ov){ ov.classList.remove('show'); ov.style.display='none'; }
 }
-function mmQuickPlay(){ TIPS_ARMED=true;   /* v456 */ _hide('mainMenu'); _hide('settingsPanel'); if(!draftIsOpen()) newGame('A'); autoStratDraft(); autoFillDraft(); confirmDraft(); }   // saute tout : stratégies auto + alignement optimal -> face-off direct
-function mmPlay(){ TIPS_ARMED=true;   /* v456 */ _hide('mainMenu'); _hide('settingsPanel'); if(!draftIsOpen()) newGame('A'); tipTrigger('draft'); tipFlush(); }   // draft manuel
+function mmQuickPlay(){ if(matchAsk(mmQuickPlay)) return;   /* v499 : une partie sauvegardee -> on demande d'abord */ TIPS_ARMED=true;   /* v456 */ _hide('mainMenu'); _hide('settingsPanel'); if(!draftIsOpen()) newGame('A'); MSAVE_ON=true; autoStratDraft(); autoFillDraft(); confirmDraft(); }   // saute tout : stratégies auto + alignement optimal -> face-off direct
+function mmPlay(){ if(matchAsk(mmPlay)) return;   /* v499 */ TIPS_ARMED=true;   /* v456 */ _hide('mainMenu'); _hide('settingsPanel'); if(!draftIsOpen()) newGame('A'); MSAVE_ON=true; tipTrigger('draft'); tipFlush(); }   // draft manuel
 function loadSettings(){ try{ var g=localStorage.getItem('hjGoal'); if(g!==null) SHOT_BOOST=parseFloat(g); var w=localStorage.getItem('hjWide'); if(w!==null) WIDE_BASE=parseFloat(w); }catch(e){} }
 function syncSettings(){
   var g=document.getElementById('setGoal'); g.value=SHOT_BOOST; document.getElementById('setGoalV').textContent=SHOT_BOOST.toFixed(1)+'x';
@@ -8245,11 +8253,13 @@ function careerSnapColors(){   // pour la 3D, par cote : {p : chandail, s : band
 }
 applyTeamLooks();   // au chargement : les Caribous en blanc (partie rapide)
 function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversaire = B
+  if(matchSaveIsToday(matchSaveRead())) return matchResume();   // v499 : ce match est sauvegarde -> on le reprend
+  if(matchAsk(careerStartMatch)) return false;   // v499 : une autre partie est sauvegardee -> on demande d'abord
   var g=CAREER && careerMyGame(CAREER); if(!g) return false;
   CAREER_MATCH={my:CAREER.my, opp:g.home===CAREER.my?g.away:g.home, home:g.home, day:CAREER.day, po:!!g.po};
   careerAiPrep(CAREER.teams[CAREER_MATCH.opp]);   // v489 : l'adversaire repose ses fatigues et choisit son gardien
   CAREER_MATCH.roster={A:careerMatchRoster(CAREER.teams[CAREER_MATCH.my]), B:careerMatchRoster(CAREER.teams[CAREER_MATCH.opp])};   // fixe pour tout le match
-  careerApplyLook(); _hide('careerOverlay'); _hide('mainMenu'); TIPS_ARMED=true; newGame('A'); return true;
+  careerApplyLook(); _hide('careerOverlay'); _hide('mainMenu'); TIPS_ARMED=true; newGame('A'); MSAVE_ON=true; return true;
 }
 function careerGameOverButtons(){ var cc=document.getElementById('btnCareerContinue'), ng=document.getElementById('btnNewGame');
   if(cc) cc.style.display=CAREER_MATCH?'':'none'; if(ng) ng.style.display=CAREER_MATCH?'none':''; }
@@ -8411,13 +8421,14 @@ function careerDayEnd(c){   // v489 : apres la journee : la blessure avance pour
 }
 function careerFinishMatch(){   // le resultat compte, le reste du jour est simule, on sauvegarde, retour a la carriere
   if(!CAREER || !CAREER_MATCH) return;
+  matchSaveClear();   // v499 : le resultat compte -> plus rien a reprendre
   var g=careerMyGame(CAREER), a=S.score.A, b=S.score.B, ot=!!S._endOT;
   CAREER.last={opp:CAREER_MATCH.opp, gf:a, ga:b, ot:ot, po:!!CAREER_MATCH.po};
   CAREER.report=careerProgress();   // v484 : l'experience de tes joueurs, le bilan
   careerPlayDay(CAREER, (g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot} : {hs:b, as:a, ot:ot});
   careerSave(); careerClearLook(); _hide('gameoverOverlay'); newGame('A'); careerGo('report', true);   // v484 : le bilan d'abord
 }
-function careerExitMatch(){ if(S.paused) togglePause(); careerClearLook(); newGame('A'); careerGo('hub'); }   // un match quitte ne compte pas
+function careerExitMatch(){ matchSaveClear(); if(S.paused) togglePause(); careerClearLook(); newGame('A'); careerGo('hub'); }   // un match quitte ne compte pas
 function careerRand(){ return Math.random(); }
 function careerNew(myKey){   // une carriere neuve : les 24 equipes, ton equipe (une equipe du Quebec, D3), le calendrier
   var c={v:1, season:1, my:myKey, day:0, phase:'regular', teams:{}, divs:{1:[],2:[],3:[]}, schedule:{}, results:[], playoffs:null, history:[], next:null, last:null, uid:0};
@@ -8661,10 +8672,10 @@ function careerRender(){
     if(CAREER_MSG) h+='<div class="cmsg">'+CAREER_MSG+'</div>';
     var g=careerMyGame(c);
     if(c.phase==='regular' && g){ var op=g.home===c.my?g.away:g.home;
-      h+='<div class="cnext">Round '+(c.day+1)+' of '+c.schedule[d].length+' — '+(g.home===c.my?'vs':'at')+' <b>'+careerEsc(c.teams[op].full)+'</b></div><button class="mbtn play" id="careerPlay" onclick="careerStartMatch()">▶ Play</button>'; }
+      h+='<div class="cnext">Round '+(c.day+1)+' of '+c.schedule[d].length+' — '+(g.home===c.my?'vs':'at')+' <b>'+careerEsc(c.teams[op].full)+'</b></div><button class="mbtn play" id="careerPlay" onclick="careerStartMatch()">'+careerPlayLbl()+'</button>'; }
     else if(c.phase==='playoffs'){ var sr=careerMySeries(c), P=c.playoffs[d];
       if(sr){ var op2=sr.a===c.my?sr.b:sr.a, mw=sr.a===c.my?sr.wa:sr.wb, ow=sr.a===c.my?sr.wb:sr.wa;
-        h+='<div class="cnext">'+(P.final===sr?'Final':'Semi-final')+', game '+(sr.games.length+1)+' — vs <b>'+careerEsc(c.teams[op2].full)+'</b> (series '+mw+'–'+ow+')</div><button class="mbtn play" id="careerPlay" onclick="careerStartMatch()">▶ Play</button>'; }
+        h+='<div class="cnext">'+(P.final===sr?'Final':'Semi-final')+', game '+(sr.games.length+1)+' — vs <b>'+careerEsc(c.teams[op2].full)+'</b> (series '+mw+'–'+ow+')</div><button class="mbtn play" id="careerPlay" onclick="careerStartMatch()">'+careerPlayLbl()+'</button>'; }
       else h+='<div class="cnext">Playoffs: your team is out. The others play on.</div><button class="mbtn play" id="careerSim" onclick="careerSimDay()">⏩ Simulate the playoffs</button>'; }
     else if(c.phase==='done') h+='<button class="mbtn play" onclick="careerGo(\'season\')">🏆 Season summary</button>';
     h+='<div class="crow"><button class="mbtn sm" onclick="careerGo(\'standings\')">Standings</button><button class="mbtn sm" onclick="careerGo(\'schedule\')">Schedule</button><button class="mbtn sm" onclick="careerGo(\'roster\')">Roster</button><button class="mbtn sm" onclick="careerGo(\'save\')">Save file</button></div>';
@@ -9353,8 +9364,89 @@ var AI_TIMER=setInterval(function(){
   if(S.aiPlan) return;   // elle a un plan pose, elle attend ta confirmation
   if(!S.puckOwner && S.puckLoose && S.gestes>0){  aiScrambleMove(); return; }
 }, 520);
-document.getElementById('btnNewGame').onclick=function(){ newGame('A'); };
+document.getElementById('btnNewGame').onclick=function(){ newGame('A'); MSAVE_ON=true; };   // v499 : une nouvelle partie rapide se sauvegarde
 (function(){ var taims=document.querySelectorAll('#saim .taim'); for(var i=0;i<taims.length;i++){ (function(b){ b.onclick=function(){ onShotTarget(b.getAttribute('data-t')); }; })(taims[i]); } var cx=document.getElementById('saimCancel'); if(cx) cx.onclick=cancelAim; })();
+
+/* ===== v499 : REPRENDRE UN MATCH (choix du concepteur : « A + pause auto ») =====
+   Un telephone ferme souvent la page en arriere-plan -> au retour, elle se recharge. La partie se sauvegarde donc dans le
+   navigateur a chaque moment calme (debut d'echange : ton plan / ton embuscade ; mise au jeu ; fin d'un match de
+   carriere), et « Resume match » la reprend la. Jamais la base de l'artifact (reservee a la carriere, v485). Lecons et
+   pratique : jamais. Page cachee -> pause automatique. Spec : docs/superpowers/specs/2026-10-11-reprendre-un-match-design.md */
+var MSAVE_KEY='hjMatchSave', MSAVE_ON=false, RA_NEXT=null;
+// les champs passagers remis a zero a la reprise (animation, sequence, plan, embuscade, visee, minuteurs, selection...)
+var MSAVE_FRESH={animating:false, paused:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
+  planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, defCommit:null, aiming:null, aimClock:null, aimBeep:0, gkClock:null, gkBeep:0,
+  sel:null, slides:{}, moves:[], passT:[], duelT:[], bankT:[], dumpT:[], pokeT:[], battle:null, battleOn:null, faceoff:null, lunge:null, slide:null,
+  celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null};
+function mmMsg(t){ var e=document.getElementById('mmMsg'); if(e){ e.textContent=t||''; e.style.display=t?'':'none'; } }
+function matchSave(kind, args){
+  if(!MSAVE_ON || !S || S.tut || tutPractice()) return;
+  if(S.gameEnded && kind!=='over') return;
+  try{ localStorage.setItem(MSAVE_KEY, JSON.stringify({v:1, ver:GAME_VERSION, t:Date.now(), kind:kind, args:args||[], S:S,
+      career:CAREER_MATCH ? {m:CAREER_MATCH, log:CAREER_LOG} : null,
+      label:{per:S.overtime ? 'OT' : ('P'+S.period), clk:fmtClock(S.clock), a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B}})); }catch(e){}
+}
+function matchSaveClear(){ try{ localStorage.removeItem(MSAVE_KEY); }catch(e){} }
+function matchSaveRead(){   // la sauvegarde, ou null (illisible -> effacee)
+  var t=null; try{ t=localStorage.getItem(MSAVE_KEY); }catch(e){ return null; }
+  if(!t) return null;
+  try{ var d=JSON.parse(t); if(d && d.v===1 && d.S && d.S.pieces && d.S.pieces.length && d.S.score && d.label) return d; }catch(e){}
+  matchSaveClear(); return null;
+}
+function matchSaveLabel(d){ var L=d.label; return '▶️ Resume match — '+L.per+' '+L.clk+' · '+L.a+' '+L.sa+'–'+L.sb+' '+L.b; }
+function matchSaveMenu(){ var b=document.getElementById('mmResume'); if(!b) return; var d=matchSaveRead();
+  if(d){ b.textContent=matchSaveLabel(d); b.style.display=''; } else { b.textContent=''; b.style.display='none'; } }
+function matchSaveIsToday(d){   // la sauvegarde est-elle le match du jour de TA carriere ?
+  if(!d || !d.career || !d.career.m) return false;
+  if(!CAREER) CAREER=careerLoad();
+  var m=d.career.m, g=CAREER && careerMyGame(CAREER);
+  return !!(g && CAREER.my===m.my && CAREER.day===m.day && g.home===m.home && (g.home===m.my ? g.away : g.home)===m.opp && !!g.po===!!m.po);
+}
+function careerPlayLbl(){ return matchSaveIsToday(matchSaveRead()) ? '▶️ Resume match' : '▶ Play'; }
+function matchAsk(next){   // une partie sauvegardee : on demande avant d'en commencer une autre
+  var d=matchSaveRead(); if(!d) return false;
+  RA_NEXT=next; document.getElementById('raText').textContent='You have a match in progress: '+matchSaveLabel(d).replace('▶️ Resume match — ','')+'. Start a new game and lose it?';
+  _show('resumeAsk'); return true;
+}
+function matchResume(){
+  var d=matchSaveRead(); if(!d){ matchSaveMenu(); return false; }
+  try{
+    if(d.career){
+      if(!matchSaveIsToday(d)) throw new Error('the career has moved on');
+      CAREER_MATCH=d.career.m; CAREER_LOG=d.career.log; if(!CAREER_LOG) careerTrackReset(); careerApplyLook();
+    } else if(CAREER_MATCH){ careerClearLook(); }
+    if(S && S.currentSeq) killSeq(S.currentSeq);
+    var s=d.S;
+    if(!byIdIn(s, 'A_TH') && !s.pieces.some(function(q){ return q && q.type==='g' && q.team==='A'; })) throw new Error('no goalie');
+    for(var k in MSAVE_FRESH){ var v=MSAVE_FRESH[k]; s[k]=(v && typeof v==='object') ? JSON.parse(JSON.stringify(v)) : v; }
+    s.diag=DIAG_ON; S=s; MSAVE_ON=true;
+    _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';
+    ['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','pauseOverlay','draftOverlay','tipOverlay','resumeAsk','settingsPanel','careerOverlay','tutMenu','mainMenu'].forEach(_hide);
+    var so=document.getElementById('stratDraftOverlay'); if(so){ so.classList.remove('show'); so.style.display='none'; }
+    TIPS_ARMED=true; mmMsg(''); clearTrails(); renderDefBar(); renderPlanBar();
+    pushLog('<b>Match resumed</b> — '+matchSaveLabel(d).replace('▶️ Resume match — ','')+'.');
+    if(d.kind==='fo') startFaceoffRPS(d.args[0], d.args[1], d.args[2]);
+    else if(d.kind==='over'){ S.overtime=!!S._endOT; S.gameEnded=false; gameOver(S.score.A>S.score.B ? 'A' : 'B'); }
+    else startExchange();
+    render(); return true;
+  }catch(e){
+    if(window.console) console.error('match resume', e);
+    matchSaveClear(); try{ careerClearLook(); }catch(e2){}
+    newGame('A'); showMainMenu(); mmMsg('The saved match could not be resumed.'); return false;
+  }
+}
+function byIdIn(s, id){ for(var i=0;i<s.pieces.length;i++) if(s.pieces[i] && s.pieces[i].id===id) return s.pieces[i]; return null; }
+function matchAutoPause(){   // la page est cachee (telephone verrouille, autre appli) : la partie se met en pause
+  if(!S || S.paused || S.gameEnded || S.needDraft || S.tut) return;
+  var mm=document.getElementById('mainMenu'), co=document.getElementById('careerOverlay');
+  if((mm && mm.classList.contains('show')) || (co && co.classList.contains('show'))) return;
+  togglePause();
+}
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden') matchAutoPause(); });
+document.getElementById('mmResume').onclick=matchResume;
+document.getElementById('raResume').onclick=function(){ _hide('resumeAsk'); RA_NEXT=null; matchResume(); };
+document.getElementById('raNew').onclick=function(){ _hide('resumeAsk'); matchSaveClear(); matchSaveMenu(); var f=RA_NEXT; RA_NEXT=null; if(f) f(); };
+document.getElementById('raCancel').onclick=function(){ _hide('resumeAsk'); RA_NEXT=null; };
 
 loadSettings();
 newGame('A');
