@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Deck v494</title>
+<title>Hockey Deck v495</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1246,7 +1246,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v494';
+var GAME_VERSION='v495';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3176,6 +3176,114 @@ function boardSim(x0,y0,dx,dy,power,P,cols,rows){
 var BOARD_PHYS={rest:0.52, board:0.05, ice:0.009, corner:28*0.3048/2*MARK_SCALE};
 // forces (labo) : chaque jeu interpole entre sa valeur « courte » et « longue » selon la distance
 var PUCK_POW={wideNear:15, wideFar:26, dumpShort:14, dumpLong:19, passShort:8, passLong:12, rebound:7};
+// v495 : LES POTEAUX (spec 2026-10-10-poteaux-design, etape 2). Le bloc ci-dessous est le code du labo des poteaux
+// (rebond-sim.html, onglet Poteaux), copie TEL QUEL (batterie 406) ; IRON_DEF = les reglages du concepteur au labo.
+// ===== POTEAUX : IDENTIQUE DANS LE JEU (etape 2). Cases en x, y et z (1 case = 2 m) ; pas de temps 1/50 s. =====
+// Depart juste avant le cadre (poteau ou barre), sur la trajectoire du tir ; u = ou il le frappe (-1 : interieur /
+// dessous, 0 : plein centre, +1 : exterieur / dessus). Puis : gravite, glace, bandes (loi du jeu), vitre, hors jeu,
+// filet (dedans = but ; de l'exterieur, il amortit), autres chocs sur le cadre.
+var IRON_GEO={puckR:0.019, ironR:0.015, half:0.4575, barZ:0.61, depth:0.56, boardZ:0.535, stop:0.006, g:4.905/2500};
+var IRON_DEF={ePost:0.25, postF:0.2, jitter:0.12, kick:0.3, eGlass:0.35, eIce:0.25, land:0.5, glassEnd:1.755, glassSide:1.295};   // land : vitesse perdue en retombant (elle culbute)
+function ironSim(sh, P, G){
+  var rnd=sh.rnd||Math.random, g=IRON_GEO, R=g.ironR+g.puckR, gx=G.goalX, yL=G.netY-g.half, yR=G.netY+g.half;
+  var sp=(sh.speed||30)*(0.9+0.2*rnd())/2/50, u=(sh.u!=null)?sh.u:(rnd()*2-1);
+  var tx=gx, ty, tz;
+  if(sh.target==='bar'){ ty=G.netY+((sh.h!=null)?sh.h:(rnd()*2-1)*(g.half-0.06)); tz=g.barZ; }
+  else { ty=(sh.target==='L')?yL:yR; tz=(sh.h!=null)?sh.h:(0.02+rnd()*0.55); }
+  var dx=tx-sh.x, dy=ty-sh.y, dl=Math.hypot(dx,dy)||1; dx/=dl; dy/=dl;
+  var x=tx-dx*0.6, y=ty-dy*0.6, z=tz, vx=dx*sp, vy=dy*sp, vz=0;
+  if(sh.target==='bar') z=tz+u*R*0.95;   // au-dessus du centre de la barre -> elle monte ; dessous -> elle descend
+  else { var px=-dy, py=dx, inw=((G.netY-ty)*py>=0)?1:-1, b=-u*R*0.95*inw; x+=px*b; y+=py*b; }   // u<0 : passe a l'interieur
+  var e=P.rest, mu=P.board, f=P.ice, rC=Math.max(0, P.corner-0.5), maxX=G.cols-1, maxY=G.rows-1;
+  var pts=[{c:x, r:y, z:z}], glass=false, out=false, inNet=false, posts=0, guard=0;
+  function frame(){   // le cadre le plus proche : 2 poteaux (verticaux) et la barre
+    var best=null, segs=[[gx,yL,0,gx,yL,g.barZ],[gx,yR,0,gx,yR,g.barZ],[gx,yL,g.barZ,gx,yR,g.barZ]];
+    for(var k=0;k<3;k++){ var s=segs[k], cx=s[0], cy=Math.max(Math.min(s[1],s[4]), Math.min(Math.max(s[1],s[4]), y)), cz=Math.max(Math.min(s[2],s[5]), Math.min(Math.max(s[2],s[5]), z));
+      var d=Math.hypot(x-cx, y-cy, z-cz); if(!best || d<best.d) best={d:d, cx:cx, cy:cy, cz:cz}; }
+    return best;
+  }
+  while(guard++<4000 && !out && !inNet){
+    var spd=Math.hypot(vx,vy,vz);
+    if(z<=1e-4 && Math.abs(vz)<1e-4 && Math.hypot(vx,vy)<g.stop) break;
+    var sub=Math.max(1, Math.ceil(spd/0.01));   // pas de 2 cm : la rondelle ne traverse jamais le cadre (6,8 cm de contact)
+    for(var s=0;s<sub && !out && !inNet;s++){
+      var ox=x, oz=z;
+      x+=vx/sub; y+=vy/sub; z+=vz/sub; vz-=g.g/sub;
+      if(z<0){ z=0; if(vz<0){ if(-vz>0.01){ vx*=(1-P.land); vy*=(1-P.land); } vz=-vz*P.eIce; if(vz<0.002) vz=0; } }   // elle retombe : culbute
+      // dans le but : la ligne franchie entre les poteaux, sous la barre, vers le filet
+      if((ox-gx)*G.dirX<0 && (x-gx)*G.dirX>=0 && y>yL+g.puckR && y<yR-g.puckR && z<g.barZ-g.puckR){ inNet=true; break; }
+      // le cadre (poteaux, barre) : choc
+      var fr=frame();
+      if(fr.d<R && fr.d>1e-9){ var nx=(x-fr.cx)/fr.d, ny=(y-fr.cy)/fr.d, nz=(z-fr.cz)/fr.d, vn=vx*nx+vy*ny+vz*nz;
+        x=fr.cx+nx*R; y=fr.cy+ny*R; z=fr.cz+nz*R;
+        if(vn<0){ var tvx=vx-vn*nx, tvy=vy-vn*ny, tvz=vz-vn*nz, tl0=Math.hypot(tvx,tvy,tvz), jn0=-(1+P.ePost)*vn, kt=tl0>0?Math.max(0,tl0-P.postF*jn0)/tl0:0;   // ressort + frottement (Coulomb)
+          vx=tvx*kt-P.ePost*vn*nx; vy=tvy*kt-P.ePost*vn*ny; vz=tvz*kt-P.ePost*vn*nz; posts++;
+          var j=(rnd()*2-1)*P.jitter, cj=Math.cos(j), sj=Math.sin(j), qx=vx*cj-vy*sj; vy=vx*sj+vy*cj; vx=qx;
+          vz+=(rnd()*1.5-0.5)*P.kick*Math.hypot(vx,vy); } }
+      // le filet de l'exterieur (cotes, dessus, arriere) : il amortit
+      var bx=(x-gx)*G.dirX;
+      if(!inNet && bx>0 && bx<g.depth && y>yL-0.03 && y<yR+0.03 && z<g.barZ){
+        if(oz>=g.barZ){ z=g.barZ; vz=0; vx*=0.3; vy*=0.3; } else { x=ox; vx*=-0.15; vy*=-0.15; } }
+      // bandes, coins, vitre, hors jeu
+      var cx2=x<rC?rC:(x>maxX-rC?maxX-rC:null), cy2=y<rC?rC:(y>maxY-rC?maxY-rC:null), hx=0, hy=0, hit=false, end=false;
+      if(cx2!==null && cy2!==null && rC>0){ var ddx=x-cx2, ddy=y-cy2, dd=Math.hypot(ddx,ddy);
+        if(dd>rC){ hx=ddx/dd; hy=ddy/dd; x=cx2+hx*rC; y=cy2+hy*rC; hit=true; end=true; } }
+      else { if(x<0){ x=0; hx=-1; hit=true; end=true; } else if(x>maxX){ x=maxX; hx=1; hit=true; end=true; }
+             if(y<0){ y=0; hy=-1; hit=true; } else if(y>maxY){ y=maxY; hy=1; hit=true; }
+             if(hx&&hy){ hx/=Math.SQRT2; hy/=Math.SQRT2; } }
+      if(hit){ if(z>=(end?P.glassEnd:P.glassSide)){ out=true; break; }
+        var up=z>=g.boardZ, ee=up?P.eGlass:e, vn2=vx*hx+vy*hy; if(up) glass=true;
+        if(vn2>0){ var tx2=vx-vn2*hx, ty2=vy-vn2*hy, tl=Math.hypot(tx2,ty2), jn=(1+ee)*vn2, dtt=Math.min(tl, mu*jn), kk=tl>0?(tl-dtt)/tl:0;
+          vx=tx2*kk-ee*vn2*hx; vy=ty2*kk-ee*vn2*hy; } }
+    }
+    if(z<=1e-4){ vx*=(1-f); vy*=(1-f); }
+    pts.push({c:x, r:y, z:z});
+  }
+  var ax=(gx-x)*G.dirX, dy0=Math.abs(y-G.netY);   // ax : devant la ligne de but (cases)
+  var res=inNet?'in':(out?'out':(glass?'glass':((ax>=0 && ax<=4 && dy0<=2.5)?'front':((ax>4 && dy0<=3.5)?'far':((ax<0 && dy0<=2)?'behind':'corner')))));
+  return {pts:pts, res:res, rest:{c:Math.max(0,Math.min(maxX,Math.round(x))), r:Math.max(0,Math.min(maxY,Math.round(y)))}, glass:glass, posts:posts};
+}
+// ===== FIN POTEAUX =====
+var IRON_RATE=0.05, IRON_IN=0.08;   // poteau / barre = 5 % des tirs cadres (LNH, pris dans les tirs a cote) ; 8 % des buts : poteau et dedans
+function ironShare(w){ return (w>0) ? Math.min(1, IRON_RATE*(1-w)/w) : 0; }   // la part des tirs a cote qui frappent le cadre (w = chance de rater de ce tir)
+// le tir frappe le cadre : TL / BL -> poteau gauche DU TIREUR, TR / BR -> droit, 5H -> au hasard ; haut (TL, TR) -> la barre
+// 40 %. Equipe A (vers x+) : sa gauche = rangee plus petite ('L'). mode 'miss' : elle ne rentre pas ; 'in' : elle rentre.
+function ironPick(sh, t, mode){
+  var dx=dir(sh.team), G={cols:COLS, rows:ROWS, goalX:goalCol(sh.team), dirX:dx, netY:CTR_R};
+  var left=(t==='TL'||t==='BL') ? true : ((t==='TR'||t==='BR') ? false : Math.random()<0.5);
+  var target=((t==='TL'||t==='TR') && Math.random()<0.4) ? 'bar' : ((left===(dx>0)) ? 'L' : 'R');
+  var P=Object.assign({}, BOARD_PHYS, IRON_DEF), sp=(shotDist(sh)>=6) ? 42 : 30;
+  for(var k=0;k<14;k++){ var u=(mode==='in') ? -(0.3+0.7*Math.random()) : (Math.random()*2-1);
+    var s=ironSim({x:sh.c, y:sh.r, target:target, u:u, speed:sp}, P, G);
+    if((mode==='in')===(s.res==='in')){ s.target=target; return s; } }
+  return null;
+}
+// le tir a frappe le cadre sans rentrer : POST! / CROSSBAR!, ding, journal ; la rondelle suit ironSim (la 3D recoit les
+// hauteurs) ; hors jeu -> sifflet, mise au jeu dans la zone ; devant le but -> le gardien est deroute ; sinon rondelle libre
+var IRON_TXT={out:'over the glass — out of play', glass:'off the glass and back down', front:'it drops right in front', far:'it pops out to the high slot', behind:'it dies behind the net', corner:'it kicks out to the corner'};
+function ironPlay(sh, t, sim){
+  var team=sh.team, bar=sim.target==='bar', word=bar?'crossbar':'post';
+  checkFx(bar?'bar':'post', sh.c, sh.r);
+  document.getElementById('outcome').innerHTML=sh.name+' hits the '+(bar?'CROSSBAR':'POST')+'!';
+  pushLog('<b>'+sh.name+'</b> rings it off the '+word+' — '+(IRON_TXT[sim.res]||'it stays out')+'.');
+  var p0=sim.pts[0]; matchEv('shot', {id:sh.id, target:t, res:word, iron:sim.target, ip:[Math.round(p0.c*100)/100, Math.round(p0.r*100)/100, Math.round(p0.z*1000)/1000]});   // ip : le point de contact (la 3D)
+  var pts=[{c:sh.c, r:sh.r, z:0.05}].concat(sim.pts), mp=[], pz=[], n=pts.length, step=Math.max(1, Math.ceil(n/60));
+  for(var i=0;i<n;i++){ if(i%step && i!==n-1) continue; mp.push([Math.round(pts[i].c*100)/100, Math.round(pts[i].r*100)/100]); pz.push(Math.round(pts[i].z*1000)/1000); }
+  matchEv('puck', {pts:mp, pz:pz, ms:Math.min(3000, 20*(n-1)), team:team});   // la 3D : la rondelle en l'air (hauteurs en cases)
+  S._puckCell={c:sh.c, r:sh.r}; S.puckOwner=null; S.puckLoose=null; S.animating=true; render();
+  flyPuckPath(pts, function(){
+    S.animating=false;
+    if(sim.res==='out'){ ironOut(team, sim); return; }
+    placeLooseNear(sim.rest.c, sim.rest.r); S.puckOwner=null; sfx('drop'); if(sim.res==='front') S._postDaze=true;   // le gardien est deroute
+    render(); looseBall(team, null);
+  }, true);
+}
+function ironOut(team, sim){   // par-dessus la vitre : arret de jeu, mise au jeu dans la zone attaquee, cercle du cote de la sortie
+  var last=sim.pts[sim.pts.length-1], dc=(team==='A') ? (NET_A-3) : (NET_B+3), dr=(last.r<CTR_R) ? (CTR_R-3) : (CTR_R+3);
+  S.puckOwner=null; S.puckLoose=null; S.animating=true; clearSel(); render();
+  pushLog('<b>Whistle!</b> The puck is out of play — faceoff in the zone.');
+  showWhistle(function(){ S.animating=false; startFaceoffRPS(dc, dr, false); }, '🥅', 'OUT OF PLAY', 'Off the iron and over the glass — faceoff in the zone');
+}
 // v441 : rebond du gardien -- vers l'avant (vers la glace), 25-75 deg sur le cote, force PUCK_POW.rebound
 function goalieReboundPath(gteam, gc, gr){ var out=dir(gteam), a=(Math.random()<0.5?-1:1)*(0.45+Math.random()*0.85);
   return puckPath(gc+out*0.6, gr, out*Math.cos(a), Math.sin(a), PUCK_POW.rebound); }
@@ -3188,8 +3296,8 @@ function puckPath(x0,y0,dx,dy,power){
   var pts=[]; for(var j=0;j<sim.pts.length;j++){ if(j===0 || j===sim.pts.length-1 || j%2===0 || hit[j]){ var q=sim.pts[j]; pts.push({c:q.c, r:q.r, b:!!hit[j]}); } }
   return {pts:pts, bounces:n, rest:sim.rest};
 }
-function flyPuckPath(pts, onDone){   // v441 : la rondelle suit la simulation image par image (vitesse reelle), clang a chaque contact
-  if(pts && pts.length>=2) matchEv('puck', {pts:matchPts(pts), ms:Math.min(1500, 450+(pts.length-1)*4)});   // v447
+function flyPuckPath(pts, onDone, noEv){   // v441 : la rondelle suit la simulation image par image (vitesse reelle), clang a chaque contact ; v495 : noEv (le poteau envoie le sien)
+  if(pts && pts.length>=2 && !noEv) matchEv('puck', {pts:matchPts(pts), ms:Math.min(1500, 450+(pts.length-1)*4)});   // v447
   var fp=document.getElementById('flypuck'); if(!fp || !pts || pts.length<2){ if(onDone) onDone(); return; }
   var N=pts.length-1, T=Math.min(1500, 450+N*4)/ANIM_RATE, t0=Date.now(), k=0;   // v463 : ANIM_RATE
   fp.style.display='block'; fp.style.transition='none';
@@ -3795,7 +3903,8 @@ function looseBall(team, prio){ decaySpeed(S.turn); S.foPress=null; S.seqDef=nul
     if(S.puckLoose && !S.puckOwner){
       var _L={c:S.puckLoose.c, r:S.puckLoose.r};
       var _cr=creaseRebound(_L);   // rebond d'enclave : le gardien le dispute selon la distance de l'attaquant
-      if(_cr && Math.random() < _cr.pGoalie){ goalieCoverRebound(_cr.gk, _L); return; }
+      var _dz=S._postDaze; S._postDaze=false;   // v495 : apres le poteau, devant le but, le gardien est deroute (2 fois moins)
+      if(_cr && Math.random() < _cr.pGoalie*(_dz?0.5:1)){ goalieCoverRebound(_cr.gk, _L); return; }
       var _pair=findBattlePair(_L);
       if(_pair){
         puckBattle(_pair, _L, function(champ){ gainPuck(champ.team); });
@@ -5024,7 +5133,7 @@ function commitHiddenDefense(){
 }
 // v399 : BULLES DE RESULTAT sur la glace (glace verticale). Au-dessus de la case de l'evenement, a l'endroit :
 // titre colore (sarcelle = reussi, rouge = rate) + la phrase du journal ; 2 bulles max ; disparait en ~2 s.
-var BUBBLE_T={onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
+var BUBBLE_T={post:'POST!',bar:'CROSSBAR!',onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
   shot:'SHOT',wide:'WIDE',save:'SAVE',blockshot:'SHOT BLOCKED',blockpass:'PASS BLOCKED',battle:'BATTLE',dekestop:'DEKE STOPPED',
   dumpin:'DUMP IN',dumpoff:'DUMP OFF',shield:'PROTECTED',stuffed:'STOPPED',blockmiss:'BLOCK MISSED',whiff:'BEATEN',blowby:'BLOWN BY'};
 var BUBBLE_MISS={otwhiff:1,passmiss:1,pokemiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
@@ -5070,12 +5179,12 @@ function iceBubble(type, c, r, fallback){
   setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1350);   // v405 : plus court (etait 2,3 s)
 }
 function checkFx(type, c, r){ var fx=document.getElementById('checkfx'); if(!fx) return; var txt=type==='body'?'BODY CHECK':(type==='poke'?'POKE !':(type==='whiff'?'BEATEN!':
-    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED'))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
+    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED'))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!';   /* v495 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
   if(type==='body'){ sfx('bang'); } else if(type==='poke'){ sfx('poke'); } else if(type==='block'){ sfx('block'); }
   else if(type==='shot'){ sfx('shot'); } else if(type==='pass'){ sfx('pass'); }
-  else if(type==='blockshot'||type==='blockpass'){ sfx('block'); } else if(type==='save'){ sfx('save'); }
-  var _crw={save:'ooh', wide:'ooh', blockshot:'ooh', body:'hit', blowby:'ooh'}[type]; if(_crw) crowd(_crw);   // v402 : la foule reagit a l'action
-  var BIG=(type==='body'||type==='shot'||type==='blockshot'||type==='blockpass'||type==='save');   // les gros coups (tirs + arrets/blocs) secouent la glace
+  else if(type==='blockshot'||type==='blockpass'){ sfx('block'); } else if(type==='save'){ sfx('save'); } else if(type==='post'||type==='bar'){ sfx('ding'); }   /* v495 */
+  var _crw={save:'ooh', wide:'ooh', blockshot:'ooh', body:'hit', blowby:'ooh', post:'ooh', bar:'ooh'}[type]; if(_crw) crowd(_crw);   // v402 : la foule reagit a l'action
+  var BIG=(type==='body'||type==='shot'||type==='blockshot'||type==='blockpass'||type==='save'||type==='post'||type==='bar');   // les gros coups (tirs + arrets/blocs) secouent la glace
   if(BIG){ var bd=document.querySelector('.board'); var bf=document.getElementById('boardflash');
     if(bd){ bd.classList.remove('shake'); void bd.offsetWidth; bd.classList.add('shake'); setTimeout(function(){ bd.classList.remove('shake'); }, 480); }
     if(bf){ bf.classList.remove('go'); void bf.offsetWidth; bf.classList.add('go'); setTimeout(function(){ bf.classList.remove('go'); }, 340); } }
@@ -6223,6 +6332,8 @@ function onShotTarget(t){
   if(_wideP > 0 && tutLuck(_wideP, sh.team!==HUMAN_TEAM)){   // v453 : etape guidee -> pas a cote
     S.aiming=null; S.oneTimerActive=false; S.deflector=null;
     document.getElementById('shotOverlay').classList.remove('show'); document.getElementById('saim').style.display='none';
+    var _ir=(Math.random()<ironShare(_wideP)) ? ironPick(sh, t, 'miss') : null;   // v495 : un tir rate de peu frappe le cadre (5 % des tirs cadres, LNH)
+    if(_ir){ ironPlay(sh, t, _ir); return; }
     // TIR WIDE : vrai rebond (modele du Puck Rebound Lab) — la rondelle rate le filet, sonne sur les bandes /
     // le coin arrondi et roule jusqu'a l'arret, au lieu du carom bricole d'avant.
     var _top = (sh.r<CTR_R) ? true : (sh.r>CTR_R ? false : Math.random()<0.5);    // rate haut ou bas
@@ -6259,6 +6370,7 @@ function onShotTarget(t){
   if(tutGuided() ? (team===HUMAN_TEAM) : (rl<prob)) res='goal';   // v453 : etape guidee -> le tir du joueur marque
   else if(relEff==='exact') res='catch';
   else res = (Math.random()<_rebP) ? 'rebound' : 'save';
+  var _pin=(res==='goal' && !_defl && Math.random()<IRON_IN) ? ironPick(sh, t, 'in') : null;   // v495 : poteau (barre) et dedans
   if(S.tut && res==='goal' && _ot && sh.team===HUMAN_TEAM) S.tut.otGoals=(S.tut.otGoals||0)+1;   // v454 : but sur one-timer
   S.aiming=null;
   var pct=Math.round(prob*100);
@@ -6266,11 +6378,12 @@ function onShotTarget(t){
   var relTxt = _defl ? ('Tipped by '+_defl.name+' — the goalie has no chance') : (rel==='exact' ? ('Goalie READ your shot ('+gShort+')') : (rel==='adjacent' ? ('Goalie right there ('+gShort+')') : ('Goalie went the wrong way ('+gShort+')')));
   var spec={noScene:_noScene, gc:gc, gr:gr, sid:sh.id, sc:sh.c, sr:sh.r, nc:goalCol(team), target:t, guess:guess, rel:rel, pct:pct, rollPct:Math.round(rl*100), res:res, quick:_ot, ctx:_scrTag+(_ot?((_otd?'ONE-TIMER tipped — ':'ONE-TIMER — ')+targetLabel(t)):'Aim '+targetLabel(t))+' — '+pct+'% · '+shName};
   countShotOnGoal(team);   // v438 : tir cadre (but, arret, rebond)
-  matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null});   // v447
+  matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null});   // v447 ; v495 : iron (poteau et dedans)
   animateShot2(spec, function(){
     if(res==='goal'){ S.score[team]++; document.getElementById('outcome').innerHTML='GOAL by '+shName+' !';
       // v404 : un but peut entrer meme si le gardien avait bien lu le tir -> le texte le dit (plus « Goalie READ your shot »)
       var goalTxt = _defl ? ('Tipped by '+_defl.name+' — the goalie had no chance') : (rel==='exact' ? ('the goalie read it ('+gShort+') but it beat him anyway') : (rel==='adjacent' ? ('the goalie was close ('+gShort+') but a step late') : ('the goalie went the wrong way ('+gShort+')')));
+      if(_pin){ sfx('ding'); goalTxt='off the '+(_pin.target==='bar'?'crossbar':'post')+' and in — '+goalTxt; }   // v495
       pushLog('<b>GOAL</b> for the '+TEAM_NAME[team]+' ('+shName+', '+targetLabel(t)+') — '+goalTxt+' — '+S.score.A+' a '+S.score.B+'.');
       S.animating=false; render(); celebrate(team,shName); return; }
     else if(res==='catch'){ sfx('save'); S.puckOwner=gid; document.getElementById('outcome').innerHTML='SAVE — '+gName+' gloves it clean!'; pushLog('<b>'+gName+'</b> read the shot ('+gShort+') — clean glove, the '+TEAM_NAME[gteam]+' break out.'); render(); gainPuck(gteam); }
@@ -6679,6 +6792,7 @@ function _swell(ac,t,o){ var src=ac.createBufferSource(); src.buffer=_noiseLong(
   var g=ac.createGain(), e=t+o.att+(o.hold||0); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002,o.vol),t+o.att); g.gain.setValueAtTime(Math.max(0.0002,o.vol),e); g.gain.exponentialRampToValueAtTime(0.0001,e+o.rel);
   src.connect(f); f.connect(g); g.connect(sfxBus(ac)); src.start(t, Math.random()*2); src.stop(e+o.rel+0.1); }
 var SFX={
+ ding:function(ac){ var t=ac.currentTime; [[1568,0.09,1.1],[2349,0.05,0.8],[3951,0.025,0.45]].forEach(function(h){ var o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=_rv(h[0],0.015); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(h[1],t+0.004); g.gain.exponentialRampToValueAtTime(0.0001,t+h[2]); o.connect(g); g.connect(sfxBus(ac)); o.start(t); o.stop(t+h[2]+0.05); }); _burst(ac,t,{hz:_rv(5200,0.08),q:6,vol:0.05,dur:0.012}); },   // v495 : le poteau qui sonne (ding)
  skate:function(ac){ var t=ac.currentTime; _burst(ac,t,{type:'bandpass',hz:_rv(3600,0.12),hz2:2100,q:0.8,vol:0.035,att:0.03,dur:0.16}); },   // lame qui creuse la glace
  pass:function(ac){ var t=ac.currentTime; _burst(ac,t,{hz:_rv(1450,0.1),q:2.4,vol:0.10,dur:0.035}); _body(ac,t,{f0:_rv(430,0.08),f1:300,vol:0.05,dur:0.05}); },   // « tock » du ruban
  catch:function(ac){ var t=ac.currentTime; _burst(ac,t,{hz:_rv(950,0.1),q:2,vol:0.07,dur:0.03}); _body(ac,t,{f0:_rv(260,0.08),f1:200,vol:0.045,dur:0.04}); },    // reception amortie
@@ -9229,7 +9343,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":132068,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":135284,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
