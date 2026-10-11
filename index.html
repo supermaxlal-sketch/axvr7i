@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v496</title>
+<title>Deck 3D v497</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1246,7 +1246,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v496';
+var GAME_VERSION='v497';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3129,7 +3129,8 @@ function pickupAlongPath(p, fromC, fromR, toC, toR){
   }
   return null;
 }
-function pickupLoose(p,c,r){ if(S.puckLoose&&S.puckLoose.c===c&&S.puckLoose.r===r){ var off=S.puckLoose.offside; S.puckOwner=p.id; S.puckLoose=null; S._fromLoose=true; armScramble(p.id,'loose');
+function pickupLoose(p,c,r){ if(battleHolds(p)) return null;   // v497 : la bataille la reserve aux deux joueurs
+  if(S.puckLoose&&S.puckLoose.c===c&&S.puckLoose.r===r){ var off=S.puckLoose.offside; S.puckOwner=p.id; S.puckLoose=null; S._fromLoose=true; armScramble(p.id,'loose');
     if(p.type==='g'){ S.puckLoose={c:c,r:r}; S.puckOwner=null; goalieCover(p); return null; } if(off&&off===p.team&&inOffZone(p.team,c)){ pushLog('<b>'+p.name+'</b> touches the puck while offside — whistle!'); return p.team; } pushLog('<b>'+p.name+'</b> recovers the loose puck.'); } return null; }
 function flyPuckBoard(fromC,fromR,toC,toR,onDone,dur){
   matchEv('puck', {pts:[[fromC,fromR],[toC,toR]], ms:Math.round((dur||0.62)*1000)});   // v447
@@ -3577,7 +3578,7 @@ function glide(p){
     var n=Math.max(Math.abs(spot.c-p.c), Math.abs(spot.r-p.r)), sx=Math.sign(spot.c-p.c), sy=Math.sign(spot.r-p.r);
     var back=(sx!==0 && sx===-facingOf(p).dc);
     for(var k=1;k<=n;k++){ var x=p.c+sx*k, y=p.r+sy*k;
-      if(x===L.c && y===L.r){ spot = back ? {c:x-sx, r:y-sy} : {c:x, r:y}; got=!back; break; } }
+      if(x===L.c && y===L.r){ var _hold=battleHolds(p); spot = (back||_hold) ? {c:x-sx, r:y-sy} : {c:x, r:y}; got=!back && !_hold; break; } }   // v497 : bataille -> il s'arrete juste avant
   }
   if(spot.c!==p.c || spot.r!==p.r){ var oc=p.c, orr=p.r; p.c=spot.c; p.r=spot.r; addSlide(p.id, oc-p.c, orr-p.r); }
   if(got){ var ot=pickupLoose(p, p.c, p.r); if(S.puckOwner===p.id) return {p:p, ot:ot||null}; }
@@ -3798,12 +3799,21 @@ function takeLooseSolo(L, onDone){
   }, TEMPO.slide);
   return true;
 }
+// v497 (choix du concepteur : « le gagnant la garde toujours ») : pendant une bataille, la rondelle libre est RESERVEE aux
+// deux joueurs qui se la disputent -- un autre (glisse, course, ramasse) ne la prend pas. Vrai pour p hors de la paire.
+function battleHolds(p){
+  var B=S.battleOn, L=S.puckLoose;
+  if(!B || B.tok!==BATTLE_SEQ || !L || S.puckOwner || L.c!==B.c || L.r!==B.r) return false;
+  return !p || (p.id!==B.a && p.id!==B.b);
+}
 function puckBattle(pair, L, onDone){
   var _od=onDone; onDone=function(ch){ if(ch && ch.id) careerTrack('battle', {id:ch.id, lose:(pair.a && pair.b) ? (ch.id===pair.a.id ? pair.b.id : pair.a.id) : null}); _od(ch); };   // v489 : le perdant aussi   // v484 : la bataille gagnee (carriere)
   // TROIS chocs : on voit la bataille, le meilleur des trois emporte la rondelle
   var A=pair.a, B=pair.b, wins={A:0,B:0}, round=0;
   var _tok=++BATTLE_SEQ;
+  S.battleOn={tok:_tok, a:A.id, b:B.id, c:L.c, r:L.r};   // v497 : la rondelle est reservee aux deux (battleHolds)
   function stale(){ return _tok!==BATTLE_SEQ || S.gameEnded || !!S.puckOwner || !S.puckLoose; }
+  function done(){ if(S.battleOn && S.battleOn.tok===_tok) S.battleOn=null; }
   var dxA=(L.c>A.c?1:(L.c<A.c?-1:0)), dyA=(L.r>A.r?1:(L.r<A.r?-1:0));
   var dxB=(L.c>B.c?1:(L.c<B.c?-1:0)), dyB=(L.r>B.r?1:(L.r<B.r?-1:0));
   if(!dxA && !dyA){ dxA=(B.c>A.c?1:-1); }
@@ -3814,7 +3824,7 @@ function puckBattle(pair, L, onDone){
   A.speed=0; B.speed=0; A.mom=0; B.mom=0; killContactRoutes(A, B);   // la bataille (contact) tue l'elan des deux
   function clash(){
     if(_tok!==BATTLE_SEQ){ return; }                 // une autre bataille a pris le relais : on ne touche a RIEN
-    if(stale()){ S.battle=null; S.animating=false; render(); return; }
+    if(stale()){ S.battle=null; S.animating=false; done(); render(); return; }
     round++;
     // qui gagne CE choc : les stats penchent, le de tranche
     var w = tutLuck(battleWinProb(A, B, L), A.team===HUMAN_TEAM) ? 'A' : 'B';   // v454 : etape guidee -> le joueur gagne   // v422 : sur 100 (stats, position, priorite, soutien)
@@ -3827,7 +3837,7 @@ function puckBattle(pair, L, onDone){
     setTimeout(function(){
       if(_tok!==BATTLE_SEQ){ return; }                 // perimee : on ne touche a RIEN
       S.battle=null;
-      if(stale()){ S.animating=false; render(); return; }
+      if(stale()){ S.animating=false; done(); render(); return; }
       render();
       if(round<BATTLE_ROUNDS){ setTimeout(clash, 190); return; }
       // fin de bataille
@@ -3851,7 +3861,8 @@ function puckBattle(pair, L, onDone){
       render();
       setTimeout(function(){
         if(_tok!==BATTLE_SEQ){ return; }
-        if(stale()){ render(); return; }   // v491 : un autre l'a prise pendant la ramasse (glisse) -> il la garde ; avant, la possession allait QUAND MEME au vainqueur (tour B, rondelle a A : plus rien de selectionnable)
+        if(stale()){ done(); render(); return; }   // v491 : un autre l'a prise pendant la ramasse (glisse) -> il la garde ; avant, la possession allait QUAND MEME au vainqueur (tour B, rondelle a A : plus rien de selectionnable)
+        done();   // v497 : la reserve tombe, le vainqueur la ramasse
         var ot=pickupLoose(champ, champ.c, champ.r);
         if(S.puckOwner!==champ.id && S.puckLoose){ S.puckOwner=champ.id; S.puckLoose=null; }
         sfx('catch'); render();
@@ -4122,7 +4133,7 @@ function bypassContacts(p, path, around){
     if(o.team!==p.team){
       var ok=tutLuck(1-hookProb(p,o), p.team===HUMAN_TEAM);
       matchEv('brush', {id:p.id, on:o.id, held:!ok, at:k+1});   // at : rang de la case de cote (pas k : matchRec s'en sert)
-      if(!ok){ held=o; path=path.slice(0, k+1); pushLog('<b>'+o.name+'</b> hooks '+p.name+' — he is held up.'); break; }
+      if(!ok){ held=o; path=path.slice(0, k+1); pushLog('<b>'+o.name+'</b> hooks '+p.name+' — he is held up.'); penTry(o, PEN_P_HOOK, 'hook'); break; }   // v497 : l'arbitre peut siffler celui qui accroche
     }
     pushLog(p.name+' skates around '+o.name+'.');
   }
@@ -5845,8 +5856,8 @@ function bodyCheckOutcome(checker, C, cc, cr, run){
 // son chasseur) peut etre sifflee. DIFFEREE : sifflet quand l equipe fautive touche la rondelle (ou arret de jeu) ; un
 // but de la victime l annule. Banc PEN_SECS du chrono de periode, mise au jeu dans la zone de l equipe penalisee ; but
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
-var PEN_SECS=18, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_MAX=2;
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference'};
+var PEN_SECS=18, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_MAX=2;   // v497 : accrochage (choix du concepteur, 30 %)
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking'};
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
