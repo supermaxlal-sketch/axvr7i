@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v501</title>
+<title>Deck 3D v502</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1250,7 +1250,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v501';
+var GAME_VERSION='v502';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -5416,6 +5416,7 @@ function doPass(p,targetId){
   var intc = pressed ? null : laneInterceptor(p,t);
   var blk = pressed ? null : blockOrderCheck(p,t);
   if(blk && blk.intercepted){ intc=blk; }
+  else if(blk && intc && intc.def===blk.def) intc=null;   // v502 (export du concepteur) : un seul essai par defenseur -- son blocage a rate, il ne coupe pas aussi le couloir
   if(_stride && intc && intc.intercepted && Math.random()<_rescue){ pushLog('<b>'+t.name+'</b> is a step too quick — the pass beats '+intc.def.name+' to the lane.'); intc=null; }
   S.animating=true; S.puckOwner=null; S.puckLoose=null; clearSel(); render();
   if(pressed){ checkFx('whiff', prc, prr); }
@@ -6077,7 +6078,7 @@ function pokeDirMod(def, car){
     var moving=(def.speed||0)>0;
     if(moving && facingOf(def).dc===-cdir && def._stepDC===cdir) return {mod:+2*cs, autoFail:false};   // backpedale (face au porteur, cede du terrain) : la vitesse devient un BONUS
     if(moving && def._stepDC===-cdir)                            return {mod:-3*cs, autoFail:false};   // fonce dessus : pire (deborde)
-    return {mod:-2*cs, autoFail:false};                                                                // immobile / de travers : flat-footed, il se fait deborder par la vitesse
+    return {mod:cs-(cs>=2 ? 0.8 : 0.5), autoFail:false};   // immobile / de travers : flat-footed, peu de chance -- v502 (choix du concepteur) : ~20 % pour un duel moyen (net -0,5 / -0,8 cran avec le -cs de pokeProb ; avant -2cs, net -3cs = plancher 5 % des 1 case d'elan)
   }
   // ORIENTATION GENERALE (porteur immobile / defenseur a cote) : le pivot du defenseur compte quand meme.
   // Il poke avec son baton VERS le porteur -> face a lui = meilleur poke ; tourne de l'autre cote = mauvais.
