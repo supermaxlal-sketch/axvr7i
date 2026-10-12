@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v509</title>
+<title>Deck 3D v510</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -259,7 +259,7 @@
 .mtitle{font-size:24px;font-weight:900;color:#fff;text-align:center;}
 .msub{font-size:12px;color:#9fb6cd;text-align:center;margin-bottom:14px;}
 .mmsg{font-size:12px;color:#ffb36b;text-align:center;margin-bottom:6px;}
-#speechOverlay.tv{background:transparent;align-items:flex-end;} #speechOverlay.tv .wcard{max-width:96vw;padding:10px 12px;margin-bottom:8px;} #speechOverlay.tv .wicon{display:none;} #speechOverlay.tv .wbig{font-size:15px;} #speechOverlay.tv .tones{display:grid;grid-template-columns:1fr 1fr;gap:6px;} #speechOverlay.tv .dconfirm{margin-top:0;} #speechOverlay .speechsay{cursor:pointer;} #speechOverlay svg.speechart{display:block;width:100%;max-width:260px;margin:6px auto 0;}   /* v505 */ #speechOverlay .angles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:2px 0 6px;} #speechOverlay .angles button{font-size:10px;padding:3px 6px;}   /* v507 */ #speechOverlay.tv .wcard{width:min(96vw,520px);padding:6px 8px;margin-bottom:4px;border-radius:12px;} #speechOverlay.tv .wbig{font-size:12px;} #speechOverlay.tv .wsub{font-size:10px;margin-top:1px;} #speechOverlay.tv .angles{flex-wrap:nowrap;margin:4px 0;} #speechOverlay.tv .angles button{flex:1 1 0;min-width:0;min-height:0;white-space:nowrap;font-size:10px;padding:4px 2px;} #speechOverlay.tv .tones{gap:4px;} #speechOverlay.tv .dconfirm{padding:5px 7px;font-size:11px;border-radius:7px;line-height:1.2;} #speechOverlay.tv .dconfirm small{font-size:9.5px;margin-top:1px;}   /* v508 : le bandeau compact (le concepteur : « Compact le bandeau ») */
+#speechOverlay.tv{background:transparent;align-items:flex-end;} #speechOverlay.tv .wcard{max-width:96vw;padding:10px 12px;margin-bottom:8px;} #speechOverlay.tv .wicon{display:none;} #speechOverlay.tv .wbig{font-size:15px;} #speechOverlay.tv .tones{display:grid;grid-template-columns:1fr 1fr;gap:6px;} #speechOverlay.tv .dconfirm{margin-top:0;} #speechOverlay .speechsay{cursor:pointer;} #speechOverlay svg.speechart{display:block;width:100%;max-width:260px;margin:6px auto 0;}   /* v505 */ #speechOverlay .angles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:2px 0 6px;} #speechOverlay .angles button{font-size:10px;padding:3px 6px;}   /* v507 */ #speechOverlay.tv .wcard{width:min(96vw,520px);padding:6px 8px;margin-bottom:4px;border-radius:12px;} #speechOverlay.tv .wbig{font-size:12px;} #speechOverlay.tv .wsub{font-size:10px;margin-top:1px;} #speechOverlay.tv .angles{flex-wrap:nowrap;margin:4px 0;} #speechOverlay.tv .angles button{flex:1 1 0;min-width:0;min-height:0;white-space:nowrap;font-size:10px;padding:4px 2px;} #speechOverlay.tv .tones{gap:4px;} #speechOverlay.tv .dconfirm{padding:5px 7px;font-size:11px;border-radius:7px;line-height:1.2;} #speechOverlay.tv .dconfirm small{font-size:9.5px;margin-top:1px;}   /* v508 : le bandeau compact (le concepteur : « Compact le bandeau ») */ #tunnelOverlay{background:transparent;align-items:flex-end;pointer-events:none;} #tunnelOverlay .tunbar{pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;width:min(96vw,520px);margin-bottom:8px;padding:6px 10px;background:rgba(12,26,43,.88);border:2px solid #b5384c;border-radius:12px;color:#fff;font-weight:800;font-size:12px;} #tunnelOverlay .tunbar .perkbtn{min-height:0;padding:4px 10px;font-size:11px;flex:0 0 auto;}   /* v510 : le couloir */
 #speechOverlay .dconfirm{display:block;width:100%;margin-top:8px;text-align:left;} #speechOverlay .dconfirm small{display:block;font-weight:600;font-size:11px;opacity:.85;margin-top:2px;}   /* v504 */   /* v499 : reprise impossible */
 .mbtn{display:block;width:100%;margin-top:9px;background:#243a52;color:#eaf2fb;border:1px solid #34557a;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;text-align:center;}
 .mbtn.play{background:#1f8a8a;border-color:#2fbf7a;font-size:17px;}
@@ -987,6 +987,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <button class="mbtn dis" disabled>🌐 Online 1v1 — soon</button>
 <button class="mbtn" id="mmCareer">🏆 Career</button></div></div>
 <div class="ov pause" id="speechOverlay" style="z-index:265"></div>
+<div class="ov" id="tunnelOverlay" style="z-index:266"></div>
 <div class="ov pause" id="resumeAsk" style="z-index:260"><div class="wcard"><div class="wicon">💾</div><div class="wbig">SAVED MATCH</div><div class="wsub" id="raText"></div><button class="dconfirm" id="raResume" style="margin-top:12px">▶ Resume it</button><button class="dconfirm" id="raNew" style="margin-top:8px">Start a new game</button><button class="dconfirm" id="raCancel" style="margin-top:8px">Cancel</button></div></div>
 <div class="ov menu" id="settingsPanel"><div class="mcard"><div class="mtitle">⚙️ Settings</div>
 <div class="setrow"><label>🥅 Goal volume</label><input type="range" id="setGoal" min="0.6" max="2.4" step="0.1"><span class="setv" id="setGoalV"></span></div>
@@ -1253,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v509';
+var GAME_VERSION='v510';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2258,7 +2259,7 @@ function newGame(firstTeam){
      turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
-     speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null};   // v504 : les discours du coach   // v434 : enregistrement du match
+     speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
   document.getElementById('diceOverlay').classList.remove('show');
   document.getElementById('shotOverlay').classList.remove('show');
   document.getElementById('gameoverOverlay').classList.remove('show');
@@ -6564,7 +6565,7 @@ function repositionForFaceoff(dc,dr){
 }
 function deployLineForPeriod(){ var ln=S.period>3?3:S.period; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk') q.onIce=(q.line===ln); } }
 var HUMAN_TEAM='A';
-var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay'];   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
+var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay','tunnelOverlay'];   // v510 : le couloir   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
 function clockPaused(){
   if(S.paused) return true;
   if(S.gameEnded||S.needDraft||S.animating||S.faceoff) return true;
@@ -6751,7 +6752,7 @@ setInterval(function(){
     return;
   }
   _animSince=0;
-  if(S.paused||S.gameEnded||S.needDraft||S.faceoff||S.planning||S.defCommit||S.aiming||S.speechOpen||(S.tut&&S.tut.hold)) { _stuckSince=0; return; }   // v504 : le discours n'est pas un blocage   // v451 : pause explicative
+  if(S.paused||S.gameEnded||S.needDraft||S.faceoff||S.planning||S.defCommit||S.aiming||S.speechOpen||S.tunnelOn||(S.tut&&S.tut.hold)) { _stuckSince=0; return; }   // v504 : le discours n'est pas un blocage   // v451 : pause explicative
   for(var i=0;i<OV_IDS.length;i++){ var e=document.getElementById(OV_IDS[i]); if(e&&e.classList.contains('show')){ _stuckSince=0; return; } }
   // v427 : + signature de PROGRES (journal, rang de la sequence, joueurs) -- sinon le chrono courait pendant les animations
   // et coupait une sequence VIVANTE a sa premiere pause normale (rangs suivants perdus : « mon recul n'a pas ete joue »)
@@ -6944,6 +6945,7 @@ function startFaceoffRPS(dotC,dotR,reset){
 function proceedFaceoff(dotC,dotR){
   if(CAREER_MATCH && !S.tut && !S.speechPreDone && S.period===1){ S.speechPreDone=true; speechOpen('pre', function(){ proceedFaceoff(dotC,dotR); }); return; }   // v504 : le discours d'avant-match
   repositionForFaceoff(dotC,dotR);
+  if(CAREER_MATCH && !S.tut && !S.overtime && S.tunnelIn!==S.period){ S.tunnelIn=S.period; if(hj3dActive()){ tunnelScene('in', function(){ proceedFaceoff(dotC,dotR); }); return; } }   // v510 : l'entree par le tunnel (3D)
   S.puckLoose=null; S.puckOwner=null;
   var fo={dotC:dotC,dotR:dotR};
   S.faceoff=fo;
@@ -7122,7 +7124,7 @@ function endPeriod(){
   S.period++;
   S.coachPeriodUsed={A:false,B:false};   // le verrou "1 strategie/periode" se remet a zero
   pushLog('Start of period '+S.period+'.');
-  if(CAREER_MATCH && !S.tut){ speechOpen('inter', function(){ S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); return; }   // v504 : le discours entre les periodes
+  if(CAREER_MATCH && !S.tut){ tunnelScene('out', function(){ speechOpen('inter', function(){ S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); }); return; }   // v504 : le discours entre les periodes ; v510 : d'abord la sortie par le tunnel
   S.needDraft=true; faceoff(S.period%2===0?'B':'A');
 }
 function gameOver(winner){
@@ -8669,6 +8671,22 @@ function speechSay(o, lines, i){   // v505 : le coach dit sa phrase (la camera 3
   o.say={lines:lines, i:i}; clearTimeout(o.timer); o.timer=setTimeout(function(){ speechSay(o, lines, i+1); }, i===0 ? 1700 : 1400);
 }
 function speechSkip(){ var o=S.speechOpen; if(!o || !o.say) return; clearTimeout(o.timer); speechSay(o, o.say.lines, o.say.i+1); }
+// v510 : le couloir (le concepteur : « l'entree des joueurs sur la glace », « la sortie apres la premiere periode ») --
+// deux plans comme a la tele : entree = dans le tunnel (de dos) puis sur la glace face au banc ; sortie = sur la glace puis
+// dans le tunnel. Les deux equipes bougent en meme temps (Godot). Carriere + 3D seulement ; Skip. Repere tunnel:<in|out>:<equipe>:<plan>.
+var TUNNEL_MS={'in':[3000, 4000], out:[3000, 3000]};
+function tunnelScene(dir, done){
+  if(!(CAREER_MATCH && !S.tut && hj3dActive())){ done(); return; }
+  var o={dir:dir, done:done, shot:1}; S.tunnelOn=o;
+  var ov=document.getElementById('tunnelOverlay');
+  ov.innerHTML='<div class="tunbar"><span>'+careerEsc(TEAM_NAME[HUMAN_TEAM])+(dir==='in' ? ' take the ice' : ' head to the room')+'</span><button class="perkbtn" data-skip="1" onclick="tunnelSkip()">Skip ▸▸</button></div>';
+  _show('tunnelOverlay'); render();
+  hj3dSend('cue', 'tunnel:'+dir+':'+HUMAN_TEAM+':1');
+  o.timer=setTimeout(function(){ if(S.tunnelOn!==o) return; o.shot=2; hj3dSend('cue', 'tunnel:'+dir+':'+HUMAN_TEAM+':2'); if(dir==='in') crowd('cheer');   // ton equipe apparait
+    o.timer=setTimeout(function(){ tunnelEnd(o); }, TUNNEL_MS[dir][1]); }, TUNNEL_MS[dir][0]);
+}
+function tunnelSkip(){ var o=S.tunnelOn; if(o) tunnelEnd(o); }
+function tunnelEnd(o){ if(S.tunnelOn!==o) return; clearTimeout(o.timer); S.tunnelOn=null; _hide('tunnelOverlay'); if(hj3dActive()) hj3dSend('cue', 'rise'); render(); o.done(); }
 function speechEnd(o){ S.speechOpen=null; _hide('speechOverlay'); document.getElementById('speechOverlay').classList.remove('tv'); if(hj3dActive()) hj3dSend('cue', 'rise'); render(); o.done(); }
 // v507 : la chambre -- un angle different a chaque discours (choix du concepteur) : avant Wide, apres la 1re Coach,
 // apres la 2e Over the shoulder, apres le match Players ; boutons d'angles ; apres le match : fete (victoire) ou silence.
@@ -8895,7 +8913,7 @@ function careerRender(){
   }
   el.innerHTML=h;
 }
-document.getElementById('btnCareerContinue').onclick=function(){ speechOpen('post', careerFinishMatch); };   // v504 : le discours d'apres-match, puis le bilan
+document.getElementById('btnCareerContinue').onclick=function(){ if(hj3dActive()) _hide('gameoverOverlay'); tunnelScene('out', function(){ speechOpen('post', careerFinishMatch); }); };   // v504 : le discours d'apres-match, puis le bilan ; v510 : d'abord la sortie (en 3D, l'ecran de fin se ferme : on voit la scene)
 document.getElementById('btnExitCareer').onclick=careerExitMatch;
 document.getElementById('mmCareer').onclick=function(){ if(!CAREER) CAREER=careerLoad(); careerGo('start'); careerCloudSync(); };   // v485 : et le compte
 var CAREER_KEY='hjCareer';
@@ -9526,7 +9544,7 @@ var MSAVE_KEY='hjMatchSave', MSAVE_ON=false, RA_NEXT=null;
 var MSAVE_FRESH={animating:false, paused:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
   planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, defCommit:null, aiming:null, aimClock:null, aimBeep:0, gkClock:null, gkBeep:0,
   sel:null, slides:{}, moves:[], passT:[], duelT:[], bankT:[], dumpT:[], pokeT:[], battle:null, battleOn:null, faceoff:null, lunge:null, slide:null,
-  celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null};
+  celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null, tunnelOn:null};
 function mmMsg(t){ var e=document.getElementById('mmMsg'); if(e){ e.textContent=t||''; e.style.display=t?'':'none'; } }
 function matchSave(kind, args){
   if(!MSAVE_ON || !S || S.tut || tutPractice()) return;
@@ -9568,6 +9586,7 @@ function matchResume(){
     var s=d.S;
     if(!byIdIn(s, 'A_TH') && !s.pieces.some(function(q){ return q && q.type==='g' && q.team==='A'; })) throw new Error('no goalie');
     for(var k in MSAVE_FRESH){ var v=MSAVE_FRESH[k]; s[k]=(v && typeof v==='object') ? JSON.parse(JSON.stringify(v)) : v; }
+    s.tunnelIn=s.period;   // v510 : un match repris n'a pas d'entree par le tunnel
     s.diag=DIAG_ON; S=s; MSAVE_ON=true;
     _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';
     ['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','pauseOverlay','draftOverlay','tipOverlay','resumeAsk','settingsPanel','careerOverlay','tutMenu','mainMenu'].forEach(_hide);
@@ -9605,7 +9624,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":152564,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":179620,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
