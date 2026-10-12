@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v504</title>
+<title>Deck 3D v505</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -259,6 +259,7 @@
 .mtitle{font-size:24px;font-weight:900;color:#fff;text-align:center;}
 .msub{font-size:12px;color:#9fb6cd;text-align:center;margin-bottom:14px;}
 .mmsg{font-size:12px;color:#ffb36b;text-align:center;margin-bottom:6px;}
+#speechOverlay.tv{background:transparent;align-items:flex-end;} #speechOverlay.tv .wcard{max-width:96vw;padding:10px 12px;margin-bottom:8px;} #speechOverlay.tv .wicon{display:none;} #speechOverlay.tv .wbig{font-size:15px;} #speechOverlay.tv .tones{display:grid;grid-template-columns:1fr 1fr;gap:6px;} #speechOverlay.tv .dconfirm{margin-top:0;} #speechOverlay .speechsay{cursor:pointer;} #speechOverlay svg.speechart{display:block;width:100%;max-width:260px;margin:6px auto 0;}   /* v505 */
 #speechOverlay .dconfirm{display:block;width:100%;margin-top:8px;text-align:left;} #speechOverlay .dconfirm small{display:block;font-weight:600;font-size:11px;opacity:.85;margin-top:2px;}   /* v504 */   /* v499 : reprise impossible */
 .mbtn{display:block;width:100%;margin-top:9px;background:#243a52;color:#eaf2fb;border:1px solid #34557a;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;text-align:center;}
 .mbtn.play{background:#1f8a8a;border-color:#2fbf7a;font-size:17px;}
@@ -1252,7 +1253,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v504';
+var GAME_VERSION='v505';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7893,6 +7894,12 @@ if(typeof window!=='undefined' && window.addEventListener){
 // Dans le fichier unique (2D), rien ne s'attache : la 2D reste intacte.
 var VIEW3D_ON=(function(){ try{ return localStorage.getItem('hjView3d')!=='0'; }catch(e){ return true; } })();
 var HJ3D={ cb:null, last:'', failed:false, k:1, title:(typeof document!=='undefined' ? document.title : '') };   // title : Godot remplace le titre de la page au demarrage
+function hj3dBench(){   // v505 : les joueurs hors glace de chaque equipe (pas au banc des punitions), 10 au plus
+  var box={}, out={A:[], B:[]}; ((S.pen && S.pen.box) || []).forEach(function(b){ box[b.id]=1; });
+  S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || box[q.id] || !out[q.team] || out[q.team].length>=10) return;
+    out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M'}); });
+  return out;
+}
 function hj3dActive(){ return typeof HJ3D!=='undefined' && !!HJ3D && !!HJ3D.cb && !!VIEW3D_ON && !HJ3D.failed; }
 function hj3dApplyView(){ if(!document.body) return; document.body.classList.toggle('view3d', hj3dActive()); hj3dFit(); }
 function hj3dFit(){   // le canevas prend la taille de la glace, en pixels reels (plafond x2 : les petits telephones)
@@ -7929,7 +7936,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players,
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides) };
+    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench() };   // v505 : les bancs
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -8625,23 +8632,39 @@ function aiSpeechTone(team){ var co=coachOf(team); if(!co) return 'mot'; var me=
 function speechOpen(moment, done){   // v504 : le vestiaire -- ton coach parle (tu choisis le ton) ; l'IA aussi (sauf apres le match)
   var co=coachOf(HUMAN_TEAM); if(!co){ done(); return; }
   S.speechOpen={moment:moment, done:done};
+  var _tv=hj3dActive(), ov=document.getElementById('speechOverlay'); ov.classList.toggle('tv', _tv); if(_tv) hj3dSend('cue', 'bench:'+HUMAN_TEAM);   // v505 : le discours au banc (camera 3D devant ton banc)
   var ttl={pre:'Locker room — before the game', inter:'Locker room — intermission', post:'Locker room — after the game'}[moment];
   var h='<div class="wcard"><div class="wicon">📣</div><div class="wbig">'+ttl+'</div><div class="wsub">Coach '+careerEsc(co.name)+' · '+COACH_PROFILES[co.prof].n+' · level '+co.lvl+'</div>';
   if(moment==='post') h+='<div class="wsub">Half of it lasts the whole next game.</div>';
+  if(!_tv) h+=speechArt(HUMAN_TEAM);   // v505 : en 2D, le banc dessine
+  h+='<div class="tones">';
   COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+SPEECH_TONES[k]+'”</b><small>'+speechPreview(co, k)+'</small></button>'; });
-  document.getElementById('speechOverlay').innerHTML=h+'</div>'; _show('speechOverlay');
+  ov.innerHTML=h+'</div></div>'; _show('speechOverlay');
 }
 function speechApply(team, moment, tone, k, co){
   if(moment==='post') S.speechPost={tone:tone, k:k}; else S.speech[team].seg={tone:tone, k:k};
   if(team===HUMAN_TEAM) S.speechUse[tone]=(S.speechUse[tone]||0)+1;
   pushLog('<b>'+careerEsc(co.name)+'</b> ('+TEAM_NAME[team]+'): “'+SPEECH_TONES[tone]+'”'+(k<0 ? ' — the players don\'t buy it.' : ''));
 }
-function speechChoose(tone){ var o=S.speechOpen; if(!o || !SPEECH_TONES[tone]) return;
-  S.speechOpen=null; _hide('speechOverlay');
-  var co=coachOf(HUMAN_TEAM); speechApply(HUMAN_TEAM, o.moment, tone, speechRoll(co, tone), co);
-  var ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
-  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai); speechApply(ai, o.moment, at, speechRoll(ac, at), ac); }
-  render(); o.done();
+function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say || !SPEECH_TONES[tone]) return;
+  var co=coachOf(HUMAN_TEAM), k=speechRoll(co, tone); speechApply(HUMAN_TEAM, o.moment, tone, k, co);
+  var lines=[{team:HUMAN_TEAM, co:co, tone:tone, k:k}], ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
+  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai), ak=speechRoll(ac, at); speechApply(ai, o.moment, at, ak, ac); lines.push({team:ai, co:ac, tone:at, k:ak}); }
+  render(); speechSay(o, lines, 0);
+}
+function speechSay(o, lines, i){   // v505 : le coach dit sa phrase (la camera 3D est sur son banc), puis l'adversaire ; un toucher passe
+  if(S.speechOpen!==o) return;
+  if(i>=lines.length){ speechEnd(o); return; }
+  var L=lines[i]; if(hj3dActive()) hj3dSend('cue', 'bench:'+L.team);
+  document.getElementById('speechOverlay').innerHTML='<div class="wcard speechsay" onclick="speechSkip()"><div class="wsub">'+careerEsc(L.co.name)+' · '+TEAM_NAME[L.team]+'</div><div class="wbig">“'+SPEECH_TONES[L.tone]+'”</div>'+(L.k<0 ? '<div class="wsub">The players don\'t buy it.</div>' : '')+'</div>';
+  o.say={lines:lines, i:i}; clearTimeout(o.timer); o.timer=setTimeout(function(){ speechSay(o, lines, i+1); }, i===0 ? 1700 : 1400);
+}
+function speechSkip(){ var o=S.speechOpen; if(!o || !o.say) return; clearTimeout(o.timer); speechSay(o, o.say.lines, o.say.i+1); }
+function speechEnd(o){ S.speechOpen=null; _hide('speechOverlay'); document.getElementById('speechOverlay').classList.remove('tv'); if(hj3dActive()) hj3dSend('cue', 'rise'); render(); o.done(); }
+function speechArt(team){   // v505 : le banc dessine (2D) -- tes joueurs assis, ton coach debout derriere
+  var c=(CAREER_MATCH && CAREER && CAREER.teams[team==='A' ? CAREER_MATCH.my : CAREER_MATCH.opp]) ? CAREER.teams[team==='A' ? CAREER_MATCH.my : CAREER_MATCH.opp].colors[0] : '#27496e', h='';
+  for(var i=0;i<5;i++) h+='<circle cx="'+(30+i*35)+'" cy="44" r="9" fill="'+c+'"/><rect x="'+(22+i*35)+'" y="52" width="16" height="12" rx="3" fill="'+c+'"/>';
+  return '<svg class="speechart" viewBox="0 0 200 80"><rect x="6" y="62" width="188" height="10" rx="3" fill="#5f5e5a"/>'+h+'<circle cx="100" cy="14" r="9" fill="#e6c8a0"/><rect x="90" y="23" width="20" height="22" rx="4" fill="#2a2d33"/></svg>';
 }
 function careerCoachProgress(won){   // v504 : ton coach -- +1 XP par match (+1 victoire), niveau n -> n+1 : 8+2n (max 10) ; 8 discours d'un ton -> +1 (max 90)
   var co=CAREER && CAREER.teams[CAREER.my].coach; if(!co) return null; var out={lvlFrom:co.lvl, up:{}};
@@ -9565,7 +9588,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":135284,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":140516,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
