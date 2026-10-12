@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v505</title>
+<title>Deck 3D v506</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1253,7 +1253,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v505';
+var GAME_VERSION='v506';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8790,7 +8790,7 @@ function careerRender(){
     h+='<div class="mtitle">Replace career?</div><div class="msub">Your current career ('+careerEsc(c.teams[c.my].full)+') will be lost. Export it first to keep a copy.</div>';
     h+='<button class="mbtn play" onclick="careerPick(CAREER_PENDING, true)">Replace</button><button class="mbtn" onclick="careerGo(\'pick\')">Cancel</button>';
   } else if(v==='coach'){   // v503 : choisir ton coach
-    h+='<div class="mtitle">Choose your coach</div><div class="msub">He stays with '+careerEsc(c.teams[c.my].full)+' for the whole career and gets better with the games.</div>';
+    h+='<div class="mtitle">Choose your coach</div><div class="msub">He gets better with the games. You can fire him and hire another coach later.</div>';
     COACH_PROF_KEYS.forEach(function(k){ var P=COACH_PROFILES[k];
       h+='<button class="mbtn cteam" data-coach="'+k+'" onclick="careerSetCoach(\''+k+'\')"><b>'+P.n+'</b><small>'+COACH_SKILLS.map(function(x){ return COACH_SKILL_ABBR[x]+' '+P[x]; }).join(' · ')+'<br>Strength: '+COACH_SKILL_NAME[coachBest(P)]+' · Weakness: '+COACH_SKILL_NAME[coachWorst(P)]+'</small></button>'; });
     h+='<button class="mbtn" onclick="careerToMenu()">← Main menu</button>';
