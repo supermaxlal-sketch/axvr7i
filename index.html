@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v503</title>
+<title>Deck 3D v504</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -258,7 +258,8 @@
 .ov.menu .mcard{background:linear-gradient(165deg,#16283b,#0b1622);border:2px solid #26435f;border-radius:16px;padding:20px 18px;width:min(340px,90vw);box-shadow:0 12px 34px rgba(0,0,0,.55);}
 .mtitle{font-size:24px;font-weight:900;color:#fff;text-align:center;}
 .msub{font-size:12px;color:#9fb6cd;text-align:center;margin-bottom:14px;}
-.mmsg{font-size:12px;color:#ffb36b;text-align:center;margin-bottom:6px;}   /* v499 : reprise impossible */
+.mmsg{font-size:12px;color:#ffb36b;text-align:center;margin-bottom:6px;}
+#speechOverlay .dconfirm{display:block;width:100%;margin-top:8px;text-align:left;} #speechOverlay .dconfirm small{display:block;font-weight:600;font-size:11px;opacity:.85;margin-top:2px;}   /* v504 */   /* v499 : reprise impossible */
 .mbtn{display:block;width:100%;margin-top:9px;background:#243a52;color:#eaf2fb;border:1px solid #34557a;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;text-align:center;}
 .mbtn.play{background:#1f8a8a;border-color:#2fbf7a;font-size:17px;}
 .mbtn.sm{width:auto;margin:0;padding:6px 14px;font-size:13px;}
@@ -984,6 +985,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <button class="mbtn" id="mmPractice">🏋️ Practice</button>
 <button class="mbtn dis" disabled>🌐 Online 1v1 — soon</button>
 <button class="mbtn" id="mmCareer">🏆 Career</button></div></div>
+<div class="ov pause" id="speechOverlay" style="z-index:265"></div>
 <div class="ov pause" id="resumeAsk" style="z-index:260"><div class="wcard"><div class="wicon">💾</div><div class="wbig">SAVED MATCH</div><div class="wsub" id="raText"></div><button class="dconfirm" id="raResume" style="margin-top:12px">▶ Resume it</button><button class="dconfirm" id="raNew" style="margin-top:8px">Start a new game</button><button class="dconfirm" id="raCancel" style="margin-top:8px">Cancel</button></div></div>
 <div class="ov menu" id="settingsPanel"><div class="mcard"><div class="mtitle">⚙️ Settings</div>
 <div class="setrow"><label>🥅 Goal volume</label><input type="range" id="setGoal" min="0.6" max="2.4" step="0.1"><span class="setv" id="setGoalV"></span></div>
@@ -1250,7 +1252,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v503';
+var GAME_VERSION='v504';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2254,7 +2256,8 @@ function newGame(firstTeam){
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
      turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
-     moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0}};   // v434 : enregistrement du match
+     moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
+     speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null};   // v504 : les discours du coach   // v434 : enregistrement du match
   document.getElementById('diceOverlay').classList.remove('show');
   document.getElementById('shotOverlay').classList.remove('show');
   document.getElementById('gameoverOverlay').classList.remove('show');
@@ -2496,11 +2499,11 @@ function redirectFacesPass(def, fromC){ var s=Math.sign(fromC - def.c); return s
 function n100(v){ return (typeof v==='number') ? v : 60; }
 function passRolls(p,t){ return !!(t && t.type==='sk' && (cheb(p,t)>5 || passFacingThr(p,t)<0)); }   // la passe « roule » : longue OU dos au jeu
 function passCatchProb(p,t){   // reception d'une passe longue / dos au jeu : 60 + 0,5 x (passe - 60) - 7 / case au-dela de 6 ; face +15 / dos -35
-  var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0));
+  var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con');   // v504
   return Math.max(0.05, Math.min(0.95, pr)); }
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
-  return Math.max(0.05, Math.min(0.90, 0.55 + 0.006*(n100(def.defense)-n100(passer.passe)) + (hasPerk(def,'intercepteur')?0.20:0) - (hasPerk(passer,'passeur')?0.30:0))); }
+  return Math.max(0.05, Math.min(0.90, 0.55 + 0.006*(n100(def.defense)-n100(passer.passe)) + (hasPerk(def,'intercepteur')?0.20:0) - (hasPerk(passer,'passeur')?0.30:0) + 0.005*speechK(def.team, 'sys'))); }   // v504
 function redirectCleanProb(def, fromC){ return Math.max(0.05, Math.min(0.95, (redirectFacesPass(def, fromC) ? 0.90 : 0.45) + 0.003*(n100(def&&def.maniement)-60))); }   // deviation : face a la passe 90 / de dos 45 + maniement
 function redirectCleanThr(def, fromC){ return redirectCleanProb(def, fromC)*6; }   // compat « seuil /6 »   // /6 : bien oriente = cadre a coup sur ; dos a la passe = ~1/3 (un peu mieux si bon deviateur)
 function classifyMove(p, fc, fr, c, r){
@@ -2579,7 +2582,7 @@ function checkProb(checker, carrier, opts){
 function checkThr(checker, carrier, opts){ return checkProb(checker, carrier, opts)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr)
 function checkOdds(checker, carrier){ return checkThr(checker, carrier, {posted:true}); }   // v420 : % affiche pour l'ordre Body check (poste)
 /* sblockOdds : proba qu'un defenseur avec l'ordre "block shot" bloque un tir de sa ligne (min .06+.07*def, +.25). */
-function sblockOdds(blocker){ if(!blocker) return 0; var base=Math.min(0.50, 0.06+(blocker.def||3)*0.07); return Math.min(0.72, base+0.25); }
+function sblockOdds(blocker){ if(!blocker) return 0; var base=Math.min(0.50, 0.06+(blocker.def||3)*0.07); return Math.min(0.72, base+0.25+0.005*speechK(blocker.team, 'sys')); }   // v504
 /* blockPassThr : seuil /6 d'interception d'une passe du porteur par un defenseur en ordre "block pass". */
 function blockPassThr(def, passer){ return blockPassProb(def, passer)*6; }   // v421 : compat « seuil /6 » (blockPassProb)
 /* shotOdds : % de MARQUER estime AVANT le tir. Espérance realiste sur la lecture du gardien
@@ -2712,6 +2715,7 @@ function shotChance(sh,target){
   var _cd=(sh.team==='A'?(NET_A-sh.c):(sh.c-NET_B)); if(_cd>5) p-=(_cd-5)*0.027;   // seuil x1.68, coeff re-dose (32x13)
   p+=(sh.off-4)*0.03;
   if(S.scram && S.scram.id===sh.id) p+=S.scram.bonus;
+  p*=1+0.02*speechK(sh.team, 'con');   // v504 : « Believe in yourselves »
   return Math.max(0.05, Math.min(0.80, p));
 }
 function cheb(a,b){ return Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r)); }
@@ -3327,6 +3331,7 @@ function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PU
          + (hasPerk(best,'intercepteur') ? 0.20 : 0) - (hasPerk(p,'passeur') ? 0.30 : 0);
   if(crowd>=2) pr=Math.max(pr+0.35, 0.80);   // DEUX adversaires (ou plus) dans le couloir : la passe ne passe presque jamais
   if(S._stratDef && S._stratDef.kind==='intercept' && best.team===S._stratDef.team) pr+=0.30;   // bonus strategie Trappe neutre
+  pr+=0.005*speechK(best.team, 'sys')-0.005*speechK(p.team, 'con');   // v504 : « Stick to the system » (defense) / « Believe in yourselves » (passe)
   pr=Math.max(0.05, Math.min(0.90, pr));
   return {def:best, crowd:crowd, prob:pr, thr:pr*6};   // thr : compat « seuil /6 »
 }
@@ -5878,6 +5883,7 @@ function penDeliberate(p){ return !!p && (!!hasOrder(p.id,'check') || penHunter(
 function penFoul(checker, carrier, run){ return Math.sign(checker.c-carrier.c)===-dir(carrier.team) ? 'behind' : ((run||0)>=3 ? 'charge' : null); }   // dans le dos : meme regle que le -50 %
 function penRisk(checker, carrier, run){ var f=penFoul(checker, carrier, run); return f==='behind' ? PEN_P_BEHIND : (f==='charge' ? PEN_P_CHARGE : 0); }
 function penTry(p, prob, foul){   // l arbitre leve le bras
+  if(p && prob) prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined »
   if(!p || !foul || !prob || S.gameEnded || !(Math.random()<prob)) return false;
   if(penCount(p.team)>=PEN_MAX) return false;   // deja 2 punis : pas de 3e
   penState().delayed.push({team:p.team, id:p.id, foul:foul});
@@ -6557,7 +6563,7 @@ function repositionForFaceoff(dc,dr){
 }
 function deployLineForPeriod(){ var ln=S.period>3?3:S.period; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk') q.onIce=(q.line===ln); } }
 var HUMAN_TEAM='A';
-var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay'];   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
+var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay'];   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
 function clockPaused(){
   if(S.paused) return true;
   if(S.gameEnded||S.needDraft||S.animating||S.faceoff) return true;
@@ -6744,7 +6750,7 @@ setInterval(function(){
     return;
   }
   _animSince=0;
-  if(S.paused||S.gameEnded||S.needDraft||S.faceoff||S.planning||S.defCommit||S.aiming||(S.tut&&S.tut.hold)) { _stuckSince=0; return; }   // v451 : pause explicative
+  if(S.paused||S.gameEnded||S.needDraft||S.faceoff||S.planning||S.defCommit||S.aiming||S.speechOpen||(S.tut&&S.tut.hold)) { _stuckSince=0; return; }   // v504 : le discours n'est pas un blocage   // v451 : pause explicative
   for(var i=0;i<OV_IDS.length;i++){ var e=document.getElementById(OV_IDS[i]); if(e&&e.classList.contains('show')){ _stuckSince=0; return; } }
   // v427 : + signature de PROGRES (journal, rang de la sequence, joueurs) -- sinon le chrono courait pendant les animations
   // et coupait une sequence VIVANTE a sa premiere pause normale (rangs suivants perdus : « mon recul n'a pas ete joue »)
@@ -6935,6 +6941,7 @@ function startFaceoffRPS(dotC,dotR,reset){
   proceedFaceoff(dotC,dotR);
 }
 function proceedFaceoff(dotC,dotR){
+  if(CAREER_MATCH && !S.tut && !S.speechPreDone && S.period===1){ S.speechPreDone=true; speechOpen('pre', function(){ proceedFaceoff(dotC,dotR); }); return; }   // v504 : le discours d'avant-match
   repositionForFaceoff(dotC,dotR);
   S.puckLoose=null; S.puckOwner=null;
   var fo={dotC:dotC,dotR:dotR};
@@ -7114,6 +7121,7 @@ function endPeriod(){
   S.period++;
   S.coachPeriodUsed={A:false,B:false};   // le verrou "1 strategie/periode" se remet a zero
   pushLog('Start of period '+S.period+'.');
+  if(CAREER_MATCH && !S.tut){ speechOpen('inter', function(){ S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); return; }   // v504 : le discours entre les periodes
   S.needDraft=true; faceoff(S.period%2===0?'B':'A');
 }
 function gameOver(winner){
@@ -8266,7 +8274,9 @@ function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversai
   CAREER_MATCH={my:CAREER.my, opp:g.home===CAREER.my?g.away:g.home, home:g.home, day:CAREER.day, po:!!g.po};
   careerAiPrep(CAREER.teams[CAREER_MATCH.opp]);   // v489 : l'adversaire repose ses fatigues et choisit son gardien
   CAREER_MATCH.roster={A:careerMatchRoster(CAREER.teams[CAREER_MATCH.my]), B:careerMatchRoster(CAREER.teams[CAREER_MATCH.opp])};   // fixe pour tout le match
-  careerApplyLook(); _hide('careerOverlay'); _hide('mainMenu'); TIPS_ARMED=true; newGame('A'); MSAVE_ON=true; return true;
+  careerApplyLook(); _hide('careerOverlay'); _hide('mainMenu'); TIPS_ARMED=true; newGame('A'); MSAVE_ON=true;
+  S.speech.A.carry=CAREER.carry||null;   // v504 : le discours d'apres-match du match precedent (moitie)
+  return true;
 }
 function careerGameOverButtons(){ var cc=document.getElementById('btnCareerContinue'), ng=document.getElementById('btnNewGame');
   if(cc) cc.style.display=CAREER_MATCH?'':'none'; if(ng) ng.style.display=CAREER_MATCH?'none':''; }
@@ -8305,7 +8315,7 @@ function careerMatchRoster(T){   // les patineurs du match : ni blesses ni au re
 }
 function careerGoalieOf(T){ var g2=T.goalie2; return (g2 && !g2.inj && (T.gStart===2 || T.goalie.inj)) ? g2 : T.goalie; }
 function careerPieceP(q){ if(!CAREER || !CAREER_MATCH || !q || !q.uid) return null; return careerPlayerByUid(CAREER.teams[q.team==='A'?CAREER_MATCH.my:CAREER_MATCH.opp], q.uid); }
-function careerCost(id, v){ if(CAREER_MATCH && CAREER_LOG && CAREER_LOG.cost && id && v) CAREER_LOG.cost[id]=(CAREER_LOG.cost[id]||0)+v; }
+function careerCost(id, v){ if(v>0) v*=1-0.04*speechK(String(id).charAt(0), 'mot');   /* v504 : « Give it everything! » */ if(CAREER_MATCH && CAREER_LOG && CAREER_LOG.cost && id && v) CAREER_LOG.cost[id]=(CAREER_LOG.cost[id]||0)+v; }
 function careerLiveEn(q){ var p=careerPieceP(q); return p ? careerClampEn(careerEn(p)-((CAREER_LOG && CAREER_LOG.cost && CAREER_LOG.cost[q.id])||0)) : 100; }
 function careerOnIce(){   // v489 : au debut de sa periode (ou a son entree), il joue avec sa fatigue, sa rouille, sa sequelle ; la periode coute 20
   if(!CAREER_MATCH || !CAREER_LOG || !CAREER_LOG.pe) return;
@@ -8432,6 +8442,8 @@ function careerFinishMatch(){   // le resultat compte, le reste du jour est simu
   var g=careerMyGame(CAREER), a=S.score.A, b=S.score.B, ot=!!S._endOT;
   CAREER.last={opp:CAREER_MATCH.opp, gf:a, ga:b, ot:ot, po:!!CAREER_MATCH.po};
   CAREER.report=careerProgress();   // v484 : l'experience de tes joueurs, le bilan
+  CAREER.carry=S.speechPost||null;   // v504 : le report du discours d'apres-match
+  CAREER.report.coach=careerCoachProgress(a>b);   // v504 : ton coach progresse
   careerPlayDay(CAREER, (g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot} : {hs:b, as:a, ot:ot});
   careerSave(); careerClearLook(); _hide('gameoverOverlay'); newGame('A'); careerGo('report', true);   // v484 : le bilan d'abord
 }
@@ -8590,6 +8602,58 @@ function careerSetCoach(prof){   // v503 : ton coach -- le profil choisi, niveau
   careerSave(); careerGo('hub'); return true;
 }
 function coachWorst(co){ var w=COACH_SKILLS[0]; COACH_SKILLS.forEach(function(k){ if(co[k]<co[w]) w=k; }); return w; }
+// ---- v504 : LES DISCOURS (morceau 2) -- force k selon la competence (>= 70 : 1 ; 45-69 : 0,5 ; < 45 : 0,25 et 1 chance sur 3 de
+// -0,25), x m = 1 + 2 (niveau - 1) / 9 ; S.speech[team] = {seg (periode en cours), carry (report d'apres-match, moitie)}.
+var SPEECH_TONES={mot:'Give it everything!', dis:'Stay disciplined', sys:'Stick to the system', con:'Believe in yourselves'};
+function coachOf(team){ if(!CAREER || !CAREER_MATCH) return null; var T=CAREER.teams[team==='A'?CAREER_MATCH.my:CAREER_MATCH.opp]; return (T && T.coach) || null; }
+function coachMul(co){ return 1+2*(((co && co.lvl)||1)-1)/9; }
+function speechTier(v){ return v>=70 ? 1 : (v>=45 ? 0.5 : 0.25); }
+function speechRoll(co, tone){ var t=speechTier(co[tone]); return (t===0.25 && Math.random()<1/3) ? -0.25 : t; }
+function speechK(team, tone){
+  var sp=(typeof S!=='undefined' && S && S.speech) ? S.speech[team] : null, co=coachOf(team); if(!sp || !co) return 0;
+  var k=((sp.seg && sp.seg.tone===tone) ? sp.seg.k : 0)+((sp.carry && sp.carry.tone===tone) ? sp.carry.k*0.5 : 0);
+  return Math.max(-0.5, Math.min(1.5, k))*coachMul(co);
+}
+function speechFmt(x){ return String(Math.round(x*10)/10); }
+function speechPreview(co, tone){ var t=speechTier(co[tone]), v=t*coachMul(co), lbl=t===1 ? 'Strong' : (t===0.5 ? 'Half' : 'Weak, risky');
+  var fx=tone==='mot' ? '−'+speechFmt(4*v)+'% fatigue' : (tone==='dis' ? '−'+speechFmt(5*v)+'% penalties' : (tone==='sys' ? '+'+speechFmt(0.5*v)+' to cut passes and block shots' : '+'+speechFmt(0.5*v)+' passes, +'+speechFmt(2*v)+'% shots'));
+  return lbl+': '+fx; }
+function careerTeamTired(team){ var n=0, t=0; S.pieces.forEach(function(q){ if(q.team===team && q.onIce && q.type==='sk' && q.uid){ n++; t+=careerLiveEn(q); } }); return n>0 && t/n<60; }
+function aiSpeechTone(team){ var co=coachOf(team); if(!co) return 'mot'; var me=S.score[team], op=S.score[team==='A'?'B':'A'];
+  var cand=careerTeamTired(team) ? ['mot'] : (me<op ? ['mot', 'con'] : (me>op ? ['dis', 'sys'] : COACH_SKILLS));
+  var b=cand[0]; cand.forEach(function(k){ if(co[k]>co[b]) b=k; }); return b; }
+function speechOpen(moment, done){   // v504 : le vestiaire -- ton coach parle (tu choisis le ton) ; l'IA aussi (sauf apres le match)
+  var co=coachOf(HUMAN_TEAM); if(!co){ done(); return; }
+  S.speechOpen={moment:moment, done:done};
+  var ttl={pre:'Locker room — before the game', inter:'Locker room — intermission', post:'Locker room — after the game'}[moment];
+  var h='<div class="wcard"><div class="wicon">📣</div><div class="wbig">'+ttl+'</div><div class="wsub">Coach '+careerEsc(co.name)+' · '+COACH_PROFILES[co.prof].n+' · level '+co.lvl+'</div>';
+  if(moment==='post') h+='<div class="wsub">Half of it lasts the whole next game.</div>';
+  COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+SPEECH_TONES[k]+'”</b><small>'+speechPreview(co, k)+'</small></button>'; });
+  document.getElementById('speechOverlay').innerHTML=h+'</div>'; _show('speechOverlay');
+}
+function speechApply(team, moment, tone, k, co){
+  if(moment==='post') S.speechPost={tone:tone, k:k}; else S.speech[team].seg={tone:tone, k:k};
+  if(team===HUMAN_TEAM) S.speechUse[tone]=(S.speechUse[tone]||0)+1;
+  pushLog('<b>'+careerEsc(co.name)+'</b> ('+TEAM_NAME[team]+'): “'+SPEECH_TONES[tone]+'”'+(k<0 ? ' — the players don\'t buy it.' : ''));
+}
+function speechChoose(tone){ var o=S.speechOpen; if(!o || !SPEECH_TONES[tone]) return;
+  S.speechOpen=null; _hide('speechOverlay');
+  var co=coachOf(HUMAN_TEAM); speechApply(HUMAN_TEAM, o.moment, tone, speechRoll(co, tone), co);
+  var ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
+  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai); speechApply(ai, o.moment, at, speechRoll(ac, at), ac); }
+  render(); o.done();
+}
+function careerCoachProgress(won){   // v504 : ton coach -- +1 XP par match (+1 victoire), niveau n -> n+1 : 8+2n (max 10) ; 8 discours d'un ton -> +1 (max 90)
+  var co=CAREER && CAREER.teams[CAREER.my].coach; if(!co) return null; var out={lvlFrom:co.lvl, up:{}};
+  co.xp+=won ? 2 : 1; while(co.lvl<10 && co.xp>=8+2*co.lvl){ co.xp-=8+2*co.lvl; co.lvl++; } if(co.lvl>=10) co.xp=0;
+  var use=(S && S.speechUse) || {};
+  COACH_SKILLS.forEach(function(k){ co.use[k]=(co.use[k]||0)+(use[k]||0); while(co.use[k]>=8){ co.use[k]-=8; if(co[k]<90){ co[k]++; out.up[k]=(out.up[k]||0)+1; } } });
+  out.lvl=co.lvl; out.xp=co.xp; return out;
+}
+function careerCoachLine(R){   // v504 : la ligne du coach au bilan
+  var co=CAREER && CAREER.teams[CAREER.my].coach; if(!R || !R.coach || !co) return '';
+  return '<div class="msub">Coach '+careerEsc(co.name)+' · level '+R.coach.lvl+(R.coach.lvl>R.coach.lvlFrom ? ' <b class="cbadge">Level up!</b>' : '')+Object.keys(R.coach.up).map(function(k){ return ' · '+COACH_SKILL_ABBR[k]+' +'+R.coach.up[k]; }).join('')+'</div>';
+}
 function careerCapRange(p, k){   // la fourchette du depisteur : la vraie valeur est dedans ; elle se resserre avec les matchs
   var base=p.age<23?7:(p.age<28?5:3), w=Math.max(1, Math.round(base-0.25*(p.gp||0))), cap=p.cap[k];
   var lo=Math.max(p[k], cap-Math.round(p.capF[k]*2*w)), hi=Math.min(99, lo+2*w); if(hi<cap) hi=cap;
@@ -8762,7 +8826,7 @@ function careerRender(){
     R.rows.forEach(function(r){
       var gain=Object.keys(r.gain).map(function(k){ return '+'+Math.round(r.gain[k])+' '+CAREER_ABBR[k]; }).join(' '), up=Object.keys(r.up).map(function(k){ return CAREER_ABBR[k]+' '+r.up[k][0]+'→'+r.up[k][1]; }).join(' ');
       h+='<tr class="cplay" onclick="careerOpenPlayer('+r.uid+')"><td>'+careerEsc(r.name)+(r.lvlUp?' <b class="cbadge">Level up!</b>':'')+'</td><td>'+careerStatLine(r.st, r.pos==='G')+'</td><td>'+gain+'</td><td>'+up+'</td><td>'+((R.en && R.en[r.uid]!=null)?'⚡'+R.en[r.uid]:'')+'</td></tr>'; });
-    h+='</table></div>'+careerInjHtml(R, ro)+'<div class="msub">Tap a player to see his card.</div><button class="mbtn play" onclick="careerGo(CAREER.phase===\'done\'?\'season\':\'hub\')">▶ Continue</button>';
+    h+='</table></div>'+careerCoachLine(R)+careerInjHtml(R, ro)+'<div class="msub">Tap a player to see his card.</div><button class="mbtn play" onclick="careerGo(CAREER.phase===\'done\'?\'season\':\'hub\')">▶ Continue</button>';
   } else if(v==='player'){
     var T4=c.teams[c.my], P4=careerPlayerByUid(T4, CAREER_PUID), gk=(P4===T4.goalie), need=careerLevelCost(P4.lvl);
     h+='<div class="mtitle">'+careerEsc(P4.name)+'</div><div class="msub">'+(gk?'Goalie':(P4.pos==='D'?'Defense':'Forward'))+' · age '+P4.age+(gk?'':' · '+careerEsc((ARCH_INFO[P4.archetype]||{}).n||P4.archetype))+'</div>';
@@ -8791,7 +8855,7 @@ function careerRender(){
   }
   el.innerHTML=h;
 }
-document.getElementById('btnCareerContinue').onclick=careerFinishMatch;
+document.getElementById('btnCareerContinue').onclick=function(){ speechOpen('post', careerFinishMatch); };   // v504 : le discours d'apres-match, puis le bilan
 document.getElementById('btnExitCareer').onclick=careerExitMatch;
 document.getElementById('mmCareer').onclick=function(){ if(!CAREER) CAREER=careerLoad(); careerGo('start'); careerCloudSync(); };   // v485 : et le compte
 var CAREER_KEY='hjCareer';
@@ -9422,7 +9486,7 @@ var MSAVE_KEY='hjMatchSave', MSAVE_ON=false, RA_NEXT=null;
 var MSAVE_FRESH={animating:false, paused:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
   planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, defCommit:null, aiming:null, aimClock:null, aimBeep:0, gkClock:null, gkBeep:0,
   sel:null, slides:{}, moves:[], passT:[], duelT:[], bankT:[], dumpT:[], pokeT:[], battle:null, battleOn:null, faceoff:null, lunge:null, slide:null,
-  celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null};
+  celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null};
 function mmMsg(t){ var e=document.getElementById('mmMsg'); if(e){ e.textContent=t||''; e.style.display=t?'':'none'; } }
 function matchSave(kind, args){
   if(!MSAVE_ON || !S || S.tut || tutPractice()) return;
