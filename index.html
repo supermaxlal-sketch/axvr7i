@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v507</title>
+<title>Deck 3D v508</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -259,7 +259,7 @@
 .mtitle{font-size:24px;font-weight:900;color:#fff;text-align:center;}
 .msub{font-size:12px;color:#9fb6cd;text-align:center;margin-bottom:14px;}
 .mmsg{font-size:12px;color:#ffb36b;text-align:center;margin-bottom:6px;}
-#speechOverlay.tv{background:transparent;align-items:flex-end;} #speechOverlay.tv .wcard{max-width:96vw;padding:10px 12px;margin-bottom:8px;} #speechOverlay.tv .wicon{display:none;} #speechOverlay.tv .wbig{font-size:15px;} #speechOverlay.tv .tones{display:grid;grid-template-columns:1fr 1fr;gap:6px;} #speechOverlay.tv .dconfirm{margin-top:0;} #speechOverlay .speechsay{cursor:pointer;} #speechOverlay svg.speechart{display:block;width:100%;max-width:260px;margin:6px auto 0;}   /* v505 */ #speechOverlay .angles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:2px 0 6px;} #speechOverlay .angles button{font-size:10px;padding:3px 6px;}   /* v507 */
+#speechOverlay.tv{background:transparent;align-items:flex-end;} #speechOverlay.tv .wcard{max-width:96vw;padding:10px 12px;margin-bottom:8px;} #speechOverlay.tv .wicon{display:none;} #speechOverlay.tv .wbig{font-size:15px;} #speechOverlay.tv .tones{display:grid;grid-template-columns:1fr 1fr;gap:6px;} #speechOverlay.tv .dconfirm{margin-top:0;} #speechOverlay .speechsay{cursor:pointer;} #speechOverlay svg.speechart{display:block;width:100%;max-width:260px;margin:6px auto 0;}   /* v505 */ #speechOverlay .angles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:2px 0 6px;} #speechOverlay .angles button{font-size:10px;padding:3px 6px;}   /* v507 */ #speechOverlay.tv .wcard{width:min(96vw,520px);padding:6px 8px;margin-bottom:4px;border-radius:12px;} #speechOverlay.tv .wbig{font-size:12px;} #speechOverlay.tv .wsub{font-size:10px;margin-top:1px;} #speechOverlay.tv .angles{flex-wrap:nowrap;margin:4px 0;} #speechOverlay.tv .angles button{flex:1 1 0;min-width:0;min-height:0;white-space:nowrap;font-size:10px;padding:4px 2px;} #speechOverlay.tv .tones{gap:4px;} #speechOverlay.tv .dconfirm{padding:5px 7px;font-size:11px;border-radius:7px;line-height:1.2;} #speechOverlay.tv .dconfirm small{font-size:9.5px;margin-top:1px;}   /* v508 : le bandeau compact (le concepteur : « Compact le bandeau ») */
 #speechOverlay .dconfirm{display:block;width:100%;margin-top:8px;text-align:left;} #speechOverlay .dconfirm small{display:block;font-weight:600;font-size:11px;opacity:.85;margin-top:2px;}   /* v504 */   /* v499 : reprise impossible */
 .mbtn{display:block;width:100%;margin-top:9px;background:#243a52;color:#eaf2fb;border:1px solid #34557a;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;text-align:center;}
 .mbtn.play{background:#1f8a8a;border-color:#2fbf7a;font-size:17px;}
@@ -1253,7 +1253,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v507';
+var GAME_VERSION='v508';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8672,7 +8672,7 @@ function speechSkip(){ var o=S.speechOpen; if(!o || !o.say) return; clearTimeout
 function speechEnd(o){ S.speechOpen=null; _hide('speechOverlay'); document.getElementById('speechOverlay').classList.remove('tv'); if(hj3dActive()) hj3dSend('cue', 'rise'); render(); o.done(); }
 // v507 : la chambre -- un angle different a chaque discours (choix du concepteur) : avant Wide, apres la 1re Coach,
 // apres la 2e Over the shoulder, apres le match Players ; boutons d'angles ; apres le match : fete (victoire) ou silence.
-var ROOM_ANGLES=['wide', 'coach', 'shoulder', 'players'], ROOM_ANGLE_NAME={wide:'Wide', coach:'Coach', shoulder:'Over the shoulder', players:'Players'};
+var ROOM_ANGLES=['wide', 'coach', 'shoulder', 'players'], ROOM_ANGLE_NAME={wide:'Wide', coach:'Coach', shoulder:'Shoulder', players:'Players'};
 function speechRoomAngle(moment){ if(moment==='pre') return 'wide'; if(moment==='post') return 'players'; return S.period===2 ? 'coach' : 'shoulder'; }
 function speechMood(moment){ if(moment!=='post') return ''; return S.score[HUMAN_TEAM]>S.score[HUMAN_TEAM==='A' ? 'B' : 'A'] ? 'win' : 'loss'; }
 function speechRoomCue(team, angle, mood){ hj3dSend('cue', 'room:'+team+':'+angle+(mood ? ':'+mood : '')); }
