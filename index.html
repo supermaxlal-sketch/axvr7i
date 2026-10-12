@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v510</title>
+<title>Deck 3D v511</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v510';
+var GAME_VERSION='v511';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6945,7 +6945,7 @@ function startFaceoffRPS(dotC,dotR,reset){
 function proceedFaceoff(dotC,dotR){
   if(CAREER_MATCH && !S.tut && !S.speechPreDone && S.period===1){ S.speechPreDone=true; speechOpen('pre', function(){ proceedFaceoff(dotC,dotR); }); return; }   // v504 : le discours d'avant-match
   repositionForFaceoff(dotC,dotR);
-  if(CAREER_MATCH && !S.tut && !S.overtime && S.tunnelIn!==S.period){ S.tunnelIn=S.period; if(hj3dActive()){ tunnelScene('in', function(){ proceedFaceoff(dotC,dotR); }); return; } }   // v510 : l'entree par le tunnel (3D)
+  if(CAREER_MATCH && !S.tut && !S.overtime && S.tunnelIn!==S.period){ S.tunnelIn=S.period; if(hj3dActive()){ tunnelScene(S.period===1 ? 'warm' : 'in', function(){ proceedFaceoff(dotC,dotR); }); return; } }   // v510 : l'entree par le tunnel (3D) ; v511 : avant le match, l'echauffement
   S.puckLoose=null; S.puckOwner=null;
   var fo={dotC:dotC,dotR:dotR};
   S.faceoff=fo;
@@ -8674,16 +8674,25 @@ function speechSkip(){ var o=S.speechOpen; if(!o || !o.say) return; clearTimeout
 // v510 : le couloir (le concepteur : « l'entree des joueurs sur la glace », « la sortie apres la premiere periode ») --
 // deux plans comme a la tele : entree = dans le tunnel (de dos) puis sur la glace face au banc ; sortie = sur la glace puis
 // dans le tunnel. Les deux equipes bougent en meme temps (Godot). Carriere + 3D seulement ; Skip. Repere tunnel:<in|out>:<equipe>:<plan>.
-var TUNNEL_MS={'in':[3000, 4000], out:[3000, 3000]};
+// v511 (le concepteur : « ça va trop vite » -- la camera monte en hauteur comme pour les choix, les joueurs tournent en rond
+// et lancent sur le gardien, puis ceux du banc rentrent et les autres se placent) : avant le match 'warm' (3e plan :
+// l'echauffement, ~10 s, panoramique lent) ; debut de la 2e / 3e 'in' (3e plan : un court tour, puis les places).
+var TUNNEL_MS={warm:[3000, 3000, 13500], 'in':[3000, 3000, 5000], out:[3000, 3000]};
 function tunnelScene(dir, done){
   if(!(CAREER_MATCH && !S.tut && hj3dActive())){ done(); return; }
-  var o={dir:dir, done:done, shot:1}; S.tunnelOn=o;
-  var ov=document.getElementById('tunnelOverlay');
-  ov.innerHTML='<div class="tunbar"><span>'+careerEsc(TEAM_NAME[HUMAN_TEAM])+(dir==='in' ? ' take the ice' : ' head to the room')+'</span><button class="perkbtn" data-skip="1" onclick="tunnelSkip()">Skip ▸▸</button></div>';
+  var o={dir:dir, done:done, shot:0}; S.tunnelOn=o;
   _show('tunnelOverlay'); render();
-  hj3dSend('cue', 'tunnel:'+dir+':'+HUMAN_TEAM+':1');
-  o.timer=setTimeout(function(){ if(S.tunnelOn!==o) return; o.shot=2; hj3dSend('cue', 'tunnel:'+dir+':'+HUMAN_TEAM+':2'); if(dir==='in') crowd('cheer');   // ton equipe apparait
-    o.timer=setTimeout(function(){ tunnelEnd(o); }, TUNNEL_MS[dir][1]); }, TUNNEL_MS[dir][0]);
+  tunnelShot(o);
+}
+function tunnelShot(o){   // le plan suivant (repere tunnel:<dir>:<equipe>:<plan>), ou la fin
+  if(S.tunnelOn!==o) return;
+  var ms=TUNNEL_MS[o.dir]; if(o.shot>=ms.length){ tunnelEnd(o); return; }
+  o.shot++;
+  var lbl=o.dir==='out' ? ' head to the room' : (o.dir==='warm' && o.shot===3 ? ' warm up' : ' take the ice');
+  document.getElementById('tunnelOverlay').innerHTML='<div class="tunbar"><span>'+careerEsc(TEAM_NAME[HUMAN_TEAM])+lbl+'</span><button class="perkbtn" data-skip="1" onclick="tunnelSkip()">Skip ▸▸</button></div>';
+  hj3dSend('cue', 'tunnel:'+o.dir+':'+HUMAN_TEAM+':'+o.shot);
+  if(o.shot===2 && o.dir!=='out') crowd('cheer');   // ton equipe apparait
+  o.timer=setTimeout(function(){ tunnelShot(o); }, realMs(ms[o.shot-1]));   // duree reelle (setTimeout est divise par ANIM_RATE) : la 3D joue sa scene en secondes vraies
 }
 function tunnelSkip(){ var o=S.tunnelOn; if(o) tunnelEnd(o); }
 function tunnelEnd(o){ if(S.tunnelOn!==o) return; clearTimeout(o.timer); S.tunnelOn=null; _hide('tunnelOverlay'); if(hj3dActive()) hj3dSend('cue', 'rise'); render(); o.done(); }
@@ -9624,7 +9633,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":179620,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":189796,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
