@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v511</title>
+<title>Deck 3D v512</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v511';
+var GAME_VERSION='v512';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9497,8 +9497,10 @@ var TIPS={
 // v466 : le stockage local peut etre bloque (il echouait sans rien dire : Tips restait On, un conseil vu revenait) -> la
 // copie en memoire fait foi des la 1re ecriture de la session ; le stockage la garde pour la prochaine fois quand il marche.
 var _tipsMem=null;
-function tipsState(){ var o=_tipsMem; if(!o){ try{ o=JSON.parse(localStorage.getItem(TIPS_KEY)||'null'); }catch(e){ o=null; } } o=o||{}; var seen={}; for(var k in (o.seen||{})) seen[k]=o.seen[k]; return {off:!!o.off, seen:seen}; }
-function tipsSave(st){ var seen={}; for(var k in (st.seen||{})) seen[k]=st.seen[k]; _tipsMem={off:!!st.off, seen:seen}; try{ localStorage.setItem(TIPS_KEY, JSON.stringify(_tipsMem)); }catch(e){} }
+// v512 (le concepteur : « desactives par defaut ; il faudra aller dans les options pour les activer ») : allumes seulement
+// par un choix (on:true, Settings ou Reset). L'ancien reglage {off:false} etait ecrit a chaque conseil vu, pas choisi : ignore.
+function tipsState(){ var o=_tipsMem; if(!o){ try{ o=JSON.parse(localStorage.getItem(TIPS_KEY)||'null'); }catch(e){ o=null; } } o=o||{}; var seen={}; for(var k in (o.seen||{})) seen[k]=o.seen[k]; return {off:o.on!==true, seen:seen}; }
+function tipsSave(st){ var seen={}; for(var k in (st.seen||{})) seen[k]=st.seen[k]; _tipsMem={on:!st.off, seen:seen}; try{ localStorage.setItem(TIPS_KEY, JSON.stringify(_tipsMem)); }catch(e){} }
 function tipTrigger(id){
   if(!TIPS_ARMED || !TIPS[id] || (typeof S!=='undefined' && S && S.tut)) return;
   var st=tipsState(); if(st.off || st.seen[id] || _tipQ.indexOf(id)>=0) return;
