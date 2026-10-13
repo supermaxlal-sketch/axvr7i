@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v515</title>
+<title>Deck 3D v516</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v515';
+var GAME_VERSION='v516';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3947,6 +3947,7 @@ function looseBall(team, prio){ decaySpeed(S.turn); S.foPress=null; S.seqDef=nul
     if(S.puckLoose && !S.puckOwner){
       var _L={c:S.puckLoose.c, r:S.puckLoose.r};
       var _cr=creaseRebound(_L);   // rebond d'enclave : le gardien le dispute selon la distance de l'attaquant
+      if(_cr && _cr.da<=1) careerContact(_cr.gk.id, 'crease', _cr.atk);   // v516 : l'attaquant colle au gardien -- la collision peut le blesser
       var _dz=S._postDaze; S._postDaze=false;   // v495 : apres le poteau, devant le but, le gardien est deroute (2 fois moins)
       if(_cr && Math.random() < _cr.pGoalie*(_dz?0.5:1)){ goalieCoverRebound(_cr.gk, _L); return; }
       var _pair=findBattlePair(_L);
@@ -4167,7 +4168,7 @@ function bypassContacts(p, path, around){
     if(o.team!==p.team){
       var ok=tutLuck(1-hookProb(p,o), p.team===HUMAN_TEAM);
       matchEv('brush', {id:p.id, on:o.id, held:!ok, at:k+1});   // at : rang de la case de cote (pas k : matchRec s'en sert)
-      if(!ok){ held=o; path=path.slice(0, k+1); pushLog('<b>'+o.name+'</b> hooks '+p.name+' — he is held up.'); penTry(o, PEN_P_HOOK, 'hook'); break; }   // v497 : l'arbitre peut siffler celui qui accroche
+      if(!ok){ held=o; path=path.slice(0, k+1); pushLog('<b>'+o.name+'</b> hooks '+p.name+' — he is held up.'); if(penTry(o, PEN_P_HOOK, 'hook')) careerContact(p.id, 'stick', o); break; }   // v516 : le coup de baton siffle peut blesser   // v497 : l'arbitre peut siffler celui qui accroche
     }
     pushLog(p.name+' skates around '+o.name+'.');
   }
@@ -8333,18 +8334,19 @@ function careerStatOf(id){ if(!CAREER_LOG || !id) return null; return CAREER_LOG
 function careerTrack(e, d){   // les actions du match de carriere
   if(!CAREER_MATCH || !CAREER_LOG || !d) return; var s;
   if(e==='shot'){ var sh=byId(d.id);
-    if(d.res==='block'){ var bk=byId(d.by); if(bk && sh && bk.team!==sh.team && (s=careerStatOf(d.by))) s.stl++; if(bk && bk.type==='sk') careerContact(d.by, 'blk'); }
+    if(d.res==='block'){ var bk=byId(d.by); if(bk && sh && bk.team!==sh.team && (s=careerStatOf(d.by))) s.stl++; if(bk && bk.type==='sk') careerContact(d.by, 'blk', sh); }
     else if(d.res!=='wide' && (s=careerStatOf(d.id))){ s.sog++;
       if(d.res==='goal'){ s.g++; var L=CAREER_LOG.last; if(L && L.to===d.id && L.from!==d.id && sh && L.team===sh.team && (s=careerStatOf(L.from))) s.a++; }
       else if(d.g && (s=careerStatOf(d.g))){ s.sv++; if(d.res==='save' || d.res==='catch') s.svc++; } }
+    if(d.defl && d.defl!==d.id){ var _dp=byId(d.defl); if(_dp && _dp.type==='sk') careerContact(d.defl, 'defl', sh); }   // v516 : la rondelle deviee au visage
     CAREER_LOG.last=null; }
   else if(e==='deke'){ if((s=careerStatOf(d.id))){ if(d.ok) s.dk++; else s.dkf++; } }
   else if(e==='hit'){ if(d.ok && (s=careerStatOf(d.id))){ if(d.body) s.hit++; else s.stl++; }
-    if(d.ok && d.body){ careerCost(d.id, CAREER_EN.hitG); careerCost(d.on, CAREER_EN.hitR); if((s=careerStatOf(d.on))) s.hr++; careerContact(d.on, 'hit'); } }   // v489 : la fatigue des contacts
+    if(d.ok && d.body){ careerCost(d.id, CAREER_EN.hitG); careerCost(d.on, CAREER_EN.hitR); if((s=careerStatOf(d.on))) s.hr++; careerHitInjury(d); } }   // v489 : la fatigue des contacts ; v516 : la blessure seulement d'une mise en echec dangereuse
   else if(e==='skate'){ if(d.pts && (s=careerStatOf(d.id))){ var _c0=s.cells; for(var i=1;i<d.pts.length;i++) s.cells+=Math.max(Math.abs(d.pts[i][0]-d.pts[i-1][0]), Math.abs(d.pts[i][1]-d.pts[i-1][1])); careerCost(d.id, (s.cells-_c0)/CAREER_EN.cells); } }
   else if(e==='passok'){ if((s=careerStatOf(d.id))) s.pc++; var pp=byId(d.id); CAREER_LOG.last={from:d.id, to:d.to, team:pp?pp.team:null}; }
   else if(e==='steal'){ if((s=careerStatOf(d.id))) s.stl++; CAREER_LOG.last=null; }
-  else if(e==='battle'){ if((s=careerStatOf(d.id))) s.bat++; careerCost(d.id, CAREER_EN.bat); if(d.lose){ careerCost(d.lose, CAREER_EN.bat); careerContact(d.lose, 'bat'); } }
+  else if(e==='battle'){ if((s=careerStatOf(d.id))) s.bat++; careerCost(d.id, CAREER_EN.bat); if(d.lose){ careerCost(d.lose, CAREER_EN.bat); } }   // v516 : une bataille ne blesse plus
   else if(e==='breakaway'){ if((s=careerStatOf(d.id))) s.brk++; }
 }
 function careerAiPrep(T){   // v489 : l'IA repose ses patineurs sous 50 (au plus 2) ; l'auxiliaire garde les buts si le no 1 est sous 60
@@ -8371,12 +8373,27 @@ function careerOnIce(){   // v489 : au debut de sa periode (ou a son entree), il
     (gk?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ q[k]=Math.max(30, p[k]-careerMalus(p, k, pe.e)); });
     if(!gk) delete q.acceleration100; deriveLegacy(q); });
 }
-function careerContact(id, kind){   // v489 : un contact peut blesser un patineur de carriere (selon son energie) ; le sifflet suit
-  if(!CAREER_MATCH || !CAREER_LOG || !CAREER_LOG.inj || !id || CAREER_LOG.inj[id]) return;
-  var q=byId(id); if(!q || q.type!=='sk' || !q.uid) return;
-  var inj=careerInjRoll(kind, careerLiveEn(q)); if(!inj) return;
-  CAREER_LOG.inj[id]=inj; (S.injQ=S.injQ||[]).push(id); careerInjuryWhistle();
+function careerContact(id, kind, by){   // v489 : un contact peut blesser (selon son energie) ; le sifflet suit. v516 : seulement un EVENEMENT (CAREER_INJ_EV), la cause dans le message ; le gardien finit le match
+  if(!CAREER_MATCH || !CAREER_LOG || !CAREER_LOG.inj || !id || CAREER_LOG.inj[id] || !CAREER_INJ_EV[kind]) return;
+  var q=byId(id); if(!q || !q.uid || (q.type!=='sk' && kind!=='crease')) return;
+  if(!(careerRand() < CAREER_INJ_EV[kind]*careerInjMul(careerLiveEn(q)))) return;
+  var inj=careerInjMake(kind); inj.why=careerInjWhy(kind, by);
+  CAREER_LOG.inj[id]=inj;
+  if(q.type==='g'){ pushLog('<b>Injury</b>: '+q.name+' — '+inj.why+': '+inj.t+' ('+CAREER_SEV[inj.sev]+'). He finishes the game, then misses '+inj.left+' game'+(inj.left>1?'s':'')+'.'); return; }
+  (S.injQ=S.injQ||[]).push(id); careerInjuryWhistle();
 }
+function careerInjWhy(kind, by){ var n=(by && by.name) ? by.name : 'a rival';   // v516 : la cause, dans le message
+  return ({hit3:'big hit by '+n, hit4:'big hit by '+n, behind:'hit from behind by '+n, boards:'driven into the boards by '+n, blk:'blocking a shot from '+n,
+    stick:'hooked by '+n, defl:'tipped puck to the face', crease:n+' crashes into the crease'})[kind] || kind; }
+function nearBoards(c, r){ return !onIce(c-1, r) || !onIce(c+1, r) || !onIce(c, r-1) || !onIce(c, r+1); }
+function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- dans le dos, avec elan (3+), ou contre la bande (la plus dangereuse compte)
+  var h=byId(d.id), v=byId(d.on); if(!h || !v) return;
+  var k=null, best=0;
+  function take(kk){ if(CAREER_INJ_EV[kk]>best){ best=CAREER_INJ_EV[kk]; k=kk; } }
+  if(Math.sign(h.c-v.c)===-dir(v.team)) take('behind');
+  if((d.run||0)>=4) take('hit4'); else if((d.run||0)>=3) take('hit3');
+  if(nearBoards(v.c, v.r)) take('boards');
+  if(k) careerContact(d.on, k, h); }
 function careerNearDot(c, r){ var D=[[CTR_C_CELL, CTR_R], [NET_B+3, CTR_R-3], [NET_B+3, CTR_R+3], [NET_A-3, CTR_R-3], [NET_A-3, CTR_R+3], [BLUE_A-2, CTR_R-3], [BLUE_A-2, CTR_R+3], [BLUE_B+2, CTR_R-3], [BLUE_B+2, CTR_R+3]], b=D[0], bd=1e9;
   D.forEach(function(x){ var v=Math.abs(x[0]-c)+Math.abs(x[1]-r); if(v<bd){ bd=v; b=x; } }); return {c:b[0], r:b[1]}; }
 function careerInjuryWhistle(){   // le sifflet attend la fin de l'action en cours (comme le gardien qui gele)
@@ -8386,7 +8403,7 @@ function careerInjuryWhistle(){   // le sifflet attend la fin de l'action en cou
   S._injBusy=true; var dot=careerNearDot(q.c, q.r);
   if(S.currentSeq) killSeq(S.currentSeq); S.currentSeq=null; S.planResume=null; S.planNext=null; S.planning=false; S.atkPlan=[]; S.ghost={}; S.defCommit=null; S.aiPlan=null; S.planClock=null; renderPlanBar(); renderDefBar();
   q.onIce=false; S.animating=true; clearSel(); render();
-  var txt=q.name+' — '+inj.t+' ('+CAREER_SEV[inj.sev]+'), out '+inj.left+' game'+(inj.left>1?'s':'');
+  var txt=q.name+' — '+(inj.why ? inj.why+': ' : '')+inj.t+' ('+CAREER_SEV[inj.sev]+'), out '+inj.left+' game'+(inj.left>1?'s':'');   // v516 : la cause
   pushLog('<b>Injury</b>: '+txt+'.');
   showWhistle(function(){ careerReplace(q, function(){ S._injBusy=false; S.animating=false; if(S.injQ && S.injQ.length){ careerInjuryWhistle(); return; } var fd=S._injDot||dot; S._injDot=null; startFaceoffRPS(fd.c, fd.r, false); }); }, '🚑', 'INJURY', txt);
 }
@@ -8456,7 +8473,7 @@ function careerMatchEnergy(rep){   // v489 : fin du match : l'energie de ceux qu
   [['A', my], ['B', op]].forEach(function(x){ var team=x[0], T=x[1]; T._played={};
     S.pieces.forEach(function(q){ if(q.team!==team || !q.uid) return; var p=careerPlayerByUid(T, q.uid); if(!p) return;
       var gk=q.type==='g'; if(!gk && !CAREER_LOG.pe[q.id]) return; T._played[p.uid]=1;
-      if(gk){ p.en=careerClampEn(careerEn(p)-CAREER_EN.goalie); var gi=careerInjRoll('goalie', careerEn(p)); if(gi) CAREER_LOG.inj[q.id]=gi; }
+      if(gk){ p.en=careerClampEn(careerEn(p)-CAREER_EN.goalie); }   // v516 : plus de blessure de gardien au hasard (seulement d'une collision dans l'enclave)
       else p.en=careerClampEn(careerEn(p)-(CAREER_LOG.cost[q.id]||0));
       if(team==='A') rep.en[p.uid]=p.en;
       var inj=CAREER_LOG.inj[q.id]; if(inj){ var o=careerInjure(p, inj); (team==='A'?rep.inj:rep.oppInj).push({uid:p.uid, name:p.name, t:inj.t, sev:inj.sev, left:inj.left, perm:o.perm}); } }); });
@@ -8797,13 +8814,21 @@ var CAREER_INJ_TYPES={hit:[['Shoulder', ['physique']], ['Ribs', ['physique']], [
   blk:[['Ankle', ['vitesse']], ['Foot', ['vitesse']], ['Hand', ['tir', 'passe']]],
   goalie:[['Groin', ['couverture100']], ['Knee', ['couverture100']], ['Hand', ['arret100']]]};
 CAREER_INJ_TYPES.sim=CAREER_INJ_TYPES.hit.concat(CAREER_INJ_TYPES.bat.slice(0, 2), CAREER_INJ_TYPES.blk);   // match simule : tous les types de patineur
+// v516 (le concepteur : « trop de blessures » ; « il faut que les blessures proviennent d'un evenement : un lancer puissant, une
+// mise en echec puissante, un coup de baton ») : seulement ces evenements (choix : chances divisees par 2) ; une mise en echec
+// ordinaire ou une bataille ne blesse plus. Les matchs simules gardent CAREER_INJ.sim.
+var CAREER_INJ_EV={hit3:0.025, hit4:0.04, behind:0.05, boards:0.02, blk:0.025, stick:0.025, defl:0.025, crease:0.01};
+CAREER_INJ_TYPES.hit3=CAREER_INJ_TYPES.hit4=CAREER_INJ_TYPES.behind=CAREER_INJ_TYPES.boards=CAREER_INJ_TYPES.hit;
+CAREER_INJ_TYPES.stick=[['Wrist', ['tir']], ['Hand', ['tir', 'passe']]];
+CAREER_INJ_TYPES.defl=[['Face', ['maniement']], ['Jaw', ['passe']]];
+CAREER_INJ_TYPES.crease=CAREER_INJ_TYPES.goalie;
 var CAREER_SEV={light:'light', med:'medium', severe:'severe'};
 function careerEn(p){ return (p && typeof p.en==='number') ? p.en : 100; }
 function careerClampEn(v){ return Math.max(0, Math.min(100, Math.round(v))); }
 function careerFatigue(en){ return en>=80 ? 0 : Math.min(15, Math.floor((80-en)/4)); }   // 1 point par tranche de 4 sous 80 (60 -> 5, 40 -> 10), au plus 15
 function careerSeqMalus(p, k){ var q=p && p.seq; if(!q || !(q.left>0) || q.k.indexOf(k)<0) return 0; return Math.round(q.d*q.left/q.n); }   // s'efface en ligne droite
 function careerMalus(p, k, en){ return careerFatigue(en) + ((p.rust>0)?5:0) + careerSeqMalus(p, k); }
-function careerInjMul(en){ return en<30 ? 3 : (en<50 ? 2 : 1); }
+function careerInjMul(en){ return en<30 ? 2 : (en<50 ? 1.5 : 1); }   // v516 : fatigue adoucie (avant x2 / x3)
 function careerInjMake(kind, R){   // type (selon le contact), gravite, matchs manques
   R=R||careerRand; var types=CAREER_INJ_TYPES[kind], ty=types[Math.floor(R()*types.length)], u=R(), acc=0, sv=CAREER_INJ.sev[CAREER_INJ.sev.length-1];
   for(var i=0;i<CAREER_INJ.sev.length;i++){ acc+=CAREER_INJ.sev[i][1]; if(u<acc){ sv=CAREER_INJ.sev[i]; break; } }
