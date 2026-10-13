@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v513</title>
+<title>Deck 3D v514</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v513';
+var GAME_VERSION='v514';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2626,7 +2626,8 @@ function armDump(){
   S.bankMode=false; S.dumpAim=true; S.dumpT=dumpTargets(p.team);
   setHint(teammateInOffZone(p.team,p.id)
     ? 'Tap anywhere on the ice. Careful — a teammate is already in the zone, offside if your team touches it.'
-    : 'Tap anywhere on the ice. The farther you send it, the harder it is to place.');
+    : (icingCan(p.team, p.c) ? 'Tap anywhere on the ice. Careful — from your side of the red line, it is icing if they touch it first.'   /* v514 */
+    : 'Tap anywhere on the ice. The farther you send it, the harder it is to place.'));
   render();
 }
 function doDump(p,tc,tr){
@@ -2643,14 +2644,16 @@ function doDump(p,tc,tr){
   var enters = !inOffZone(team,p.c) && inOffZone(team,lc);
   var offTeam = (enters && teammateInOffZone(team,p.id)) ? team : null;
   var fc=p.c, fr=p.r, nm=p.name;
+  var icing = icingCan(team, p.c) && crossesGoalLine(team, _dsim.pts);   // v514 : de son cote de la ligne rouge, au-dela de la ligne des buts adverse
   sfx('shot'); S.puckOwner=null; render();
   flyPuckPath(_dsim.pts,function(){
     placeLooseNear(lc,lr);
     if(offTeam&&S.puckLoose) S.puckLoose.offside=offTeam;
+    if(icing&&S.puckLoose){ S.puckLoose.icing=team; S.puckLoose.icingRow=fr; }   // v514 : degagement en attente
     sfx('drop');
     checkFx(ok?'dumpin':'dumpoff', lc, lr);   // reaction visible du dump : DUMP IN (reussi) ou DUMP OFF (rate, grise)
     pushLog('<b>'+nm+'</b> sends it '+o.d+' squares away (die '+d+' vs '+thr+') — '+(ok?'on target — the boards take it from there.':'but it goes off line.'));
-    document.getElementById('outcome').innerHTML = (ok?'Dumped in — the play keeps going.':'Off the mark — loose puck.')+(offTeam?' <b>Offside pending.</b>':'')+' <span style="color:#9fb6cd">Both teams finish their actions, then the race for the puck — defence first.</span>';
+    document.getElementById('outcome').innerHTML = (ok?'Dumped in — the play keeps going.':'Off the mark — loose puck.')+(offTeam?' <b>Offside pending.</b>':'')+(icing?' <b>Icing if they touch it first.</b>':'')+' <span style="color:#9fb6cd">Both teams finish their actions, then the race for the puck — defence first.</span>';
     // le dump est une ACTION : la rondelle reste LIBRE mais la sequence CONTINUE (les autres
     // actions des deux equipes se resolvent). A la fin de la sequence, la recuperation se joue
     // avec priorite a la defense (resolveSeq: fin de sequence rondelle libre -> l'autre equipe a la 1re chance).
@@ -2674,7 +2677,17 @@ function showWhistle(cb, icon, big, sub){
   document.getElementById('wBig').textContent  = big  || 'OFFSIDE';
   document.getElementById('wSub').textContent  = sub  || 'Neutral zone faceoff';
   var ov=document.getElementById('whistleOverlay'); ov.classList.add('show'); setTimeout(function(){ ov.classList.remove('show'); cb(); }, 1300); }
-function triggerOffside(team,atRow){ if(S.tut) S.tut.offside=true;   /* v453 */ if(team===HUMAN_TEAM) tipTrigger('offside');   /* v456 */ S.lunge=null; S.slide=null; var dot=offsideDot(team,atRow); S.animating=true; clearSel(); render(); showWhistle(function(){ S.animating=false; doFaceoffNeutral(dot.c,dot.r); }); }
+// v514 : LE DEGAGEMENT REFUSE (le concepteur ; choix : comme la LNH). Un dump parti de son cote de la ligne rouge qui
+// traverse la ligne des buts adverse : si un joueur adverse touche la rondelle le premier -> sifflet, mise au jeu dans la zone
+// fautive, du cote d'ou est parti le dump. Annule si un des siens la touche le premier ou si le gardien la joue ; permis en
+// desavantage numerique. pickupLoose rend alors 'icing:<equipe>:<rangee>' (comme l'equipe hors-jeu) -> triggerOffside aiguille.
+function shortHanded(team){ return !!(S.pen && S.pen.box && S.pen.box.some(function(b){ return b.team===team; })); }
+function icingCan(team, c){ return (team==='A' ? c<COLS/2 : c>=COLS/2) && !shortHanded(team); }   // de son cote de la ligne rouge
+function crossesGoalLine(team, pts){ for(var i=0;i<pts.length;i++){ if(team==='A' ? pts[i].c>NET_A : pts[i].c<NET_B) return true; } return false; }
+function triggerIcing(team, row){ S.lunge=null; S.slide=null; var dot=penZoneDot(team, row); S.animating=true; clearSel(); render();
+  showWhistle(function(){ S.animating=false; pushLog('⛔ Icing — faceoff in the '+TEAM_NAME[team]+' zone.'); startFaceoffRPS(dot.c, dot.r, false); }, '⛔', 'ICING', 'Faceoff in the '+TEAM_NAME[team]+' zone'); }
+function triggerOffside(team,atRow){ if(typeof team==='string' && team.indexOf('icing:')===0){ var _ic=team.split(':'); triggerIcing(_ic[1], +_ic[2]); return; }   // v514
+  if(S.tut) S.tut.offside=true;   /* v453 */ if(team===HUMAN_TEAM) tipTrigger('offside');   /* v456 */ S.lunge=null; S.slide=null; var dot=offsideDot(team,atRow); S.animating=true; clearSel(); render(); showWhistle(function(){ S.animating=false; doFaceoffNeutral(dot.c,dot.r); }); }
 function shotDist(p){ var colD=p.team==='A'?(NET_A-p.c):(p.c-NET_B); return colD + Math.floor(Math.abs(p.r-CTR_R)/2); }
 function shotPenalty(d){ return d<=3?0 : d<=7?1 : d<=10?2 : d<=13?4 : 5; }   // echelle 32x13 (x1.68), etait 2/4/6/8
 function effOff(p){ return Math.max(0, p.off - shotPenalty(shotDist(p))); }
@@ -3141,8 +3154,8 @@ function pickupAlongPath(p, fromC, fromR, toC, toR){
   return null;
 }
 function pickupLoose(p,c,r){ if(battleHolds(p)) return null;   // v497 : la bataille la reserve aux deux joueurs
-  if(S.puckLoose&&S.puckLoose.c===c&&S.puckLoose.r===r){ var off=S.puckLoose.offside; S.puckOwner=p.id; S.puckLoose=null; S._fromLoose=true; armScramble(p.id,'loose');
-    if(p.type==='g'){ S.puckLoose={c:c,r:r}; S.puckOwner=null; goalieCover(p); return null; } if(off&&off===p.team&&inOffZone(p.team,c)){ pushLog('<b>'+p.name+'</b> touches the puck while offside — whistle!'); return p.team; } pushLog('<b>'+p.name+'</b> recovers the loose puck.'); } return null; }
+  if(S.puckLoose&&S.puckLoose.c===c&&S.puckLoose.r===r){ var off=S.puckLoose.offside, ice=S.puckLoose.icing, iceRow=S.puckLoose.icingRow; S.puckOwner=p.id; S.puckLoose=null; S._fromLoose=true; armScramble(p.id,'loose');
+    if(p.type==='g'){ S.puckLoose={c:c,r:r}; S.puckOwner=null; goalieCover(p); return null; } if(off&&off===p.team&&inOffZone(p.team,c)){ pushLog('<b>'+p.name+'</b> touches the puck while offside — whistle!'); return p.team; } if(ice&&ice!==p.team){ pushLog('<b>'+p.name+'</b> touches it first — icing!'); return 'icing:'+ice+':'+iceRow; } pushLog('<b>'+p.name+'</b> recovers the loose puck.'); } return null; }
 function flyPuckBoard(fromC,fromR,toC,toR,onDone,dur){
   matchEv('puck', {pts:[[fromC,fromR],[toC,toR]], ms:Math.round((dur||0.62)*1000)});   // v447
   var fp=document.getElementById('flypuck'); if(!fp){ onDone(); return; }
@@ -4880,7 +4893,7 @@ function aiBuildPlan(){
         if(!out.pass || po>out.pass.pct || (po===out.pass.pct && cells.length>out.pass.cells.length)) out.pass={pct:po, id:w.id, cells:cells, k:k}; } }
     // 3. DEGAGER ET POURSUIVRE : la cible la plus loin des adversaires ; le poursuivant = le coequipier libre qui peut arriver
     // le plus pres ; 70 % lui seul peut s y coller ce tour, 45 % les deux ou personne, 20 % seul un adversaire
-    var tg=dumpTargets(AI_TEAM), bt=null;
+    var tg=icingCan(AI_TEAM, cg.c) ? [] : dumpTargets(AI_TEAM), bt=null;   // v514 : jamais de degagement refuse (sauf en desavantage)
     for(var i2=0;i2<tg.length;i2++){ var dm=99; for(var o2=0;o2<opps.length;o2++) dm=Math.min(dm, cheb(opps[o2], tg[i2])); if(!bt || dm>bt.dm) bt={c:tg[i2].c, r:tg[i2].r, dm:dm}; }
     if(bt){ var ch=null, cc=null, cd=1e9;
       for(var j2=0;j2<mates.length;j2++){ var m2=mates[j2]; if(m2.id===car.id || usedInPlan(m2.id)) continue;
