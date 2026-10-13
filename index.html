@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v517</title>
+<title>Deck 3D v518</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v517';
+var GAME_VERSION='v518';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8715,9 +8715,19 @@ function speechK(team, tone){
   return Math.max(-0.5, Math.min(1.5, k))*coachMul(co);
 }
 function speechFmt(x){ return String(Math.round(x*10)/10); }
+function speechFx(tone, v){ return tone==='mot' ? '−'+speechFmt(4*v)+'% fatigue' : (tone==='dis' ? '−'+speechFmt(5*v)+'% penalties' : (tone==='sys' ? '+'+speechFmt(0.5*v)+' to cut passes and block shots' : '+'+speechFmt(0.5*v)+' passes, +'+speechFmt(2*v)+'% shots')); }
 function speechPreview(co, tone){ var t=speechTier(co[tone]), v=t*coachMul(co), lbl=t===1 ? 'Strong' : (t===0.5 ? 'Half' : 'Weak, risky');
-  var fx=tone==='mot' ? '−'+speechFmt(4*v)+'% fatigue' : (tone==='dis' ? '−'+speechFmt(5*v)+'% penalties' : (tone==='sys' ? '+'+speechFmt(0.5*v)+' to cut passes and block shots' : '+'+speechFmt(0.5*v)+' passes, +'+speechFmt(2*v)+'% shots'));
-  return lbl+': '+fx; }
+  return lbl+': '+speechFx(tone, v); }
+// v518 (le concepteur : « le speech d'apres match c'est pour encourager, remonter, fache, ca devrait etre different » ; choix :
+// les effets proposes ET selon le resultat) : trois tons, chacun sur un effet existant (le report du prochain match) et une
+// competence du coach. Encourager : plein apres une victoire, moitie apres une defaite ; remonter : l'inverse ; se facher : x1,5
+// apres une defaite, apres une victoire il se retourne 1 fois sur 2 (sinon moitie).
+var POST_TONES={enc:{say:'Keep it up!', ch:'con'}, lift:{say:'Heads up, we bounce back!', ch:'mot'}, angry:{say:'That was not good enough!', ch:'dis'}}, POST_KEYS=['enc', 'lift', 'angry'];
+function postFactor(tone, won){ return tone==='enc' ? (won ? 1 : 0.5) : (tone==='lift' ? (won ? 0.5 : 1) : (won ? 0.5 : 1.5)); }
+function postRoll(co, tone, won){ var t=speechRoll(co, POST_TONES[tone].ch); if(tone==='angry' && won && Math.random()<0.5) return -0.5; return t<0 ? t : t*postFactor(tone, won); }
+function postPreview(co, tone, won){ var ch=POST_TONES[tone].ch, t=speechTier(co[ch]), f=postFactor(tone, won), res=won ? 'win' : 'loss';
+  var lbl=(f>1 ? 'Strong after a loss' : (f===1 ? 'Fits a '+res : 'Half after a '+res))+(((tone==='angry' && won) || t===0.25) ? ', risky' : '');
+  return lbl+': '+speechFx(ch, t*f*coachMul(co)); }
 function careerTeamTired(team){ var n=0, t=0; S.pieces.forEach(function(q){ if(q.team===team && q.onIce && q.type==='sk' && q.uid){ n++; t+=careerLiveEn(q); } }); return n>0 && t/n<60; }
 function aiSpeechTone(team){ var co=coachOf(team); if(!co) return 'mot'; var me=S.score[team], op=S.score[team==='A'?'B':'A'];
   var cand=careerTeamTired(team) ? ['mot'] : (me<op ? ['mot', 'con'] : (me>op ? ['dis', 'sys'] : COACH_SKILLS));
@@ -8735,7 +8745,8 @@ function speechOpen(moment, done){   // v504 : le vestiaire -- ton coach parle (
   if(!_tv) h+=speechArt(HUMAN_TEAM);   // v507 : en 2D, la chambre dessinee
   else h+='<div class="angles">'+ROOM_ANGLES.map(function(a){ return '<button class="perkbtn" data-angle="'+a+'" onclick="speechAngle(\''+a+'\')">'+ROOM_ANGLE_NAME[a]+'</button>'; }).join('')+'</div>';   // v507 : les angles de la chambre
   h+='<div class="tones">';
-  COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+SPEECH_TONES[k]+'”</b><small>'+speechPreview(co, k)+'</small></button>'; });
+  if(moment==='post') POST_KEYS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+POST_TONES[k].say+'”</b><small>'+postPreview(co, k, S.speechOpen.mood==='win')+'</small></button>'; });   // v518 : apres le match, ses trois tons
+  else COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+SPEECH_TONES[k]+'”</b><small>'+speechPreview(co, k)+'</small></button>'; });
   ov.innerHTML=h+'</div></div>'; _show('speechOverlay');
 }
 function speechApply(team, moment, tone, k, co){
@@ -8743,7 +8754,13 @@ function speechApply(team, moment, tone, k, co){
   if(team===HUMAN_TEAM) S.speechUse[tone]=(S.speechUse[tone]||0)+1;
   pushLog('<b>'+careerEsc(co.name)+'</b> ('+TEAM_NAME[team]+'): “'+SPEECH_TONES[tone]+'”'+(k<0 ? ' — the players don\'t buy it.' : ''));
 }
-function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say || !SPEECH_TONES[tone]) return;
+function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say) return;
+  if(o.moment==='post'){ if(!POST_TONES[tone]) return;   // v518 : les trois tons d'apres-match
+    var cp=coachOf(HUMAN_TEAM), ch=POST_TONES[tone].ch, kp=postRoll(cp, tone, o.mood==='win');
+    S.speechPost={tone:ch, k:kp, post:tone}; S.speechUse[ch]=(S.speechUse[ch]||0)+1;
+    pushLog('<b>'+careerEsc(cp.name)+'</b> ('+TEAM_NAME[HUMAN_TEAM]+'): “'+POST_TONES[tone].say+'”'+(kp<0 ? ' — the players don\'t buy it.' : ''));
+    render(); speechSay(o, [{team:HUMAN_TEAM, co:cp, tone:ch, k:kp, text:POST_TONES[tone].say}], 0); return; }
+  if(!SPEECH_TONES[tone]) return;
   var co=coachOf(HUMAN_TEAM), k=speechRoll(co, tone); speechApply(HUMAN_TEAM, o.moment, tone, k, co);
   var lines=[{team:HUMAN_TEAM, co:co, tone:tone, k:k}], ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
   if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai), ak=speechRoll(ac, at); speechApply(ai, o.moment, at, ak, ac); lines.push({team:ai, co:ac, tone:at, k:ak}); }
@@ -8753,7 +8770,7 @@ function speechSay(o, lines, i){   // v505 : le coach dit sa phrase (la camera 3
   if(S.speechOpen!==o) return;
   if(i>=lines.length){ speechEnd(o); return; }
   var L=lines[i]; if(hj3dActive()) speechRoomCue(L.team, 'coach', L.team===HUMAN_TEAM ? o.mood : '');   // v507 : le plan Coach de sa chambre
-  document.getElementById('speechOverlay').innerHTML='<div class="wcard speechsay" onclick="speechSkip()"><div class="wsub">'+careerEsc(L.co.name)+' · '+TEAM_NAME[L.team]+'</div><div class="wbig">“'+SPEECH_TONES[L.tone]+'”</div>'+(L.k<0 ? '<div class="wsub">The players don\'t buy it.</div>' : '')+'</div>';
+  document.getElementById('speechOverlay').innerHTML='<div class="wcard speechsay" onclick="speechSkip()"><div class="wsub">'+careerEsc(L.co.name)+' · '+TEAM_NAME[L.team]+'</div><div class="wbig">“'+(L.text || SPEECH_TONES[L.tone])+'”</div>'+(L.k<0 ? '<div class="wsub">The players don\'t buy it.</div>' : '')+'</div>';
   o.say={lines:lines, i:i}; clearTimeout(o.timer); o.timer=setTimeout(function(){ speechSay(o, lines, i+1); }, i===0 ? 1700 : 1400);
 }
 function speechSkip(){ var o=S.speechOpen; if(!o || !o.say) return; clearTimeout(o.timer); speechSay(o, o.say.lines, o.say.i+1); }
@@ -9744,7 +9761,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":192772,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":196788,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
