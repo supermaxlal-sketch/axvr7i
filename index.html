@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v520</title>
+<title>Deck 3D v521</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v520';
+var GAME_VERSION='v521';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2633,6 +2633,21 @@ function armDump(){
     : 'Tap anywhere on the ice. The farther you send it, the harder it is to place.'));
   render();
 }
+// v521 (le filet est solide ; choix du concepteur : « il contourne le filet ») : un degagement dont la ligne droite traverse une cage
+// (la cible « derriere le filet ») part a cote, par la bande du coin, du cote du porteur -- parmi les visees qui evitent la cage,
+// celle dont l'arret physique est le plus pres de la case visee
+function segHitsNet(x0,y0,x1,y1){ var n=Math.max(1, Math.ceil(Math.hypot(x1-x0,y1-y0)/0.1)), gs=[NET_B, NET_A];
+  for(var i=0;i<=n;i++){ var x=x0+(x1-x0)*i/n, y=y0+(y1-y0)*i/n; for(var j=0;j<gs.length;j++){ var b=netBox(gs[j]); if(x>b.x0 && x<b.x1 && y>b.y0 && y<b.y1) return true; } }
+  return false; }
+function dumpAim(p, tc, tr, pow){
+  var dx=tc-p.c, dy=tr-p.r;
+  if(!segHitsNet(p.c, p.r, tc, tr)) return {x:dx, y:dy};
+  var s=(p.r!==CTR_R) ? (p.r<CTR_R ? -1 : 1) : (tr<=CTR_R ? -1 : 1), sx=(dx>=0) ? 1 : -1, best=null;
+  for(var k=1;k<=24;k++){ var v=rotVec(dx, dy, s*sx*k*0.04);   // on tourne vers le cote du porteur, ~2,3 degres a la fois (jusqu'a ~55)
+    if(segHitsNet(p.c, p.r, p.c+v.x, p.r+v.y)) continue;
+    var sim=puckPath(p.c, p.r, v.x, v.y, pow), dd=Math.hypot(sim.rest.c-tc, sim.rest.r-tr);
+    if(!best || dd<best.d-1e-9) best={d:dd, x:v.x, y:v.y}; }
+  return best ? {x:best.x, y:best.y} : {x:dx, y:dy}; }
 function doDump(p,tc,tr){
   if(!p) return;
   if(S.planning){ if(!ownsPuck(p.id)) return; S.dumpT=[]; S.dumpAim=false; planPush({kind:'dump', id:p.id, toC:tc, toR:tr}); return; }
@@ -2641,8 +2656,9 @@ function doDump(p,tc,tr){
   var team=p.team, o=dumpOdds(p,tc,tr), thr=Math.round(o.prob*100), d=1+Math.floor(Math.random()*100), ok=(d<=thr);   // v423 : tirage 1-100
   // v441 : VRAIE PHYSIQUE -- lance VERS la case visee (force 14 court -> 19 long) ; la bande decide la suite (il fait le
   // tour du coin, ressort de l'autre cote...) ; rate = il part de travers (angle selon l'ecart du tirage)
-  var _dmiss=ok?0:Math.max(1, Math.min(5, Math.ceil((d-thr)/15))), _dv=rotVec(tc-p.c, tr-p.r, _dmiss?(Math.random()<0.5?-1:1)*0.11*_dmiss:0);
-  var _dsim=puckPath(p.c, p.r, _dv.x, _dv.y, boardPower(PUCK_POW.dumpShort, PUCK_POW.dumpLong, o.d, 4, 10));
+  var _dpow=boardPower(PUCK_POW.dumpShort, PUCK_POW.dumpLong, o.d, 4, 10), _da=dumpAim(p, tc, tr, _dpow);   // v521 : derriere le filet -> il contourne la cage
+  var _dmiss=ok?0:Math.max(1, Math.min(5, Math.ceil((d-thr)/15))), _dv=rotVec(_da.x, _da.y, _dmiss?(Math.random()<0.5?-1:1)*0.11*_dmiss:0);
+  var _dsim=puckPath(p.c, p.r, _dv.x, _dv.y, _dpow);
   var lc=_dsim.rest.c, lr=_dsim.rest.r;
   var enters = !inOffZone(team,p.c) && inOffZone(team,lc);
   var offTeam = (enters && teammateInOffZone(team,p.id)) ? team : null;
@@ -3178,14 +3194,14 @@ function flyPuckBoard(fromC,fromR,toC,toR,onDone,dur){
    (proportionnel a l'impulsion normale) -> un frolement longe la bande et fait le tour du coin, un choc de face meurt.
    Reglages du concepteur (labo, 2026-09-29). Coin = la glace du jeu (28 pi LNH a l'echelle : 3,61 cases). */
 var BOARD_SPEED=17/1400, BOARD_STOP=0.006;
-function boardSim(x0,y0,dx,dy,power,P,cols,rows){
+function boardSim(x0,y0,dx,dy,power,P,cols,rows,obs){
   var e=P.rest, mu=P.board, f=P.ice, r=Math.max(0, P.corner-0.5), minX=0, maxX=cols-1, minY=0, maxY=rows-1;
   var len=Math.hypot(dx,dy)||1, vx=dx/len*power*BOARD_SPEED, vy=dy/len*power*BOARD_SPEED;
   var x=x0, y=y0, pts=[{c:x,r:y}], hits=[], guard=0;
   while(Math.hypot(vx,vy)>BOARD_STOP && guard++<6000){
     var sub=Math.max(1, Math.ceil(Math.hypot(vx,vy)/0.15));
     for(var s=0;s<sub;s++){
-      x+=vx/sub; y+=vy/sub;
+      var px=x, py=y; x+=vx/sub; y+=vy/sub;
       var nx=0, ny=0, hit=false;
       var cx=x<minX+r?minX+r:(x>maxX-r?maxX-r:null), cy=y<minY+r?minY+r:(y>maxY-r?maxY-r:null);
       if(cx!==null && cy!==null && r>0){ var ddx=x-cx, ddy=y-cy, d=Math.hypot(ddx,ddy);
@@ -3193,6 +3209,7 @@ function boardSim(x0,y0,dx,dy,power,P,cols,rows){
       else { if(x<minX){ x=minX; nx=-1; hit=true; } else if(x>maxX){ x=maxX; nx=1; hit=true; }
              if(y<minY){ y=minY; ny=-1; hit=true; } else if(y>maxY){ y=maxY; ny=1; hit=true; }
              if(nx&&ny){ var nl=Math.SQRT2; nx/=nl; ny/=nl; } }
+      if(!hit && obs){ var ob=obs(x,y,px,py); if(ob){ x=ob.x; y=ob.y; nx=ob.nx; ny=ob.ny; hit=true; } }
       if(hit){ var vn=vx*nx+vy*ny;
         if(vn>0){ var tx=vx-vn*nx, ty=vy-vn*ny, tl=Math.hypot(tx,ty), jn=(1+e)*vn, dt=Math.min(tl, mu*jn), k=tl>0?(tl-dt)/tl:0;
           vx=tx*k-e*vn*nx; vy=ty*k-e*vn*ny; hits.push({c:x,r:y,nx:nx,ny:ny,jn:jn,i:pts.length}); } }
@@ -3322,19 +3339,48 @@ function wideWhere(team, rest){   // v515 : ou s'arrete un tir rate -- 'behind' 
 function boardPower(lo, hi, d, d0, d1){ var t=Math.max(0, Math.min(1, (d-d0)/(d1-d0))); return lo+(hi-lo)*t; }
 function rotVec(dx, dy, a){ var c=Math.cos(a), s=Math.sin(a); return {x:dx*c-dy*s, y:dx*s+dy*c}; }
 // trajectoire pour l'animation : un point toutes les 2 images + chaque contact (marque b : clang)
+// v521 (le concepteur : « la rondelle allait rebondir a cote du but, sur absolument rien » ; choix : elle frappe la cage) : les 2 filets
+// sont des obstacles -- le filet 3D : 1,83 m x 1,3 de large, sac de 0,91 m (1 case = 2 m) ; la bouche aussi (le gardien y est).
+// Une rondelle qui part de dedans en sort librement.
+var NET_HW=0.6, NET_D=0.46;
+function netBox(g){ var out=(g===NET_B)?-1:1; return {x0:Math.min(g, g+out*NET_D), x1:Math.max(g, g+out*NET_D), y0:CTR_R-NET_HW, y1:CTR_R+NET_HW}; }
+function netObs(x,y,px,py){
+  var gs=[NET_B, NET_A];
+  for(var i=0;i<gs.length;i++){ var b=netBox(gs[i]);
+    if(!(x>b.x0 && x<b.x1 && y>b.y0 && y<b.y1)) continue;          // pas dans la cage
+    if(px>b.x0 && px<b.x1 && py>b.y0 && py<b.y1) continue;         // partie de dedans : elle en sort librement
+    if(px<=b.x0) return {x:b.x0, y:y, nx:1, ny:0};                 // la normale pointe VERS la cage (comme une bande)
+    if(px>=b.x1) return {x:b.x1, y:y, nx:-1, ny:0};
+    if(py<=b.y0) return {x:x, y:b.y0, nx:0, ny:1};
+    return {x:x, y:b.y1, nx:0, ny:-1}; }
+  return null; }
+// v521 (choix : la bande a sa vraie place) : la bande est au BORD de la glace (une demi-case plus loin que le centre des cases du
+// bord, comme la 3D) -- boardSim (le code du labo) tourne dans un repere decale d'une demi-case, coin de meme rayon que la 3D.
+// Le trajet garde un point toutes les 2 images (pas de temps EGAUX : la 3D rejoue le vrai ralentissement) ; un contact marque
+// le point garde qui le suit.
 function puckPath(x0,y0,dx,dy,power){
-  var sim=boardSim(x0,y0,dx,dy,power,BOARD_PHYS,COLS,ROWS), hit={}, n=0, last=-9;
+  var P=BOARD_PHYS, P2={rest:P.rest, board:P.board, ice:P.ice, corner:P.corner+0.5};
+  var sim=boardSim(x0+0.5,y0+0.5,dx,dy,power,P2,COLS+1,ROWS+1,function(x,y,px,py){ var o=netObs(x-0.5,y-0.5,px-0.5,py-0.5); return o ? {x:o.x+0.5, y:o.y+0.5, nx:o.nx, ny:o.ny} : null; });
+  var hit={}, n=0, last=-9, L=sim.pts.length-1;
   for(var i=0;i<sim.hits.length;i++){ var h=sim.hits[i]; if(h.i-last>3){ hit[h.i]=true; n++; } last=h.i; }
-  var pts=[]; for(var j=0;j<sim.pts.length;j++){ if(j===0 || j===sim.pts.length-1 || j%2===0 || hit[j]){ var q=sim.pts[j]; pts.push({c:q.c, r:q.r, b:!!hit[j]}); } }
-  return {pts:pts, bounces:n, rest:sim.rest};
+  var pts=[], keep=function(j){ return j===0 || j===L || j%2===0; };
+  for(var j=0;j<=L;j++){ if(keep(j)){ var q=sim.pts[j]; pts.push({c:q.c-0.5, r:q.r-0.5, b:false}); } }
+  for(var k in hit){ var jj=+k, at=(jj>=L) ? pts.length-1 : Math.min(pts.length-1, Math.ceil(jj/2)); if(at>=0) pts[at].b=true; }
+  var end=pts[pts.length-1];
+  return {pts:pts, bounces:n, rest:{c:Math.max(0,Math.min(COLS-1,Math.round(end.c))), r:Math.max(0,Math.min(ROWS-1,Math.round(end.r)))}};
 }
+// v521 (le concepteur : « a la fin, la rondelle devrait glisser encore un petit peu ; elle s'arrete trop vite ») : la fin d'une
+// glisse (les derniers 25 % du temps du jeu) est jouee 2 x plus lentement en ralentissant jusqu'a l'arret ; elle finit au meme
+// endroit (aucun effet sur le jeu). s = avancement de la lecture (0..1) -> avancement du trajet.
+var PUCK_TAIL=0.25;
+function puckTail(s){ var f=PUCK_TAIL, t=Math.max(0, Math.min(1, s))*(1+f), a=1-f; if(t<=a) return t; var k=(t-a)/(2*f); return a+f*(1-(1-k)*(1-k)); }
 function flyPuckPath(pts, onDone, noEv){   // v441 : la rondelle suit la simulation image par image (vitesse reelle), clang a chaque contact ; v495 : noEv (le poteau envoie le sien)
-  if(pts && pts.length>=2 && !noEv) matchEv('puck', {pts:matchPts(pts), ms:Math.min(1500, 450+(pts.length-1)*4)});   // v447
+  if(pts && pts.length>=2 && !noEv) matchEv('puck', {pts:matchPtsU(pts), ms:Math.min(1500, 450+(pts.length-1)*4), tu:1});   // v447 ; v521 : pas de temps egaux (tu), la 3D ajoute la meme fin en douceur
   var fp=document.getElementById('flypuck'); if(!fp || !pts || pts.length<2){ if(onDone) onDone(); return; }
-  var N=pts.length-1, T=Math.min(1500, 450+N*4)/ANIM_RATE, t0=Date.now(), k=0;   // v463 : ANIM_RATE
+  var N=pts.length-1, T=Math.min(1500, 450+N*4)/ANIM_RATE*(1+PUCK_TAIL), t0=Date.now(), k=0;   // v463 : ANIM_RATE ; v521 : + la fin en douceur
   fp.style.display='block'; fp.style.transition='none';
   (function tick(){
-    var u=Math.min(1, (Date.now()-t0)/T), idx=Math.min(N, Math.round(u*N));
+    var u=Math.min(1, (Date.now()-t0)/T), idx=Math.min(N, Math.round(puckTail(u)*N));   // v521 : elle ralentit jusqu'a l'arret
     for(; k<idx; k++){ if(pts[k+1].b) sfx('block'); }
     var q=pts[idx]; fp.style.left=((q.c+0.5)/COLS*100)+'%'; fp.style.top=((q.r+0.5)/ROWS*100)+'%';
     if(u<1){ setTimeout(tick, 16); return; }
@@ -7495,6 +7541,8 @@ function matchRec(k, data){ if(typeof S==='undefined' || !S || !S.match || S.mat
   var e={k:k, per:S.period||1, clk:Math.round((S.clock||0)*10)/10, t:Date.now()-(S.match.t0||Date.now())}; for(var key in data) e[key]=data[key]; S.match.events.push(e); }   // v447 : t = ms depuis le debut (rythme du lecteur Godot)
 // v447 : EVENEMENTS A ANIMER pour le lecteur de matchs Godot (spec 2026-09-30-godot-lecteur-de-matchs-design.md)
 function matchEv(e, data){ var d={e:e}; for(var key in data) d[key]=data[key]; hj3dSend('ev', d); matchRec('ev', d); careerTrack(e, d); }   // v484 : le compteur de carriere   // v478 : aussi vers la 3D (Godot anime l'action)
+function matchPtsU(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil((n-1)/(max||40))), b=false;   // v521 : trajet allege a pas de temps EGAUX (un contact marque le point garde qui le suit)
+  for(var i=0;i<n;i++){ if(pts[i].b) b=true; if(i%step && i!==n-1) continue; var a=[Math.round(pts[i].c*100)/100, Math.round(pts[i].r*100)/100]; if(b) a.push(1); b=false; out.push(a); } return out; }
 function matchPts(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil(n/(max||40)));   // trajectoire allegee (cases, 2 decimales ; b = contact)
   for(var i=0;i<n;i++){ var q=pts[i]; if(i%step && i!==n-1 && !q.b) continue; var a=[Math.round(q.c*100)/100, Math.round(q.r*100)/100]; if(q.b) a.push(1); out.push(a); } return out; }
 function matchRoster(){ var out=[]; for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
@@ -9778,7 +9826,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":199252,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":204148,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
