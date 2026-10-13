@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v519</title>
+<title>Deck 3D v520</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v519';
+var GAME_VERSION='v520';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2078,6 +2078,7 @@ function armFeint(feintId){ var p=byId(S.sel); if(!p||S.puckOwner!==p.id||p.team
 function doDangle(p,d,land,side,feintId){
   if(S.planning){ if(!ownsPuck(p.id)) return; S.dangle=false; S.dekeT=[]; planPush({kind:'dangle', id:p.id, target:d.id, land:land, side:side, feint:feintId||null}); return; }
   if(S.animating) return; if(S.puckOwner!==p.id) return; S.dangle=false; S.dekeT=[];
+  if(foFirst(p, ({toedrag:'toe drag', betweenlegs:'between-the-legs move', cutmiddle:'cut inside'})[feintId] || 'deke')) return;   // v520
   if(d.type==='g'){
     var pg=Math.max(0.08, Math.min(0.42, 0.20+0.08*((p.off||3)-(d.arret||3))) - 0.15*feintSeenCount(d,'gdeke'));
     markFeintSeen(d,'gdeke');
@@ -2147,6 +2148,7 @@ function resolveSpin(p,d,land,side){
     var _sl=spinLand(p, d, _g.c, _g.r);
     S.dangle=false; S.dekeT=[]; S.armedFeint=null; planPush({kind:'dangle', id:p.id, target:d.id, feint:'spin', land:_sl?{c:_sl.c, r:_sl.r}:null, side:_sl?_sl.side:0}); return; }
   if(S.animating || S.puckOwner!==p.id) return; S.dangle=false; S.dekeT=[]; S.armedFeint=null;
+  if(foFirst(p, 'spin-o-rama')) return;   // v520
   if(!spinReady(p, d, p, Math.max(p.mom||0, p.speed||0))){ pushLog('<b>'+p.name+'</b> has no speed for the spin-o-rama — he has to battle '+d.name+'.'); render(); return resolveCheck(d, false); }   // v448 : pas lance -> la confrontation normale
   if(!land || !onIce(land.c, land.r) || pieceAt(land.c, land.r)) land=spinLand(p, d);
   var pd=feintOdds('spin',p,d), ok=tutLuck(pd, p.team===HUMAN_TEAM);   /* v455 */ S.animating=true; matchEv('deke', {id:p.id, on:d.id, feint:'spin', ok:ok});   // v447
@@ -2180,6 +2182,7 @@ function resolveFakeShot(p, d){
   }
   if(S.planning){ if(!ownsPuck(p.id)) return; S.dangle=false; S.dekeT=[]; S.armedFeint=null; planPush({kind:'dangle', id:p.id, target:d.id, feint:'fakeshot'}); return; }
   if(S.animating || S.puckOwner!==p.id) return; S.dangle=false; S.dekeT=[]; S.armedFeint=null;
+  if(foFirst(p, 'fake shot')) return;   // v520
   var pd=feintOdds('fakeshot',p,d), ok=tutLuck(pd, p.team===HUMAN_TEAM);   /* v455 */ S.animating=true; matchEv('deke', {id:p.id, on:d.id, feint:'fakeshot', ok:ok});   // v447
   markFeintSeen(d,'fakeshot');
   if(ok){ S.feintBeaten=S.feintBeaten||{}; S.feintBeaten[d.id]=true;
@@ -4956,6 +4959,14 @@ function aiBuildPlan(){
       break;
     }
 
+    // v520 (choix du concepteur : « elle passe ») : le centre qui garde la rondelle a la mise au jeu, le centre adverse colle
+    // (foPress) -> il PASSE au coequipier le plus sur (la regle : il doit passer ; avant : il feintait ou foncait au filet)
+    if(S.foPress && S.foPress.id===car.id && !_acted(car.id)){
+      var _fpT=null, _fpP=-1, _fcg=gp(car);
+      for(var i=0;i<mates.length;i++){ var m=mates[i]; if(m.id===car.id || aiPassOffside(_fcg, gp(m), AI_TEAM)) continue;
+        var _fp=oddsAt(car, _fcg, m, gp(m)); if(_fp!=null && _fp>_fpP){ _fpP=_fp; _fpT=m; } }
+      if(_fpT){ plan.push({kind:'pass', id:car.id, target:_fpT.id}); owner=_fpT.id; continue; }
+    }
     // 1. un tir qui vaut la peine depuis sa position prevue
     var cg=gp(car), realC=car.c, realR=car.r;
     car.c=cg.c; car.r=cg.r;
@@ -6097,6 +6108,12 @@ function foStrip(checker, car){   // v467 : le centre adverse (oppId) poste en B
   for(var i=0;i<(S.defOrders||[]).length;i++){ var o=S.defOrders[i]; if(o.defId===checker.id && o.hunt) return true; }
   return false;
 }
+// v520 (le concepteur : « j'avais 100 % sur mon poke a la mise au jeu et le joueur a garde la rondelle et fonce » ; choix : le poke
+// part d'abord) : le centre adverse poste en Poke / Body check (100 %, foStrip) frappe AVANT une feinte du centre qui garde la
+// rondelle (avant : la feinte se reglait a son % et l'ordre poste ne partait jamais). Vaut dans les deux sens (chasseur de l'IA).
+function foFirst(p, what){ var oc=(S.foPress && p && S.foPress.id===p.id) ? byId(S.foPress.oppId) : null;
+  if(!oc || !oc.onIce || cheb(oc, p)!==1 || !foStrip(oc, p)) return false;
+  pushLog('<b>'+oc.name+'</b> is ready for it — he strikes first, before the '+what+'.'); render(); resolveCheck(oc, true); return true; }
 function foPressFloor(id, v){ return (S.foPress && S.foPress.id===id) ? 6 : v; }   // centre qui garde la rondelle apres la mise au jeu : un contact (poke/echec) le deposossede a COUP SUR (seuil 6) -> il DOIT passer, il ne peut pas filer au but
 // Poke directionnel (fidele au vrai hockey) : le SENS du defenseur et son deplacement comptent.
 //  - DEVANT le porteur (controle de gap) : backpedale en lui faisant face -> la vitesse du porteur devient
