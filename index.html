@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v521</title>
+<title>Deck 3D v522</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v521';
+var GAME_VERSION='v522';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3289,6 +3289,16 @@ function ironSim(sh, P, G){
   return {pts:pts, res:res, rest:{c:Math.max(0,Math.min(maxX,Math.round(x))), r:Math.max(0,Math.min(maxY,Math.round(y)))}, glass:glass, posts:posts};
 }
 // ===== FIN POTEAUX =====
+// v522 (le concepteur : « ca rebondit sur un mur invisible, surtout en arriere du but ») : apres le cadre aussi, la bande a sa
+// VRAIE place (bord de la glace) -- ironSim (le code du labo, identique) tourne dans le repere decale d'une demi-case, comme
+// puckPath (v521) ; coin du meme rayon que la 3D
+function ironSimRink(o, P, G){
+  var P2=Object.assign({}, P, {corner:P.corner+0.5}), G2={cols:G.cols+1, rows:G.rows+1, goalX:G.goalX+0.5, dirX:G.dirX, netY:G.netY+0.5};
+  var s=ironSim(Object.assign({}, o, {x:o.x+0.5, y:o.y+0.5}), P2, G2);
+  s.pts=s.pts.map(function(q){ return {c:q.c-0.5, r:q.r-0.5, z:q.z}; });
+  var e=s.pts[s.pts.length-1]; s.rest={c:Math.max(0,Math.min(COLS-1,Math.round(e.c))), r:Math.max(0,Math.min(ROWS-1,Math.round(e.r)))};
+  return s;
+}
 var IRON_RATE=0.05, IRON_IN=0.08;   // poteau / barre = 5 % des tirs cadres (LNH, pris dans les tirs a cote) ; 8 % des buts : poteau et dedans
 function ironShare(w){ return (w>0) ? Math.min(1, IRON_RATE*(1-w)/w) : 0; }   // la part des tirs a cote qui frappent le cadre (w = chance de rater de ce tir)
 // le tir frappe le cadre : TL / BL -> poteau gauche DU TIREUR, TR / BR -> droit, 5H -> au hasard ; haut (TL, TR) -> la barre
@@ -3299,7 +3309,7 @@ function ironPick(sh, t, mode){
   var target=((t==='TL'||t==='TR') && Math.random()<0.4) ? 'bar' : ((left===(dx>0)) ? 'L' : 'R');
   var P=Object.assign({}, BOARD_PHYS, IRON_DEF), sp=(shotDist(sh)>=6) ? 42 : 30;
   for(var k=0;k<14;k++){ var u=(mode==='in') ? -(0.3+0.7*Math.random()) : (Math.random()*2-1);
-    var s=ironSim({x:sh.c, y:sh.r, target:target, u:u, speed:sp}, P, G);
+    var s=ironSimRink({x:sh.c, y:sh.r, target:target, u:u, speed:sp}, P, G);   // v522 : la vraie bande
     if((mode==='in')===(s.res==='in')){ s.target=target; return s; } }
   return null;
 }
@@ -5671,6 +5681,12 @@ function bankCalc(p,t){
 // puis de la bande au receveur ; chacun peut etre coupe (meme regle que le couloir d'une passe) ; precision selon la longueur
 // (comme un degagement : 70 + 0,5 x (Passe - 60) - 5 par case au-dela de 6). BANK AND GO (remplace Self bank) : un donne-et-va
 // avec la bande -- le porteur trace sa course, tape une case de sa course, la rondelle lui revient la ; 1 action.
+// v522 (« un mur invisible ») : la vraie bande (le bord de la glace) au droit d'une case du bord -- la passe par la bande y
+// tourne (avant : au centre de la case du bord, 1 m avant la bande en 3D) ; dans un coin, sur l'arc (rayon des coins de la 3D)
+function boardEdge(b){ var top=b.r<CTR_R, R=BOARD_PHYS.corner, y0=top?-0.5:ROWS-0.5, cx=Math.max(-0.5+R, Math.min(COLS-0.5-R, b.c)), dx=b.c-cx;
+  if(Math.abs(dx)<1e-9) return {c:b.c, r:y0};
+  var cy=top?(-0.5+R):(ROWS-0.5-R), yy=Math.sqrt(Math.max(0, R*R-dx*dx));
+  return {c:b.c, r:top?(cy-yy):(cy+yy)}; }
 function bankBounce(from, to){
   var row=((from.r+to.r)/2<=CTR_R) ? 0 : ROWS-1, col=Math.max(0, Math.min(COLS-1, Math.round((from.c+to.c)/2))), r=row;
   while(!onIce(col,r) && r!==CTR_R) r+=(row===0?1:-1);
@@ -5718,10 +5734,11 @@ function resolveBankPass(p, t){
   var offPass=(t.type==='sk' && !inOffZone(team,pc) && inOffZone(team,tc));
   matchEv('pass', {id:p.id, to:t.id, bank:true});
   S.animating=true; S.puckOwner=null; S.puckLoose=null; S._puckCell={c:pc, r:pr}; clearSel(); render(); sfx('pass');
-  flyPuckBoard(pc, pr, b.c, b.r, function(){ sfx('block');
+  var bd=boardEdge(b);   // v522 : elle tourne sur la vraie bande
+  flyPuckBoard(pc, pr, bd.c, bd.r, function(){ sfx('block');
     if(R.cut && R.leg===1){ bankCut(R.cut, p, pct); return; }
     if(!R.cut && !R.ok){ bankMiss(p, team, b, {c:tc, r:tr}, pct); return; }   // ratee : elle part de travers depuis la bande
-    flyPuckBoard(b.c, b.r, tc, tr, function(){
+    flyPuckBoard(bd.c, bd.r, tc, tr, function(){
       if(R.cut){ bankCut(R.cut, p, pct); return; }
       S.puckOwner=t.id; S.rcvPop=t.id; checkFx('pass', tc, tr); careerTrack('passok', {id:p.id, to:t.id});   // v484
       if(t.type==='g') S.gkSide=(pr<CTR_R)?'T':((pr>CTR_R)?'B':null);
