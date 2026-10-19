@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v537</title>
+<title>Deck 3D v538</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -992,7 +992,7 @@ body:not(.vrink) .thumbx{display:none !important;}
   <div class="sscene" id="sscene"><svg viewBox="0 0 320 220" class="netsvg" id="netsvg" preserveAspectRatio="xMidYMid meet"></svg>
   <div class="spuck" id="spuck"></div><div class="sglove" id="sglove"></div><div class="sflash" id="sflash"></div><div class="saim" id="saim"><button class="saimx" id="saimCancel">✕</button><button class="taim" data-t="TL" style="left:27.5%;top:33.9%"></button><button class="taim" data-t="TR" style="left:72.5%;top:33.9%"></button><button class="taim" data-t="BL" style="left:27.5%;top:64.4%"></button><button class="taim" data-t="BR" style="left:72.5%;top:64.4%"></button><button class="taim five" data-t="5H" style="left:50%;top:69.1%"></button></div></div>
   <div class="sdice" id="sdice"></div><div class="sresult" id="sresult"></div></div></div>
-<div class="ov gameover" id="gameoverOverlay"><div class="gocard"><div class="gotrophy">🏆</div><div class="gotitle" id="goTitle"></div><div class="goscore" id="goScore"></div><button class="act gonew" id="btnNewGame">New game</button><button class="act gonew" id="btnCareerContinue" style="display:none">▶ Continue</button><button class="act gonew" id="btnExportMatchEnd" style="margin-top:8px">&#128190; Export match</button><button class="act gonew" id="btnSendMatchEnd" style="margin-top:8px">&#128228; Send match to Max</button></div></div>
+<div class="ov gameover" id="gameoverOverlay"><div class="gocard"><div class="gotrophy">🏆</div><div class="gotitle" id="goTitle"></div><div class="goscore" id="goScore"></div><button class="act gonew" id="btnNewGame">New game</button><button class="act gonew" id="btnCareerContinue" style="display:none">▶ Continue</button><button class="act gonew" id="btnSoAgain" style="display:none">🥅 Again</button><button class="act gonew" id="btnSoMenu" style="display:none">🏠 Menu</button><button class="act gonew" id="btnExportMatchEnd" style="margin-top:8px">&#128190; Export match</button><button class="act gonew" id="btnSendMatchEnd" style="margin-top:8px">&#128228; Send match to Max</button></div></div>
 <div class="ov pause" id="pauseOverlay"><div class="wcard"><div class="wicon">⏸</div><div class="wbig">PAUSED</div><div class="wsub">Tap resume to keep playing</div><button class="dconfirm" id="btnResume" style="margin-top:12px">▶ Resume</button><button class="dconfirm" id="btnExitPractice" style="margin-top:8px;display:none">🚪 Exit practice</button><button class="dconfirm" id="btnExitCareer" style="margin-top:8px;display:none">🏆 Career menu</button><button class="dconfirm" id="btnPauseSettings" style="margin-top:8px">⚙️ Settings</button><button class="dconfirm" id="btnCopyLogPause" style="margin-top:8px">&#128203; Copy log</button><button class="dconfirm" id="btnExportMatch" style="margin-top:8px">&#128190; Export match</button><button class="dconfirm" id="btnSendMatch" style="margin-top:8px">&#128228; Send match to Max</button></div></div>
 <div class="ov whistle" id="whistleOverlay"><div class="wcard"><div class="wicon" id="wIcon">⛔</div><div class="wbig" id="wBig">OFFSIDE</div><div class="wsub" id="wSub">Neutral zone faceoff</div></div></div>
 
@@ -1007,7 +1007,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <button class="mbtn" id="mmPlay">🏒 Play — choose lineup</button>
 <button class="mbtn" id="mmSettings">⚙️ Settings</button>
 <button class="mbtn" id="mmHow">🎓 Tutorial</button>
-<button class="mbtn" id="mmPractice">🏋️ Practice</button>
+<button class="mbtn" id="mmPractice">🏋️ Practice</button><button class="mbtn" id="mmShootout">🥅 Shootout</button>
 <button class="mbtn dis" disabled>🌐 Online 1v1 — soon</button>
 <button class="mbtn" id="mmCareer">🏆 Career</button></div></div>
 <div class="ov pause" id="speechOverlay" style="z-index:265"></div>
@@ -1278,7 +1278,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v537';
+var GAME_VERSION='v538';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7327,7 +7327,7 @@ function gameOver(winner){
   pushLog('🏆 Game over — the '+TEAM_NAME[winner]+' win it '+S.score.A+'–'+S.score.B+' !');
   document.getElementById('goTitle').textContent='Win for the '+TEAM_NAME[winner]+(S._endSO ? ' in a shootout' : '')+' !';   // v536
   document.getElementById('goScore').textContent=TEAM_NAME.A+' '+S.score.A+'  –  '+S.score.B+' '+TEAM_NAME.B;
-  document.getElementById('gameoverOverlay').classList.add('show'); careerGameOverButtons();   // v483
+  document.getElementById('gameoverOverlay').classList.add('show'); soOverButtons(false); careerGameOverButtons();   // v483
   if(CAREER_MATCH) matchSave('over'); else matchSaveClear();   // v499 : carriere -> gardee jusqu'au resultat ; partie rapide -> effacee
   render();
 }
@@ -7398,6 +7398,15 @@ function soFeintProb(sh, g, kind, q, timing, speed, seen){
   var p=SO_FBASE+(((sh && sh.maniement)||50)-SO_MID)*0.006-(((g && g.arret100)||70)-70)*0.006+(q>=0.75 ? 0.05 : -0.10)+SO_TIME_F[timing]
     +(kind==='kane' ? ({slow:0.06, med:0, fast:-0.10})[speed] : ({slow:-0.06, med:0, fast:0.02})[speed])-0.10*(seen||0);
   return Math.max(0.05, Math.min(0.75, p)); }
+// v538 : les tireurs de l'IA feintent aussi (le concepteur : ton gardien reste a l'IA ; « oui, ils feintent ») -- feinte ou tir
+// selon le maniement et le tir ; les feintes difficiles demandent du maniement ; le moment, surtout bon ; Kane : il arrive lentement
+var SO_AI_FEINTS=[['fhbh', 0], ['bhfh', 0], ['fakeshot', 0], ['forsberg', 62], ['nielsen', 62], ['kane', 70], ['datsyuk', 75], ['legs', 78]];   // [feinte, maniement minimum]
+function soAiPlan(sh){ var m=(sh && sh.maniement)||50, t=(sh && sh.tir)||50, pf=Math.max(0.2, Math.min(0.8, 0.5+(m-t)*0.02));
+  var side=Math.random()<0.5 ? 'L' : 'R', q=Math.random()<(0.2+m/250) ? 1 : 0.6, r=Math.random(), at=r<0.2 ? 5 : (r<0.75 ? 4 : (r<0.88 ? 3 : 2));
+  if(Math.random()>=pf) return {kind:'shot', target:soAiTarget(), q:1, at:at, speed:Math.random()<0.5 ? 'med' : 'fast'};
+  var ok=SO_AI_FEINTS.filter(function(f){ return m>=f[1]; }), k=ok[Math.floor(Math.random()*ok.length)][0];
+  var tg={fhbh:'B'+side, bhfh:'B'+side, fakeshot:'B'+side, datsyuk:'B'+side, forsberg:'B'+side, nielsen:'T'+side, kane:Math.random()<0.3 ? '5H' : 'T'+side, legs:'5H'}[k];
+  return {kind:k, target:tg, q:q, at:at, speed:k==='kane' ? 'slow' : (Math.random()<0.6 ? 'med' : 'fast')}; }
 function soMirror(t){ return t==='5H' ? 'BL' : (t.charAt(0)+(t.charAt(1)==='L' ? 'R' : 'L')); }
 function soLater(so, fn, ms){ setTimeout(function(){ if(S.so!==so) return; if(S.paused){ soLater(so, fn, 300); return; } fn(); }, realMs(ms)); }
 function soGoaliesHome(){ S.pieces.forEach(function(q){ if(q.type==='g'){ q.onIce=true; q.c=q.team==='A'?NET_B:NET_A; q.r=CTR_R; } }); }
@@ -7406,7 +7415,7 @@ function shootoutStart(){
   S.planning=false; S.atkPlan=[]; S.ghost={}; S.animating=true; S.puckOwner=null; S.puckLoose=null; S.faceoff=null;
   S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=false; }); soGoaliesHome();
   var ai=soOther(HUMAN_TEAM); S.so.order[ai]=soAiPick(ai, SO_ROUNDS, {}).map(function(q){ return q.id; });
-  pushLog('End of overtime — still '+S.score.A+'–'+S.score.B+' ! <b>SHOOTOUT</b>: 3 shooters each.');
+  pushLog(S.soPractice ? '<b>SHOOTOUT</b> practice: 3 shooters each.' : ('End of overtime — still '+S.score.A+'–'+S.score.B+' ! <b>SHOOTOUT</b>: 3 shooters each.'));
   render(); soBoard(''); soPickOpen(); }
 function soPickable(){ var so=S.so, all=soEligible(HUMAN_TEAM);
   if(so.marks[HUMAN_TEAM].length<SO_ROUNDS) return all.sort(function(a, b){ return soSkill(b)-soSkill(a); });
@@ -7448,6 +7457,7 @@ function soNextAfter(){ var so=S.so; if(!so) return; var w=soDecided(so); if(w){
 function soDist(run){ return Math.abs(goalCol(run.team)-byId(run.id).c); }
 function soAttempt(team, id){ var so=S.so, sh=byId(id); so.cur={team:team, id:id};
   so.run={team:team, id:id, now:false, done:false, speed:'med', held:false, lane:0, ms:[], strokes:[], seqN:0};
+  if(team!==HUMAN_TEAM){ so.run.plan=soAiPlan(sh); so.run.speed=so.run.plan.speed; so.run.lane=Math.floor(Math.random()*3)-1; }   // v538 : le plan de l'IA (feinte ou tir, quand, a quelle vitesse)
   S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=(q.id===id); }); soGoaliesHome();
   sh.c=CTR_C_CELL; sh.r=CTR_R; S.puckOwner=id; S.puckLoose=null; render(); soBoard('');   // la case du centre (CTR_C = 12,5 : le milieu exact)
   pushLog('Shootout — <b>'+sh.name+'</b> ('+TEAM_NAME[team]+') skates in.');
@@ -7465,7 +7475,7 @@ function soTick(){ var so=S.so, run=so && so.run; if(!run || run.done) return;
   matchEv('skate', {id:sh.id, pts:[[oc, orr], [sh.c, sh.r]], so:1}); render();
   var nd=soDist(run);
   if(!run.now && nd<=SO_ZONE) soNow(run);
-  if(run.team!==HUMAN_TEAM && nd<=4){ soResolve({kind:'shot', target:soAiTarget(), q:1}); return; }   // (ses feintes : v3)
+  if(run.team!==HUMAN_TEAM && nd<=run.plan.at){ soResolve(run.plan); return; }   // v538 : l'IA feinte ou tire, a son moment
   soLater(so, soTick, ms); }
 function soGoalieStep(run){ var g=goalieFor(byId(run.id)); if(!g) return;   // le gardien sort a la rencontre du tireur, puis recule
   var net=goalCol(run.team), want=soDist(run)>=7 ? net-dir(run.team) : net;
@@ -7529,12 +7539,28 @@ function soBoard(msg){ var so=S.so, b=document.getElementById('soBoard'); if(!b)
   if(msg!=null) document.getElementById('soMsg').textContent=msg; }
 function soHideAll(){ var b=document.getElementById('soBoard'), p=document.getElementById('soPad'), k=document.getElementById('soPick');
   if(b) b.hidden=true; if(p) p.hidden=true; if(k) k.classList.remove('show'); var hp=document.getElementById('soHelp'); if(hp) hp.classList.remove('show'); }
-function soEnd(w){ var so=S.so, cur=so.cur, last=cur && cur.team===w && so.marks[w][so.marks[w].length-1]===1;
+function soEnd(w){ var so=S.so, cur=so.cur, last=cur && cur.team===w && so.marks[w][so.marks[w].length-1]===1, ga=soGoals(so.marks.A), gb=soGoals(so.marks.B);
   pushLog('<b>'+TEAM_NAME[w]+'</b> win the shootout '+soGoals(so.marks[w])+'–'+soGoals(so.marks[soOther(w)])+' !');
   soBoard(TEAM_ABBR[w]+' WIN');
-  soLater(so, function(){ soHideAll(); hj3dSend('cue', 'aimend'); S.so=null; S.score[w]++; S._endSO=true; S.overtime=true;
-    var fin=function(){ gameOver(w); };
+  soLater(so, function(){ soHideAll(); hj3dSend('cue', 'aimend'); S.so=null;
+    var fin;
+    if(S.soPractice) fin=function(){ soPracticeOver(w, ga, gb); };   // v538 : la pratique -- pas de match, pas de sauvegarde
+    else { S.score[w]++; S._endSO=true; S.overtime=true; fin=function(){ gameOver(w); }; }
     if(last){ goalReplay(w, byId(cur.id).name, fin); } else fin(); }, 1500); }
+// v538 : LA PRATIQUE FUSILLADE (le concepteur : « un mode pratique, fusillade, pour que je puisse voir le tout ») -- une vraie
+// fusillade contre l'IA tout de suite, sans match ; a la fin : Again / Menu
+function soPracticeStart(){ _hide('mainMenu'); _hide('settingsPanel'); _hide('gameoverOverlay');
+  newGame('A'); autoStratDraft(); autoFillDraft(); _hide('draftOverlay'); S.needDraft=false; S.soPractice=true;
+  S.period=3; S.overtime=true; S.clock=0; shootoutStart(); }
+function soOverButtons(practice){ ['btnNewGame', 'btnExportMatchEnd', 'btnSendMatchEnd'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display=practice ? 'none' : ''; });
+  ['btnSoAgain', 'btnSoMenu'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display=practice ? '' : 'none'; });
+  if(practice){ var cc=document.getElementById('btnCareerContinue'); if(cc) cc.style.display='none'; } }
+function soPracticeOver(w, ga, gb){ S.gameEnded=true; S.animating=false; S.overtime=false; clearSel();
+  pushLog('Shootout practice over — the '+TEAM_NAME[w]+' win it '+ga+'–'+gb+'.');
+  document.getElementById('goTitle').textContent='Shootout: win for the '+TEAM_NAME[w]+' !';
+  document.getElementById('goScore').textContent=TEAM_NAME.A+' '+ga+'  –  '+gb+' '+TEAM_NAME.B;
+  soOverButtons(true); document.getElementById('gameoverOverlay').classList.add('show'); render(); }
+function soPracticeMenu(){ _hide('gameoverOverlay'); soOverButtons(false); newGame('A'); showMainMenu(); }
 
 function setHint(t){ document.getElementById('hintLine').innerHTML=t; var _th=document.querySelector('#tbTop .tbhint'); if(_th) _th.textContent=document.getElementById('hintLine').textContent; }
 function selectionHint(){
@@ -10005,6 +10031,9 @@ function practiceGkFreeze(){ if(!tutPractice()) return false; var g=goalieHoldin
 function practiceStart(){ tutStart(TUT_PRACTICE.id); }
 function practiceExit(){ if(S.paused) togglePause(); tutExit(); showMainMenu(); }   // v482 : depuis le menu pause
 document.getElementById('mmPractice').onclick=practiceStart;
+document.getElementById('mmShootout').onclick=soPracticeStart;   // v538 : la pratique fusillade
+document.getElementById('btnSoAgain').onclick=soPracticeStart;
+document.getElementById('btnSoMenu').onclick=soPracticeMenu;
 document.getElementById('btnExitPractice').onclick=practiceExit;
 function tutRetry(){ if(S.tut) tutStart(S.tut.id, true); }
 function tutNextLesson(L){ for(var i=0;i<TUT_LESSONS.length-1;i++){ if(TUT_LESSONS[i].id===L.id) return TUT_LESSONS[i+1]; } return null; }
