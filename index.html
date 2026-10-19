@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v522</title>
+<title>Deck 3D v523</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1254,7 +1254,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v522';
+var GAME_VERSION='v523';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1277,6 +1277,27 @@ function killSeq(seq){ if(seq) seq.dead=true; S._acting=null; if(seq && !seq.isB
 // puis le plan reprend ou il etait. Une par plan. L IA joue la sienne seule.
 var BONUS_SECS=8;
 function bonusTrigger(p, why){ var sq=S.currentSeq; if(!sq || sq.isBonus || sq.bonusUsed || !p || !p.onIce || p.team!==sq.team) return; S._bonusFor={id:p.id, why:why}; }
+// v523 (le concepteur : « le poke part trop tot, d'ou le joueur etait » ; choix : le POKE CHARGE, comme la mise en echec) :
+//  - la figurine 3D d'un joueur finit son patin a SKATE_MS_CELL ms (moteur) par case, au moins SKATE_MS_MIN (replay.gd) ;
+//  - un defenseur dont le mouvement + Poke / Body check de l'embuscade n'est pas encore joue ne fait pas de contact depuis
+//    sa case de depart (il charge son coup) ;
+//  - a son arrivee colle au porteur, son coup part (apres l'arrivee de sa figurine), AVANT l'action de l'attaque de ce temps ;
+//    rate -> l'attaque joue son action (meme temps).
+var SKATE_MS_CELL=190, SKATE_MS_MIN=450;
+function noteSkate(id, pts){ var L=0; for(var i=1;i<pts.length;i++) L+=Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+  if(!S._skateEnd) S._skateEnd={}; S._skateEnd[id]=Date.now()+Math.max(SKATE_MS_MIN, SKATE_MS_CELL*L)/ANIM_RATE; }
+function skateLeftMs(id){ var e=S._skateEnd && S._skateEnd[id]; return e ? Math.max(0, (e-Date.now())*ANIM_RATE) : 0; }   // en ms du jeu (setTimeout les divise par ANIM_RATE)
+function chargedPending(d){ var sq=S.currentSeq; if(!sq || !sq.def || !d) return false;
+  for(var i=(sq.defDone==null ? 0 : sq.defDone+1); i<sq.def.length; i++){ var m=sq.def[i]; if(m && m.defId===d.id && (m.order==='poke' || m.order==='check')) return true; }
+  return false; }
+function chargedArrival(seq, df){
+  var car=S.puckOwner ? byId(S.puckOwner) : null;
+  if(!df || df==='takeover' || !car || df.team===car.team || cheb(df, car)!==1 || seq._chargedAt===seq.rank) return false;
+  if(!(S.checkRun && S.checkRun.id===df.id && S.checkRun.dist>0)) return false;   // il vient de patiner jusqu'a lui ce temps-ci
+  if(!(hasOrder(df.id,'poke') || hasOrder(df.id,'check'))) return false;
+  seq._chargedAt=seq.rank; S.animating=true; render();
+  setTimeout(function(){ if(seq!==S.currentSeq) return; S.animating=false; S.planNext={v2seq:seq, same:true}; resolveCheck(df, true); }, skateLeftMs(df.id));
+  return true; }
 function seqAdvance(seq){ if(seq!==S.currentSeq) return; if(S._bonusFor && !seq.isBonus && !seq.bonusUsed){ startBonus(seq); return; } seq.rank++; resolveSeq(seq); }
 function planLimit(){ return S.bonus ? 1 : PLAN_N; }
 function startBonus(outer){
@@ -1394,6 +1415,8 @@ function resolveSeqContact(seq, df){
   var car=S.puckOwner?byId(S.puckOwner):null;
   if(df && df!=='takeover' && car && car.id!==df.id && df.team!==car.team &&
      Math.max(Math.abs(df.c-car.c),Math.abs(df.r-car.r))===1){
+    var _w=skateLeftMs(df.id);   // v523 : le contact attend que sa figurine soit arrivee
+    if(_w>30){ S.animating=true; render(); setTimeout(function(){ if(seq!==S.currentSeq) return; S.animating=false; S.planNext={v2seq:seq}; resolveCheck(df, true); }, _w); return true; }
     S.planNext={v2seq:seq}; resolveCheck(df, true); return true;
   }
   return false;
@@ -1577,7 +1600,8 @@ function resolveSeq(seq){
         placeLooseNear(_pc,_pr); render(); looseBall(p.team==='A'?'B':'A'); }, TEMPO.slide);
       return;
     }
-    resolveSeqDefStep(seq);   // OUBLIE au premier portage : le defenseur doit glisser ici aussi
+    var _dfs=resolveSeqDefStep(seq);   // OUBLIE au premier portage : le defenseur doit glisser ici aussi
+    if(chargedArrival(seq, _dfs)) return;   // v523 : le coup charge part a son arrivee, avant le tir
     S.animating=true; render();
     setTimeout(function(){ S.animating=false; render();
       if(seq!==S.currentSeq) return;
@@ -1617,7 +1641,7 @@ function resolveSeq(seq){
       seq.def.splice(seq.rank, 0, null);   // v428 : le coup de defense de ce rang n'est pas perdu -- il passe au rang suivant
       if(a.routeK && _rpK && _rpK.id===t.id) seq._rp=_rpK;
       S._stridePass=true; pushLog('<b>'+p.name+'</b> hits '+t.name+(seq._rp?' on the move':' in stride')+'.');
-    } else resolveSeqDefStep(seq);
+    } else { var _dfp=resolveSeqDefStep(seq); if(chargedArrival(seq, _dfp)) return; }   // v523 : le coup charge part avant la passe
     if(a.oneTimer && canShootFrom(t)) S.oneTimer=t.id;   // one-timer planifie (IA) : la passe se transforme en reprise directe (doPass -> autoOneTimer)
     if(a.redirect && t){ S.redirect=t.id; if(t.type==='sk') t.facing={dc:(Math.sign(p.c-t.c)||dir(t.team)), dr:0}; }   // redirect planifie (IA) : tip devant le filet, oriente face a la passe pour cadrer
     if(a.stride && _flowK && _flowK.id===t.id){ S._routeFlow=_flowK; S.planResume={v2seq:seq}; doPass(p, a.target); return; }   // v429 : tout de suite, meme rendu que son patinage
@@ -1695,10 +1719,10 @@ function resolveSeq(seq){
       if(a.feint==='cutmiddle') _dts=cutInside(p, _dts);   // v449 : la coupe va vers l'interieur
       var _pk=null; for(var _k=0;_k<_dts.length;_k++){ if(_dts[_k].side===a.side){ _pk=_dts[_k]; break; } }
       if(!_pk && _dts.length) _pk=_dts[0];
-      if(!_pk){ pushLog(p.name+' is not close enough to '+_dt.name+' to deke — he keeps the puck.'); resolveSeqDefStep(seq); seq.rank++; resolveSeq(seq); return; }
+      if(!_pk){ var _dfn=resolveSeqDefStep(seq); if(chargedArrival(seq, _dfn)) return;   /* v523 : le coup charge part a son arrivee */ pushLog(p.name+' is not close enough to '+_dt.name+' to deke — he keeps the puck.'); seq.rank++; resolveSeq(seq); return; }
       _land={c:_pk.c, r:_pk.r}; _side=_pk.side;
     }
-    resolveSeqDefStep(seq);
+    var _dfd=resolveSeqDefStep(seq); if(chargedArrival(seq, _dfd)) return;   // v523 : le coup charge part avant la feinte
     S.planResume={v2seq:seq};
     S.animating=true; render();
     setTimeout(function(){ S.animating=false; resolveFeint(p, _dt, a.feint, _land, _side); }, TEMPO.settle);
@@ -5893,6 +5917,7 @@ function contactsAlongPath(p, fromC, fromR, toC, toR){
     var y=fromR+dy*Math.min(k,Math.abs(toR-fromR));
     for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i];
       if(!e.onIce || e.type!=='sk' || e.team===p.team) continue;   // adversaires seulement
+      if(chargedPending(e)) continue;               // v523 : il charge son coup (son mouvement + Poke / Body check est a venir)
       if(seen[e.id]) continue;                      // un seul contact par defenseur
       if(Math.max(Math.abs(e.c-x), Math.abs(e.r-y))===1){ seen[e.id]=true; out.push(e); }
     }
@@ -6056,7 +6081,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
       if(!seqAlive(_sq)){                           // morte : on nettoie au lieu de figer
         killSeq(_sq); S.currentSeq=null; endExchange(); return;
       }
-      seqAdvance(_sq);
+      if(_pn.same){ resolveSeq(_sq); } else seqAdvance(_sq);   // v523 : coup charge -> l'action de l'attaque de ce temps
     }, 1500);
   } var C=byId(S.puckOwner); var activeTeam=S.turn; var activeHad=!!(C && C.team===activeTeam);
   // N'IMPORTE QUI peut plaquer s'il est EXPLICITEMENT POSTE sur "body check" (ordre check ou param posted) :
@@ -7557,7 +7582,7 @@ function matchNew(){ return {v:(typeof GAME_VERSION!=='undefined'?GAME_VERSION:'
 function matchRec(k, data){ if(typeof S==='undefined' || !S || !S.match || S.match.events.length>=MATCH_MAX) return;
   var e={k:k, per:S.period||1, clk:Math.round((S.clock||0)*10)/10, t:Date.now()-(S.match.t0||Date.now())}; for(var key in data) e[key]=data[key]; S.match.events.push(e); }   // v447 : t = ms depuis le debut (rythme du lecteur Godot)
 // v447 : EVENEMENTS A ANIMER pour le lecteur de matchs Godot (spec 2026-09-30-godot-lecteur-de-matchs-design.md)
-function matchEv(e, data){ var d={e:e}; for(var key in data) d[key]=data[key]; hj3dSend('ev', d); matchRec('ev', d); careerTrack(e, d); }   // v484 : le compteur de carriere   // v478 : aussi vers la 3D (Godot anime l'action)
+function matchEv(e, data){ var d={e:e}; for(var key in data) d[key]=data[key]; if(e==='skate' && d.pts) noteSkate(d.id, d.pts);   /* v523 */ hj3dSend('ev', d); matchRec('ev', d); careerTrack(e, d); }   // v484 : le compteur de carriere   // v478 : aussi vers la 3D (Godot anime l'action)
 function matchPtsU(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil((n-1)/(max||40))), b=false;   // v521 : trajet allege a pas de temps EGAUX (un contact marque le point garde qui le suit)
   for(var i=0;i<n;i++){ if(pts[i].b) b=true; if(i%step && i!==n-1) continue; var a=[Math.round(pts[i].c*100)/100, Math.round(pts[i].r*100)/100]; if(b) a.push(1); b=false; out.push(a); } return out; }
 function matchPts(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil(n/(max||40)));   // trajectoire allegee (cases, 2 decimales ; b = contact)
