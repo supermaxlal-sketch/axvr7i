@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v527</title>
+<title>Deck 3D v528</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1262,7 +1262,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v527';
+var GAME_VERSION='v528';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8118,7 +8118,7 @@ function hj3dSnapshot(slides){
   var tip=routeTip(), focus=vFocusCol();
   if(focus==null && S.faceoff && S.faceoff.dotC!=null) focus=S.faceoff.dotC;   // v477 : pendant une mise au jeu, la camera 3D va au point de mise au jeu
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
-    dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players,
+    dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
     cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), room:hj3dRoom(), abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
@@ -9957,7 +9957,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":205380,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":213700,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
