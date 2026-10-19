@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v535</title>
+<title>Deck 3D v536</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -163,6 +163,16 @@
 #replayBar .rp-tag{background:#d8263b;color:#fff;font-weight:800;letter-spacing:.08em;padding:4px 8px;border-radius:5px;}
 #replayBar .rp-txt{display:flex;flex-direction:column;min-width:0;}
 #replayBar .rp-ast{font-weight:400;opacity:.85;font-size:12px;}
+#soBoard{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:76;padding:8px 12px;border-radius:10px;background:rgba(10,18,32,.9);color:#fff;font:700 14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5);min-width:170px;}   /* v536 : la fusillade */
+#soBoard[hidden],#soPad[hidden]{display:none;}
+#soBoard .so-row{display:flex;gap:8px;align-items:center;}
+#soBoard .so-t{width:46px;font-weight:800;letter-spacing:.06em;}
+#soBoard .so-m{width:16px;text-align:center;}
+#soBoard .so-m.g{color:#3ddc84;} #soBoard .so-m.s{color:#ff5a5a;} #soBoard .so-m.n{opacity:.35;}
+#soBoard .so-msg{text-align:center;font-size:18px;letter-spacing:.06em;}
+#soPad{position:fixed;inset:0;z-index:74;touch-action:none;display:flex;align-items:flex-end;justify-content:center;}
+#soPad .so-help{margin-bottom:calc(70px + env(safe-area-inset-bottom,0px));padding:8px 14px;border-radius:10px;background:rgba(10,18,32,.78);color:#fff;font:700 15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;pointer-events:none;display:flex;flex-direction:column;}
+#soPad .so-help small{font-weight:400;opacity:.85;font-size:12px;}
 #replaySkip{margin-left:4px;background:#fff;color:#0a1220;border:0;border-radius:7px;padding:7px 12px;font-weight:700;font-size:13px;}
 .goalsiren.go{display:block;animation:sirenpulse .36s ease-in-out 4;}
 @keyframes sirenpulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,40,30,0);}50%{box-shadow:inset 0 0 46px 16px rgba(255,40,30,.78);}}
@@ -896,6 +906,8 @@ body:not(.vrink) .thumbx{display:none !important;}
       <div class="boardflash" id="boardflash"></div>
       <div class="goalsiren" id="goalsiren"></div>
       <div id="replayBar" hidden><span class="rp-tag">REPLAY</span><div class="rp-txt"><span class="rp-goal" id="rpGoal"></span><span class="rp-ast" id="rpAst"></span></div><button id="replaySkip" type="button">Skip</button></div>
+      <div id="soBoard" hidden><div class="so-row" id="soRowA"></div><div class="so-row" id="soRowB"></div><div class="so-msg" id="soMsg"></div></div>
+      <div id="soPad" hidden><div class="so-help">Swipe up to shoot<small>Straight up: five-hole · Short: low corner · Long: top corner</small></div></div>
       <div class="rcvring" id="rcvring"></div>
       <div class="goallight left" id="glLeft"></div>
       <div class="goallight right" id="glRight"></div>
@@ -963,7 +975,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <div class="body">
       <p><b>New here?</b> Open the menu and play the <b>Tutorial</b>: short lessons, one idea at a time.</p>
       <p><b>A turn:</b> both teams plan up to <b>3 actions</b> in secret, one per player. Then the plans are revealed step by step: their move 1, your action 1, and so on.</p>
-      <p><b>Length:</b> 3 periods of 3:00. Each plan uses 4 seconds of the clock. Tied after the 3rd: sudden-death overtime.</p>
+      <p><b>Length:</b> 3 periods of 3:00. Each plan uses 4 seconds of the clock. Tied after the 3rd: one sudden-death overtime, then a shootout (playoffs: overtime until a goal).</p>
     </div>
   </details>
 </div>
@@ -984,6 +996,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
 <div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
+<div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
 <div class="ov menu" id="mainMenu"><div class="mcard"><div class="mtitle">🏒 Hockey Deck</div><div class="msub">Strategy hockey</div>
 <div class="mmsg" id="mmMsg" style="display:none"></div>
 <button class="mbtn play" id="mmResume" style="display:none"></button>
@@ -1262,7 +1275,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v535';
+var GAME_VERSION='v536';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2302,9 +2315,10 @@ function newGame(firstTeam){
   firstTeam=firstTeam||'A';
   MSAVE_ON=false; mmMsg('');   // v499 : on sauvegarde seulement un match lance par le joueur (MSAVE_ON=true la-bas)
   if(CAREER_MATCH) careerTrackReset();   // v484 : un match de carriere (re)commence : compteur a zero
+  soHideAll();   // v536 : les panneaux de la fusillade
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
@@ -6761,10 +6775,10 @@ function paintClock(){
   if(pe){ pe.textContent=tutPractice()?'':fmtClock(S.clock);   // v482 : pratique -- pas d'horloge
     pe.className='per'+(lateGame()?' late':'')+(S.overtime?' ot':''); }
   var pd=document.getElementById('jper');
-  if(pd){ pd.textContent = tutPractice() ? 'PRACTICE' : (S.overtime ? 'OVERTIME' : ('PERIOD '+S.period));
+  if(pd){ pd.textContent = tutPractice() ? 'PRACTICE' : (S.so ? 'SHOOTOUT' : (S.overtime ? 'OVERTIME' : ('PERIOD '+S.period)));
     pd.className='jper'+(S.overtime?' ot':''); }
   var lc=document.getElementById('lsClk');
-  if(lc){ lc.textContent=tutPractice() ? 'PRACTICE' : ((S.overtime?'OT':('P'+S.period))+' '+fmtClock(S.clock));
+  if(lc){ lc.textContent=tutPractice() ? 'PRACTICE' : (S.so ? 'SO' : ((S.overtime?'OT':('P'+S.period))+' '+fmtClock(S.clock)));
     lc.className='lsclk'+(lateGame()?' late':'')+(S.overtime?' ot':''); }
   var la=document.getElementById('lsAct');
   if(la){ var ae2=document.getElementById('actClk'); la.textContent=ae2?ae2.textContent:''; la.className='lspill'+(ae2&&/hot/.test(ae2.className)?' hot':''); }
@@ -6902,6 +6916,7 @@ var _stuckSince=0, _stuckSig='', _animSince=0, _animSig='';
 function progressSig(){ var h=0; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce) h=(h*31+q.c*13+q.r+7)%1000003; }
   return (S.log&&S.log[0]||'')+'|'+(S.log?S.log.length:0)+'|'+(S.currentSeq?S.currentSeq.id+':'+S.currentSeq.rank:'-')+'|'+(S.puckOwner||'')+'|'+(S.puckLoose?S.puckLoose.c+','+S.puckLoose.r:'')+'|'+h; }
 setInterval(function(){
+  if(S.so){ _animSince=0; _stuckSince=0; return; }   // v536 : la fusillade attend ton choix ou ta glissade : ce n'est pas un blocage
   // une animation figee plus de 4 s SANS AUCUN PROGRES est un blocage (v405 : plus seulement « animation en cours »)
   if(S.animating){
     _stuckSig='';   // v455 : un blocage se mesure depuis la FIN de la derniere animation (avant : le compteur gardait l'heure d'avant l'animation et coupait une sequence vivante si l'etat d'apres ressemblait a l'etat d'avant -- ex. Retry d'une lecon)
@@ -7103,7 +7118,7 @@ function deployLineup(){
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
 }
-function startFaceoffRPS(dotC,dotR,reset){
+function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return;   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
   matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
@@ -7115,7 +7130,7 @@ function startFaceoffRPS(dotC,dotR,reset){
   }
   proceedFaceoff(dotC,dotR);
 }
-function proceedFaceoff(dotC,dotR){
+function proceedFaceoff(dotC,dotR){ if(S.so) return;   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
   if(CAREER_MATCH && !S.tut && !S.speechPreDone && S.period===1){ S.speechPreDone=true; speechOpen('pre', function(){ proceedFaceoff(dotC,dotR); }); return; }   // v504 : le discours d'avant-match
   repositionForFaceoff(dotC,dotR);
   S.puckLoose=null; S.puckOwner=null;   // v515 : avant le couloir (sinon l'instantane garde l'ancien porteur, hors de la glace)
@@ -7219,7 +7234,7 @@ function confirmDraft(){
 function nearestSkater(team,c,r){ var best=null,bd=1e9; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce&&q.type==='sk'&&q.team===team){ var dd=Math.abs(q.c-c)+Math.abs(q.r-r); if(dd<bd){bd=dd;best=q;} } } return best; }
 function pieceAtExcept(c,r,id){ var p=pieceAt(c,r); return (p&&p.id!==id)?p:null; }
 function clearDot(c,r,exceptId){ if(!pieceAtExcept(c,r,exceptId)) return {c:c,r:r}; for(var rad=1;rad<=5;rad++){ for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){ var x=c+dc,y=r+dr; if(x>=0&&x<COLS&&y>=0&&y<ROWS&&!pieceAtExcept(x,y,exceptId)) return {c:x,r:y}; } } return {c:c,r:r}; }
-function applyFaceoff(fo,winner){ matchEv('faceoff', {c:fo.dotC, r:fo.dotR, win:winner});   // v447
+function applyFaceoff(fo,winner){ if(S.so) return;   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */ matchEv('faceoff', {c:fo.dotC, r:fo.dotR, win:winner});   // v447
   S._hitRecover=null;   // v468
   if(S.currentSeq) killSeq(S.currentSeq);
   S.currentSeq=null; S.planResume=null; S.planNext=null; S._endingExch=false;
@@ -7291,6 +7306,7 @@ function endPeriod(){
   clearTrails();
   if(S.period>=3){
     if(S.score.A!==S.score.B){ gameOver(S.score.A>S.score.B?'A':'B'); return; }
+    if(S.overtime && !S.tut && !(CAREER_MATCH && CAREER_MATCH.po)){ shootoutStart(); return; }   // v536 : une seule prolongation, puis la fusillade (en series : jusqu'au but)
     var _wasOT=S.overtime; S.overtime=true; pushLog(_wasOT ? 'Overtime continues — still '+S.score.A+'–'+S.score.B+' !' : ('End of the 3rd — tied '+S.score.A+'–'+S.score.B+' ! OVERTIME: next goal wins.'));
     faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); return;
   }
@@ -7306,12 +7322,139 @@ function gameOver(winner){
   S._endOT=!!S.overtime;   // v483 : la carriere compte la defaite en prolongation
   S.gameEnded=true; S.overtime=false; S.animating=false; clearSel();
   pushLog('🏆 Game over — the '+TEAM_NAME[winner]+' win it '+S.score.A+'–'+S.score.B+' !');
-  document.getElementById('goTitle').textContent='Win for the '+TEAM_NAME[winner]+' !';
+  document.getElementById('goTitle').textContent='Win for the '+TEAM_NAME[winner]+(S._endSO ? ' in a shootout' : '')+' !';   // v536
   document.getElementById('goScore').textContent=TEAM_NAME.A+' '+S.score.A+'  –  '+S.score.B+' '+TEAM_NAME.B;
   document.getElementById('gameoverOverlay').classList.add('show'); careerGameOverButtons();   // v483
   if(CAREER_MATCH) matchSave('over'); else matchSaveClear();   // v499 : carriere -> gardee jusqu'au resultat ; partie rapide -> effacee
   render();
 }
+
+// v536 : LA FUSILLADE (spec 2026-10-14-fusillade-design.md, version 1 : le format). Une seule prolongation, puis 3 tireurs
+// par equipe en alternance (LNH), fin anticipee, mort subite ; ton tir = une glissade vers le haut (direction + longueur).
+var SO_ROUNDS=3, SO_TARGETS=['TL','TR','BL','BR','5H'], SO_BASE=0.30, SO_MID=65, SO_SWIPE_MIN=30, SO_STRAIGHT=15, SO_HIGH=0.3;
+var SO_REL={exact:-0.20, adjacent:-0.05, wrong:0.083};   // le gardien devine juste / pres / a cote (moyenne ~0 sur 5 devinettes)
+function soSkill(p){ return ((p && p.tir)||50)*0.6+((p && p.maniement)||50)*0.4; }
+function soGoals(m){ var n=0; for(var i=0;i<m.length;i++) if(m[i]) n++; return n; }
+function soOther(t){ return t==='A'?'B':'A'; }
+function soNextTeam(so){ return so.marks[so.first].length<=so.marks[soOther(so.first)].length ? so.first : soOther(so.first); }
+function soDecided(so){   // le gagnant si c'est joue, sinon null
+  var f=so.first, s=soOther(f), mf=so.marks[f], ms=so.marks[s], gf=soGoals(mf), gs=soGoals(ms);
+  if(mf.length<=SO_ROUNDS && ms.length<=SO_ROUNDS && !(mf.length===SO_ROUNDS && ms.length===SO_ROUNDS)){
+    if(gf>gs+(SO_ROUNDS-ms.length)) return f;
+    if(gs>gf+(SO_ROUNDS-mf.length)) return s;
+    return null; }
+  if(mf.length===ms.length && gf!==gs) return gf>gs ? f : s;   // fin d'une ronde (apres 3 chacun : mort subite)
+  return null; }
+function soSwipeTarget(dx, dy, h){   // la glissade -> le coin (gauche / droite de l'ecran = du tireur) : tout droit = entre les jambes, courte = bas, longue = haut
+  var len=Math.sqrt(dx*dx+dy*dy); if(len<SO_SWIPE_MIN || dy>=0) return null;
+  var ang=Math.atan2(dx, -dy)*180/Math.PI; if(Math.abs(ang)>80) return null;   // presque a plat : pas un tir
+  if(Math.abs(ang)<=SO_STRAIGHT) return '5H';
+  return (len>=SO_HIGH*(h||600) ? 'T' : 'B')+(dx<0 ? 'L' : 'R'); }
+function soRel(t, g){ if(t===g) return 'exact';
+  var st=t==='5H'?'C':t.charAt(1), sg=g==='5H'?'C':g.charAt(1); if(st===sg) return 'adjacent';
+  if((t==='5H' && g.charAt(0)==='B') || (g==='5H' && t.charAt(0)==='B')) return 'adjacent'; return 'wrong'; }
+function soShotProb(sh, g, target, guess){   // guess null : la moyenne sur les 5 devinettes du gardien
+  if(guess==null){ var s=0; for(var i=0;i<SO_TARGETS.length;i++) s+=soShotProb(sh, g, target, SO_TARGETS[i]); return s/SO_TARGETS.length; }
+  var p=SO_BASE+(soSkill(sh)-SO_MID)*0.006-(((g && g.arret100)||70)-70)*0.006+SO_REL[soRel(target, guess)];
+  return Math.max(0.05, Math.min(0.75, p)); }
+function soAiTarget(){ var r=Math.random()*100; return r<25?'TL':(r<50?'TR':(r<65?'BL':(r<80?'BR':'5H'))); }
+function soHome(){ return (CAREER_MATCH && CAREER_MATCH.home!==CAREER_MATCH.my) ? soOther(HUMAN_TEAM) : HUMAN_TEAM; }   // l'equipe a domicile tire en premier (le concepteur)
+function soEligible(team){ var box={}; ((S.pen && S.pen.box)||[]).forEach(function(b){ box[b.id]=1; });
+  return S.pieces.filter(function(q){ return q.team===team && q.type==='sk' && !q.vacant && !box[q.id]; }); }
+function soAiPick(team, n, exclude){ return soEligible(team).filter(function(q){ return !(exclude||{})[q.id]; })
+  .sort(function(a, b){ return soSkill(b)-soSkill(a); }).slice(0, n); }
+var SO_SLOT=3;   // le tireur s'arrete a 3 cases du filet
+function soLater(so, fn, ms){ setTimeout(function(){ if(S.so!==so) return; if(S.paused){ soLater(so, fn, 300); return; } fn(); }, realMs(ms)); }
+function soGoaliesHome(){ S.pieces.forEach(function(q){ if(q.type==='g'){ q.onIce=true; q.c=q.team==='A'?NET_B:NET_A; q.r=CTR_R; } }); }
+function shootoutStart(){
+  S.so={first:soHome(), marks:{A:[], B:[]}, order:{A:[], B:[]}, used:{A:{}, B:{}}, pick:[], pickN:0, padOpen:false, cur:null};
+  S.planning=false; S.atkPlan=[]; S.ghost={}; S.animating=true; S.puckOwner=null; S.puckLoose=null; S.faceoff=null;
+  S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=false; }); soGoaliesHome();
+  var ai=soOther(HUMAN_TEAM); S.so.order[ai]=soAiPick(ai, SO_ROUNDS, {}).map(function(q){ return q.id; });
+  pushLog('End of overtime — still '+S.score.A+'–'+S.score.B+' ! <b>SHOOTOUT</b>: 3 shooters each.');
+  render(); soBoard(''); soPickOpen(); }
+function soPickable(){ var so=S.so, all=soEligible(HUMAN_TEAM);
+  if(so.marks[HUMAN_TEAM].length<SO_ROUNDS) return all.sort(function(a, b){ return soSkill(b)-soSkill(a); });
+  var left=all.filter(function(q){ return !so.used[HUMAN_TEAM][q.id]; }); if(!left.length){ so.used[HUMAN_TEAM]={}; left=all; }
+  return left.sort(function(a, b){ return soSkill(b)-soSkill(a); }); }
+function soBar(lbl, v){ v=v||0; var t=v>=75?'hi':(v>=55?'mid':'lo'); return '<div class="dcard-bar"><i class="bl">'+lbl+'</i><i class="trk"><i class="fil t-'+t+'" style="width:'+Math.max(5,Math.min(100,v))+'%"></i></i><i class="bv">'+v+'</i></div>'; }
+function soPickOpen(){ var so=S.so, sd=so.marks[HUMAN_TEAM].length>=SO_ROUNDS;
+  so.pick=[]; so.pickN=sd ? 1 : SO_ROUNDS;
+  document.getElementById('soPickSub').textContent = sd ? 'Sudden death — pick your next shooter.'
+    : ('Pick your 3 shooters, in order. '+(so.first===HUMAN_TEAM ? 'You shoot first.' : 'The '+TEAM_NAME[so.first]+' shoot first.'));
+  setHint(sd ? 'Sudden death — pick your next shooter.' : 'Shootout — pick your 3 shooters.');
+  soPickRender(); document.getElementById('soPick').classList.add('show'); }
+function soPickRender(){ var so=S.so, base=so.marks[HUMAN_TEAM].length, list=document.getElementById('soPickList');
+  list.innerHTML=soPickable().map(function(p){ var k=so.pick.indexOf(p.id);
+    return '<div class="dcardp hcard '+p.team+(k>=0?' sel':'')+'" data-pid="'+p.id+'"><div class="dcard-hd"><span class="dcp-ovr">'+(k>=0?(base+k+1):'')+'</span>'
+      +'<span class="dcard-id"><span class="dcp-name">'+p.name+'</span></span></div><div class="dcard-bars">'+soBar('SHO', p.tir)+soBar('HND', p.maniement)+'</div></div>'; }).join('');
+  var cs=list.querySelectorAll('[data-pid]'); for(var i=0;i<cs.length;i++){ (function(c){ c.onclick=function(){ soPickTap(c.getAttribute('data-pid')); }; })(cs[i]); }
+  document.getElementById('soPickGo').disabled = so.pick.length!==so.pickN; }
+function soPickTap(id){ var so=S.so; if(!so) return; var k=so.pick.indexOf(id);
+  if(k>=0) so.pick.splice(k, 1); else if(so.pick.length<so.pickN) so.pick.push(id);
+  soPickRender(); }
+function soPickGo(){ var so=S.so; if(!so || so.pick.length!==so.pickN) return;
+  so.order[HUMAN_TEAM]=so.order[HUMAN_TEAM].concat(so.pick); so.pick=[];
+  document.getElementById('soPick').classList.remove('show'); soNextAfter(); }
+function soAiNext(t){ var so=S.so, left=soAiPick(t, 1, so.used[t]); if(!left.length){ so.used[t]={}; left=soAiPick(t, 1, {}); } return left[0].id; }
+function soNextAfter(){ var so=S.so; if(!so) return; var w=soDecided(so); if(w){ soEnd(w); return; }
+  var t=soNextTeam(so), idx=so.marks[t].length;
+  if(idx>=so.order[t].length){ if(t===HUMAN_TEAM){ soPickOpen(); return; } so.order[t].push(soAiNext(t)); }
+  soAttempt(t, so.order[t][idx]); }
+function soAttempt(team, id){ var so=S.so, sh=byId(id); so.cur={team:team, id:id};
+  S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=(q.id===id); }); soGoaliesHome();
+  sh.c=CTR_C; sh.r=CTR_R; S.puckOwner=id; S.puckLoose=null; render(); soBoard('');
+  pushLog('Shootout — <b>'+sh.name+'</b> ('+TEAM_NAME[team]+') skates in.');
+  setHint(team===HUMAN_TEAM ? sh.name+' skates in…' : 'The '+TEAM_NAME[team]+' shooter: '+sh.name+'.');
+  soLater(so, function(){   // l'approche : du centre jusqu'a 3 cases du filet
+    var tc=goalCol(team)-dir(team)*SO_SLOT, tr=CTR_R, dx=sh.c-tc, dy=sh.r-tr; sh.c=tc; sh.r=tr;
+    if(!S.slides) S.slides={}; S.slides[id]={dx:dx, dy:dy}; sfx('skate');
+    matchEv('skate', {id:id, pts:[[tc+dx, tr+dy], [tc, tr]], so:1}); render();
+    var ms=1000*Math.max(0.3, 0.28*Math.max(Math.abs(dx), Math.abs(dy)))/ANIM_RATE;   // la duree du glissement (hj3dSlides)
+    soLater(so, function(){ soAim(team, id); }, ms+250); }, 700); }
+function soAim(team, id){ var so=S.so, sh=byId(id), g=goalieFor(sh), pct={};
+  SO_TARGETS.forEach(function(t){ pct[t]=Math.round(soShotProb(sh, g, t, null)*100); });
+  hj3dSend('aim', {id:id, team:team, pick:team===HUMAN_TEAM, pct:pct, secs:0});   // la camera derriere le tireur, les 5 cibles (et leur %)
+  if(team===HUMAN_TEAM){ soPadOpen(); setHint('Swipe up to shoot: straight up = five-hole, short = low corner, long = top corner.'); }
+  else soLater(so, function(){ soShoot(soAiTarget()); }, 1100); }
+var _soPadWired=false;
+function soPadOpen(){ var pad=document.getElementById('soPad'); if(!pad) return;
+  if(!_soPadWired){ _soPadWired=true; var st=null;
+    pad.addEventListener('pointerdown', function(e){ st={x:e.clientX, y:e.clientY}; if(e.preventDefault) e.preventDefault(); });
+    pad.addEventListener('pointercancel', function(){ st=null; });
+    pad.addEventListener('pointerup', function(e){ if(!st) return; var dx=e.clientX-st.x, dy=e.clientY-st.y; st=null;
+      if(!S.so || !S.so.padOpen) return;
+      var t=soSwipeTarget(dx, dy, pad.clientHeight || window.innerHeight || 600);
+      if(!t){ setHint('Swipe UP to shoot — straight up: five-hole, short: low corner, long: top corner.'); return; }
+      soShoot(t); }); }
+  S.so.padOpen=true; pad.hidden=false; }
+function soPadClose(){ var pad=document.getElementById('soPad'); if(pad) pad.hidden=true; if(S.so) S.so.padOpen=false; }
+function soShoot(target){ var so=S.so; if(!so || !so.cur) return; var cur=so.cur, sh=byId(cur.id), g=goalieFor(sh);
+  soPadClose();
+  var guess=SO_TARGETS[Math.floor(Math.random()*SO_TARGETS.length)], prob=soShotProb(sh, g, target, guess), goal=Math.random()<prob;
+  so.lastProb=prob;
+  matchEv('shot', {id:sh.id, g:g?g.id:null, target:target, guess:guess, res:goal?'goal':'save', so:1});
+  hj3dSend('cue', 'release'); sfx('shot');
+  so.marks[cur.team].push(goal?1:0); so.used[cur.team][sh.id]=1;
+  pushLog('Shootout — '+sh.name+' ('+targetLabel(target)+'): '+(goal ? '<b>GOAL</b>' : 'saved')+'.');
+  soLater(so, function(){
+    if(goal){ matchEv('goal', {team:cur.team, by:sh.name, so:1}); sfx('goal'); } else sfx('save');
+    soBoard(goal ? 'GOAL!' : 'SAVE!');
+    soLater(so, function(){ hj3dSend('cue', 'aimend'); S.puckOwner=null; soNextAfter(); }, 1700); }, 600); }
+function soBoard(msg){ var so=S.so, b=document.getElementById('soBoard'); if(!b) return; if(!so){ b.hidden=true; return; }
+  b.hidden=false; var n=Math.max(SO_ROUNDS, so.marks.A.length, so.marks.B.length);
+  [so.first, soOther(so.first)].forEach(function(t, row){ var m=so.marks[t], h='<span class="so-t">'+TEAM_ABBR[t]+'</span>';
+    for(var i=0;i<n;i++) h+= i<m.length ? (m[i] ? '<span class="so-m g">✓</span>' : '<span class="so-m s">✗</span>') : '<span class="so-m n">·</span>';
+    document.getElementById(row===0 ? 'soRowA' : 'soRowB').innerHTML=h; });
+  if(msg!=null) document.getElementById('soMsg').textContent=msg; }
+function soHideAll(){ var b=document.getElementById('soBoard'), p=document.getElementById('soPad'), k=document.getElementById('soPick');
+  if(b) b.hidden=true; if(p) p.hidden=true; if(k) k.classList.remove('show'); }
+function soEnd(w){ var so=S.so, cur=so.cur, last=cur && cur.team===w && so.marks[w][so.marks[w].length-1]===1;
+  pushLog('<b>'+TEAM_NAME[w]+'</b> win the shootout '+soGoals(so.marks[w])+'–'+soGoals(so.marks[soOther(w)])+' !');
+  soBoard(TEAM_ABBR[w]+' WIN');
+  soLater(so, function(){ soHideAll(); hj3dSend('cue', 'aimend'); S.so=null; S.score[w]++; S._endSO=true; S.overtime=true;
+    var fin=function(){ gameOver(w); };
+    if(last){ goalReplay(w, byId(cur.id).name, fin); } else fin(); }, 1500); }
 
 function setHint(t){ document.getElementById('hintLine').innerHTML=t; var _th=document.querySelector('#tbTop .tbhint'); if(_th) _th.textContent=document.getElementById('hintLine').textContent; }
 function selectionHint(){
@@ -8569,7 +8712,7 @@ var CAREER_LOG=null;   // compteur du match de carriere : id du pion -> actions 
 function careerTrackReset(){ CAREER_LOG={st:{}, last:null, cost:{}, pe:{}, inj:{}}; }   // v489 : energie depensee, depart de periode, blessures
 function careerStatOf(id){ if(!CAREER_LOG || !id) return null; return CAREER_LOG.st[id] || (CAREER_LOG.st[id]={sog:0, g:0, a:0, pc:0, dk:0, dkf:0, hit:0, bat:0, stl:0, cells:0, brk:0, sv:0, svc:0, hr:0}); }
 function careerTrack(e, d){   // les actions du match de carriere
-  if(!CAREER_MATCH || !CAREER_LOG || !d) return; var s;
+  if(!CAREER_MATCH || !CAREER_LOG || !d || d.so) return; var s;   // v536 : la fusillade ne compte pas
   if(e==='shot'){ var sh=byId(d.id);
     if(d.res==='block'){ var bk=byId(d.by); if(bk && sh && bk.team!==sh.team && (s=careerStatOf(d.by))) s.stl++; if(bk && bk.type==='sk') careerContact(d.by, 'blk', sh); }
     else if(d.res!=='wide' && (s=careerStatOf(d.id))){ s.sog++;
@@ -8703,7 +8846,7 @@ function careerDraftTag(p){ var u=S.draftUsed[p.team]||{}, e=careerLiveEn(p); re
 function careerPlayerByUid(T, uid){ if(T.goalie.uid===uid) return T.goalie; if(T.goalie2 && T.goalie2.uid===uid) return T.goalie2; for(var i=0;i<T.skaters.length;i++){ if(T.skaters[i].uid===uid) return T.skaters[i]; } return null; }
 function careerProgress(){   // au Continue : l'experience de tes joueurs qui ont joue ; le bilan (3 etoiles des deux equipes)
   var T=CAREER.teams[CAREER.my], used=(S.draftUsed && S.draftUsed.A)||{}, all=[];
-  var rep={score:[S.score.A, S.score.B], ot:!!S._endOT, opp:CAREER_MATCH.opp, rows:[], stars:[]};
+  var rep={score:[S.score.A, S.score.B], ot:!!S._endOT, so:!!S._endSO, opp:CAREER_MATCH.opp, rows:[], stars:[]};
   S.pieces.forEach(function(q){ var st=(CAREER_LOG && CAREER_LOG.st[q.id]) || {}, gk=q.type==='g';
     all.push({name:q.name, team:q.team, score:(st.g||0)*5+(st.a||0)*3+(st.sog||0)+(st.hit||0)*2+(st.stl||0)*2+(st.dk||0)*2+(st.sv||0)});
     if(q.team!=='A' || !q.uid || !(used[q.id] || gk)) return;
@@ -8751,11 +8894,11 @@ function careerFinishMatch(){   // le resultat compte, le reste du jour est simu
   if(!CAREER || !CAREER_MATCH) return;
   matchSaveClear();   // v499 : le resultat compte -> plus rien a reprendre
   var g=careerMyGame(CAREER), a=S.score.A, b=S.score.B, ot=!!S._endOT;
-  CAREER.last={opp:CAREER_MATCH.opp, gf:a, ga:b, ot:ot, po:!!CAREER_MATCH.po};
+  CAREER.last={opp:CAREER_MATCH.opp, gf:a, ga:b, ot:ot, so:!!S._endSO, po:!!CAREER_MATCH.po};   // v536 : so = en fusillade
   CAREER.report=careerProgress();   // v484 : l'experience de tes joueurs, le bilan
   CAREER.carry=S.speechPost||null;   // v504 : le report du discours d'apres-match
   CAREER.report.coach=careerCoachProgress(a>b);   // v504 : ton coach progresse
-  careerPlayDay(CAREER, (g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot} : {hs:b, as:a, ot:ot});
+  careerPlayDay(CAREER, (g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot, so:!!S._endSO} : {hs:b, as:a, ot:ot, so:!!S._endSO});
   careerSave(); careerClearLook(); _hide('gameoverOverlay'); newGame('A'); careerGo('report', true);   // v484 : le bilan d'abord
 }
 function careerExitMatch(){ matchSaveClear(); if(S.paused) togglePause(); careerClearLook(); newGame('A'); careerGo('hub'); }   // un match quitte ne compte pas
@@ -8813,7 +8956,7 @@ function careerPlayDay(c, my){   // le jour : ton resultat (my = {hs, as, ot} vu
   if(c.phase==='regular'){
     for(var d=1;d<=3;d++){ (c.schedule[d][c.day]||[]).forEach(function(g){
       var mine=(g[0]===c.my || g[1]===c.my), r;
-      if(mine && my) r={home:g[0], away:g[1], hs:my.hs, as:my.as, ot:!!my.ot};
+      if(mine && my) r={home:g[0], away:g[1], hs:my.hs, as:my.as, ot:!!my.ot, so:!!my.so};
       else { careerAiPrep(c.teams[g[0]]); careerAiPrep(c.teams[g[1]]); r=careerSimGame(c, g[0], g[1]); careerSimEffects(c.teams[g[0]]); careerSimEffects(c.teams[g[1]]); }   // v489
       r.div=d; r.day=c.day; r.mine=mine; c.results.push(r); }); }
     careerDayEnd(c);   // v489 : decompte et recuperation
@@ -9181,7 +9324,7 @@ function careerRender(){
     h+='<div class="mtitle">'+careerSwatch(T)+careerEsc(T.full)+'</div><div class="msub">Season '+c.season+' · '+DIV_NAME[d]+'</div>';
     h+='<div class="crec">'+me.w+'-'+me.l+'-'+me.otl+' · '+me.pts+' pts · '+careerOrd(rk)+' of 8</div>';
     if(T.coach) h+='<div class="msub">Coach '+careerEsc(T.coach.name)+' · '+COACH_PROFILES[T.coach.prof].n+' · level '+T.coach.lvl+'</div>';   // v503
-    if(c.last){ var L=c.last; h+='<div class="clast">Last game: <b>'+(L.gf>L.ga?'Win':'Loss')+' '+L.gf+'–'+L.ga+(L.ot?' (OT)':'')+'</b> vs '+careerEsc(c.teams[L.opp].nick)+'</div>'; }
+    if(c.last){ var L=c.last; h+='<div class="clast">Last game: <b>'+(L.gf>L.ga?'Win':'Loss')+' '+L.gf+'–'+L.ga+(L.ot?(L.so?' (SO)':' (OT)'):'')+'</b> vs '+careerEsc(c.teams[L.opp].nick)+'</div>'; }
     if(CAREER_MSG) h+='<div class="cmsg">'+CAREER_MSG+'</div>';
     var g=careerMyGame(c);
     if(c.phase==='regular' && g){ var op=g.home===c.my?g.away:g.home;
@@ -9205,7 +9348,7 @@ function careerRender(){
     h+='<div class="mtitle">Schedule</div><div class="msub">'+DIV_NAME[d2]+' · season '+c.season+'</div><div class="ctab"><table><tr><th>Rd</th><th></th><th>Opponent</th><th>Result</th></tr>';
     c.schedule[d2].forEach(function(rd, i){ rd.forEach(function(gm){ if(gm[0]!==c.my && gm[1]!==c.my) return; var home=gm[0]===c.my, opp=home?gm[1]:gm[0], txt='';
       var res=c.results.filter(function(r){ return !r.po && r.day===i && r.div===d2 && (r.home===c.my || r.away===c.my); })[0];
-      if(res){ var gf=res.home===c.my?res.hs:res.as, ga=res.home===c.my?res.as:res.hs; txt=(gf>ga?'W ':'L ')+gf+'–'+ga+(res.ot?' OT':''); }
+      if(res){ var gf=res.home===c.my?res.hs:res.as, ga=res.home===c.my?res.as:res.hs; txt=(gf>ga?'W ':'L ')+gf+'–'+ga+(res.ot?(res.so?' SO':' OT'):''); }
       h+='<tr class="'+(i===c.day && c.phase==='regular'?'me':'')+'"><td>'+(i+1)+'</td><td>'+(home?'vs':'at')+'</td><td>'+careerSwatch(c.teams[opp])+careerEsc(c.teams[opp].nick)+'</td><td>'+txt+'</td></tr>'; }); });
     h+='</table></div><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   } else if(v==='lineup'){   // v517 : l'ecran Match lineup -- 16 habilles, 2 dans les gradins
@@ -9236,7 +9379,7 @@ function careerRender(){
     h+='<button class="mbtn" onclick="careerGo(CAREER?\'hub\':\'start\')">← Back</button>';
   } else if(v==='report'){
     var R=c.report, ro=c.teams[R.opp];
-    h+='<div class="mtitle">Post-game report</div><div class="cchamp">'+(R.score[0]>R.score[1]?'Win':'Loss')+' '+R.score[0]+'–'+R.score[1]+(R.ot?' (OT)':'')+' vs '+careerEsc(ro.nick)+'</div>';
+    h+='<div class="mtitle">Post-game report</div><div class="cchamp">'+(R.score[0]>R.score[1]?'Win':'Loss')+' '+R.score[0]+'–'+R.score[1]+(R.ot?(R.so?' (SO)':' (OT)'):'')+' vs '+careerEsc(ro.nick)+'</div>';
     h+='<div class="msub">Stars: '+R.stars.map(function(x, i){ return '★★★'.slice(0, 3-i)+' '+careerEsc(x.name); }).join(' · ')+'</div>';
     h+='<div class="ctab"><table><tr><th>Player</th><th>Game</th><th>XP</th><th>Up</th><th>Energy</th></tr>';
     R.rows.forEach(function(r){
@@ -9988,7 +10131,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":235140,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":235364,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
