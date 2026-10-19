@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v536</title>
+<title>Deck 3D v537</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -173,6 +173,8 @@
 #soPad{position:fixed;inset:0;z-index:74;touch-action:none;display:flex;align-items:flex-end;justify-content:center;}
 #soPad .so-help{margin-bottom:calc(70px + env(safe-area-inset-bottom,0px));padding:8px 14px;border-radius:10px;background:rgba(10,18,32,.78);color:#fff;font:700 15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;pointer-events:none;display:flex;flex-direction:column;}
 #soPad .so-help small{font-weight:400;opacity:.85;font-size:12px;}
+.sohelp-list{display:flex;flex-direction:column;gap:7px;text-align:left;margin:10px 0;font-size:14px;line-height:1.35;}   /* v537 : la carte-aide des gestes */
+.sohelp-list b{color:#ffd166;}
 #replaySkip{margin-left:4px;background:#fff;color:#0a1220;border:0;border-radius:7px;padding:7px 12px;font-weight:700;font-size:13px;}
 .goalsiren.go{display:block;animation:sirenpulse .36s ease-in-out 4;}
 @keyframes sirenpulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,40,30,0);}50%{box-shadow:inset 0 0 46px 16px rgba(255,40,30,.78);}}
@@ -996,7 +998,8 @@ body:not(.vrink) .thumbx{display:none !important;}
 
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
 <div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
-<div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
+<div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm dauto" id="soPickHelp">❔ Moves</button><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
+<div class="ov draft" id="soHelp"><div class="dcard"><div class="dtitle">🥅 Shootout moves</div><div class="dsub">Skate in: swipe ← → to change lane, ↑ to speed up, hold your finger to slow down. When <b>NOW!</b> shows, draw your move:</div><div class="sohelp-list"><div><b>↑</b> Shot — straight up: five-hole · short: low corner · long: top corner</div><div><b>← →</b> or <b>→ ←</b> Forehand–backhand deke</div><div><b>↓</b> then <b>←</b> or <b>→</b> Fake shot</div><div><b>long ↓</b> then <b>slow ←</b> or <b>→</b> Datsyuk</div><div><b>long ←</b> or <b>→</b> then <b>small ↑</b> Forsberg (one hand)</div><div><b>←</b> or <b>→</b> to your backhand, then <b>quick ↑</b> Nielsen</div><div><b>hold 1 s</b> then <b>quick ↑</b> Kane slow-mo (skate in slowly)</div><div><b>↓ ↑</b> (a V) Between the legs</div></div><div class="dsub">Too early: the goalie has not moved. Too late: he pokes the puck away. The same move twice: he reads it.</div><button class="dconfirm" id="soHelpOk">Got it</button></div></div>
 <div class="ov menu" id="mainMenu"><div class="mcard"><div class="mtitle">🏒 Hockey Deck</div><div class="msub">Strategy hockey</div>
 <div class="mmsg" id="mmMsg" style="display:none"></div>
 <button class="mbtn play" id="mmResume" style="display:none"></button>
@@ -1275,7 +1278,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v536';
+var GAME_VERSION='v537';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7363,11 +7366,43 @@ function soEligible(team){ var box={}; ((S.pen && S.pen.box)||[]).forEach(functi
   return S.pieces.filter(function(q){ return q.team===team && q.type==='sk' && !q.vacant && !box[q.id]; }); }
 function soAiPick(team, n, exclude){ return soEligible(team).filter(function(q){ return !(exclude||{})[q.id]; })
   .sort(function(a, b){ return soSkill(b)-soSkill(a); }).slice(0, n); }
-var SO_SLOT=3;   // le tireur s'arrete a 3 cases du filet
+// v537 : la fusillade, version 2 -- l'approche que tu diriges (couloir, vitesse) et les 8 feintes au doigt (spec §2)
+var SO_TICK={slow:650, med:450, fast:320}, SO_ZONE=6, SO_LANES=2, SO_HOLD_MS=250, SO_KANE_HOLD=900, SO_SEQ_WAIT=700, SO_MOVE_PX=12, SO_FBASE=0.33;
+var SO_FEINTS={fhbh:{n:'Forehand–backhand', a:'deke'}, bhfh:{n:'Backhand–forehand', a:'deke'}, fakeshot:{n:'Fake shot', a:'fakeshot'},
+  datsyuk:{n:'Datsyuk', a:'toedrag'}, forsberg:{n:'Forsberg', a:'cutmiddle'}, nielsen:{n:'Nielsen backhand', a:'deke'},
+  kane:{n:'Kane slow-mo', a:'deke'}, legs:{n:'Between the legs', a:'betweenlegs'}};   // a : l'animation 3D existante la plus proche (v4 : les vraies)
+var SO_TIME_F={early:-0.12, good:0.06, late:-0.08}, SO_TIME_S={early:-0.06, good:0, late:-0.06};
+function soStroke(s, h){   // une glissade : {dx, dy, hold (ms avant de bouger), dur (ms en mouvement)} -> sa direction et sa nature
+  var adx=Math.abs(s.dx), ady=Math.abs(s.dy), len=Math.sqrt(s.dx*s.dx+s.dy*s.dy), v=len/Math.max(1, s.dur||1), dir=null, pure=0;
+  if(len>=SO_SWIPE_MIN){
+    if(s.dy<0 && adx<=1.2*ady){ dir='U'; pure=adx<=0.5*ady ? 1 : 0.6; }
+    else if(adx>ady){ dir=s.dx<0 ? 'L' : 'R'; pure=ady<=0.35*adx ? 1 : 0.6; }
+    else { dir='D'; pure=adx<=0.5*ady ? 1 : 0.6; } }
+  return {dir:dir, dx:s.dx, dy:s.dy, len:len, long:len>=SO_HIGH*(h||600), fast:v>=1.2, slow:v<=0.5, hold:s.hold||0, pure:pure, h:h||600}; }
+function soRecognize(st, hand){   // les glissades -> {kind, target, q (0-1 : la proprete)} ; null : pas reconnu
+  var a=st[0], b=st[1], fh=hand==='D' ? 'R' : 'L', bh=fh==='L' ? 'R' : 'L';   // le coup droit du cote de la palette (gaucher : a gauche)
+  if(!a || !a.dir) return null;
+  if(a.dir==='U'){ if(st.length>1) return null;
+    if(a.hold>=SO_KANE_HOLD) return {kind:'kane', target:Math.abs(a.dx)<0.27*Math.abs(a.dy) ? '5H' : ('T'+(a.dx<0 ? 'L' : 'R')), q:a.fast ? 1 : 0.5};
+    var t=soSwipeTarget(a.dx, a.dy, a.h); return t ? {kind:'shot', target:t, q:1} : null; }
+  if(!b || !b.dir || st.length>2) return null;
+  var A=a.dir, B=b.dir, q2=(a.pure+b.pure)/2;
+  if((A==='L' && B==='R') || (A==='R' && B==='L')) return {kind:A===fh ? 'fhbh' : 'bhfh', target:'B'+B, q:q2};
+  if(A==='D' && (B==='L' || B==='R')) return a.long ? {kind:'datsyuk', target:'B'+B, q:q2*(b.slow ? 1 : 0.6)} : {kind:'fakeshot', target:'B'+B, q:q2};
+  if(A==='D' && B==='U') return {kind:'legs', target:'5H', q:q2};
+  if((A==='L' || A==='R') && B==='U'){ if(a.long && !b.fast) return {kind:'forsberg', target:'B'+A, q:q2};
+    return {kind:'nielsen', target:'T'+A, q:q2*(b.fast ? 1 : 0.6)*(A===bh ? 1 : 0.6)}; }
+  return null; }
+function soTiming(d){ return d>=5 ? 'early' : (d>=3 ? 'good' : 'late'); }   // la distance au filet a la fin du geste
+function soFeintProb(sh, g, kind, q, timing, speed, seen){
+  var p=SO_FBASE+(((sh && sh.maniement)||50)-SO_MID)*0.006-(((g && g.arret100)||70)-70)*0.006+(q>=0.75 ? 0.05 : -0.10)+SO_TIME_F[timing]
+    +(kind==='kane' ? ({slow:0.06, med:0, fast:-0.10})[speed] : ({slow:-0.06, med:0, fast:0.02})[speed])-0.10*(seen||0);
+  return Math.max(0.05, Math.min(0.75, p)); }
+function soMirror(t){ return t==='5H' ? 'BL' : (t.charAt(0)+(t.charAt(1)==='L' ? 'R' : 'L')); }
 function soLater(so, fn, ms){ setTimeout(function(){ if(S.so!==so) return; if(S.paused){ soLater(so, fn, 300); return; } fn(); }, realMs(ms)); }
 function soGoaliesHome(){ S.pieces.forEach(function(q){ if(q.type==='g'){ q.onIce=true; q.c=q.team==='A'?NET_B:NET_A; q.r=CTR_R; } }); }
 function shootoutStart(){
-  S.so={first:soHome(), marks:{A:[], B:[]}, order:{A:[], B:[]}, used:{A:{}, B:{}}, pick:[], pickN:0, padOpen:false, cur:null};
+  S.so={first:soHome(), marks:{A:[], B:[]}, order:{A:[], B:[]}, used:{A:{}, B:{}}, pick:[], pickN:0, padOpen:false, cur:null, run:null, seen:{}, last:null};
   S.planning=false; S.atkPlan=[]; S.ghost={}; S.animating=true; S.puckOwner=null; S.puckLoose=null; S.faceoff=null;
   S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=false; }); soGoaliesHome();
   var ai=soOther(HUMAN_TEAM); S.so.order[ai]=soAiPick(ai, SO_ROUNDS, {}).map(function(q){ return q.id; });
@@ -7383,6 +7418,7 @@ function soPickOpen(){ var so=S.so, sd=so.marks[HUMAN_TEAM].length>=SO_ROUNDS;
   document.getElementById('soPickSub').textContent = sd ? 'Sudden death — pick your next shooter.'
     : ('Pick your 3 shooters, in order. '+(so.first===HUMAN_TEAM ? 'You shoot first.' : 'The '+TEAM_NAME[so.first]+' shoot first.'));
   setHint(sd ? 'Sudden death — pick your next shooter.' : 'Shootout — pick your 3 shooters.');
+  var hb=document.getElementById('soPickHelp'); if(hb) hb.onclick=function(){ soHelpOpen(null); };   // v537
   soPickRender(); document.getElementById('soPick').classList.add('show'); }
 function soPickRender(){ var so=S.so, base=so.marks[HUMAN_TEAM].length, list=document.getElementById('soPickList');
   list.innerHTML=soPickable().map(function(p){ var k=so.pick.indexOf(p.id);
@@ -7395,52 +7431,96 @@ function soPickTap(id){ var so=S.so; if(!so) return; var k=so.pick.indexOf(id);
   soPickRender(); }
 function soPickGo(){ var so=S.so; if(!so || so.pick.length!==so.pickN) return;
   so.order[HUMAN_TEAM]=so.order[HUMAN_TEAM].concat(so.pick); so.pick=[];
-  document.getElementById('soPick').classList.remove('show'); soNextAfter(); }
+  document.getElementById('soPick').classList.remove('show');
+  if(!soHelpSeen()) soHelpOpen(soNextAfter); else soNextAfter(); }   // v537 : la carte-aide des gestes, la premiere fois
+var _soHelpMem=false, _soHelpCb=null;
+function soHelpSeen(){ if(_soHelpMem) return true; try{ return localStorage.getItem('hj-so-help')==='1'; }catch(e){ return false; } }
+function soHelpOpen(cb){ _soHelpCb=cb||null; var ok=document.getElementById('soHelpOk'); if(ok) ok.onclick=soHelpClose; document.getElementById('soHelp').classList.add('show'); }
+function soHelpClose(){ document.getElementById('soHelp').classList.remove('show'); _soHelpMem=true; try{ localStorage.setItem('hj-so-help', '1'); }catch(e){}
+  var cb=_soHelpCb; _soHelpCb=null; if(cb && S.so) cb(); }
 function soAiNext(t){ var so=S.so, left=soAiPick(t, 1, so.used[t]); if(!left.length){ so.used[t]={}; left=soAiPick(t, 1, {}); } return left[0].id; }
 function soNextAfter(){ var so=S.so; if(!so) return; var w=soDecided(so); if(w){ soEnd(w); return; }
   var t=soNextTeam(so), idx=so.marks[t].length;
   if(idx>=so.order[t].length){ if(t===HUMAN_TEAM){ soPickOpen(); return; } so.order[t].push(soAiNext(t)); }
   soAttempt(t, so.order[t][idx]); }
+// v537 : l'essai = une approche par pas (une case par pas ; la duree selon la vitesse ; la 3D glisse a la meme duree), la zone
+// (NOW! a SO_ZONE cases du filet), le geste ; l'IA patine aussi et tire a 4 cases
+function soDist(run){ return Math.abs(goalCol(run.team)-byId(run.id).c); }
 function soAttempt(team, id){ var so=S.so, sh=byId(id); so.cur={team:team, id:id};
+  so.run={team:team, id:id, now:false, done:false, speed:'med', held:false, lane:0, ms:[], strokes:[], seqN:0};
   S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=(q.id===id); }); soGoaliesHome();
-  sh.c=CTR_C; sh.r=CTR_R; S.puckOwner=id; S.puckLoose=null; render(); soBoard('');
+  sh.c=CTR_C_CELL; sh.r=CTR_R; S.puckOwner=id; S.puckLoose=null; render(); soBoard('');   // la case du centre (CTR_C = 12,5 : le milieu exact)
   pushLog('Shootout — <b>'+sh.name+'</b> ('+TEAM_NAME[team]+') skates in.');
-  setHint(team===HUMAN_TEAM ? sh.name+' skates in…' : 'The '+TEAM_NAME[team]+' shooter: '+sh.name+'.');
-  soLater(so, function(){   // l'approche : du centre jusqu'a 3 cases du filet
-    var tc=goalCol(team)-dir(team)*SO_SLOT, tr=CTR_R, dx=sh.c-tc, dy=sh.r-tr; sh.c=tc; sh.r=tr;
-    if(!S.slides) S.slides={}; S.slides[id]={dx:dx, dy:dy}; sfx('skate');
-    matchEv('skate', {id:id, pts:[[tc+dx, tr+dy], [tc, tr]], so:1}); render();
-    var ms=1000*Math.max(0.3, 0.28*Math.max(Math.abs(dx), Math.abs(dy)))/ANIM_RATE;   // la duree du glissement (hj3dSlides)
-    soLater(so, function(){ soAim(team, id); }, ms+250); }, 700); }
-function soAim(team, id){ var so=S.so, sh=byId(id), g=goalieFor(sh), pct={};
+  if(team===HUMAN_TEAM){ soPadOpen(); soPadMsg('Skate in', '← → lane · ↑ faster · hold: slower'); setHint(sh.name+' skates in: swipe ← → to change lane, ↑ to speed up, hold to slow down.'); }
+  else setHint('The '+TEAM_NAME[team]+' shooter: '+sh.name+'.');
+  soLater(so, soTick, 700); }
+function soTick(){ var so=S.so, run=so && so.run; if(!run || run.done) return;
+  var sh=byId(run.id), d=soDist(run);
+  if(d<=1){ soResolve(null); return; }   // trop pres sans geste : le gardien pique la rondelle
+  var ms=SO_TICK[run.held ? 'slow' : run.speed]; run.ms.push(ms);
+  var want=Math.max(CTR_R-SO_LANES, Math.min(CTR_R+SO_LANES, CTR_R+run.lane)), dr=want>sh.r ? 1 : (want<sh.r ? -1 : 0);   // le couloir vise, une rangee par pas
+  var oc=sh.c, orr=sh.r; sh.c+=dir(run.team); sh.r+=dr;
+  if(!S.slides) S.slides={}; S.slides[sh.id]={dx:oc-sh.c, dy:orr-sh.r, pts:[{dx:oc-sh.c, dy:orr-sh.r}], cells:1, ms:ms};
+  soGoalieStep(run);
+  matchEv('skate', {id:sh.id, pts:[[oc, orr], [sh.c, sh.r]], so:1}); render();
+  var nd=soDist(run);
+  if(!run.now && nd<=SO_ZONE) soNow(run);
+  if(run.team!==HUMAN_TEAM && nd<=4){ soResolve({kind:'shot', target:soAiTarget(), q:1}); return; }   // (ses feintes : v3)
+  soLater(so, soTick, ms); }
+function soGoalieStep(run){ var g=goalieFor(byId(run.id)); if(!g) return;   // le gardien sort a la rencontre du tireur, puis recule
+  var net=goalCol(run.team), want=soDist(run)>=7 ? net-dir(run.team) : net;
+  if(g.c!==want){ var oc=g.c; g.c=want; if(!S.slides) S.slides={}; S.slides[g.id]={dx:oc-want, dy:0}; } }
+function soNow(run){ run.now=true; run.nowD=soDist(run); var sh=byId(run.id), g=goalieFor(sh), pct={};
   SO_TARGETS.forEach(function(t){ pct[t]=Math.round(soShotProb(sh, g, t, null)*100); });
-  hj3dSend('aim', {id:id, team:team, pick:team===HUMAN_TEAM, pct:pct, secs:0});   // la camera derriere le tireur, les 5 cibles (et leur %)
-  if(team===HUMAN_TEAM){ soPadOpen(); setHint('Swipe up to shoot: straight up = five-hole, short = low corner, long = top corner.'); }
-  else soLater(so, function(){ soShoot(soAiTarget()); }, 1100); }
-var _soPadWired=false;
+  hj3dSend('aim', {id:run.id, team:run.team, pick:run.team===HUMAN_TEAM, pct:pct, secs:0});   // la camera derriere le tireur (et pour toi : les 5 coins)
+  if(run.team===HUMAN_TEAM){ soPadMsg('NOW!', 'Swipe ↑ to shoot, or draw a deke'); sfx('tick'); setHint('NOW! Swipe ↑ to shoot, or draw a deke.'); } }
+var _soPadWired=false, _soPd=null;
 function soPadOpen(){ var pad=document.getElementById('soPad'); if(!pad) return;
-  if(!_soPadWired){ _soPadWired=true; var st=null;
-    pad.addEventListener('pointerdown', function(e){ st={x:e.clientX, y:e.clientY}; if(e.preventDefault) e.preventDefault(); });
-    pad.addEventListener('pointercancel', function(){ st=null; });
-    pad.addEventListener('pointerup', function(e){ if(!st) return; var dx=e.clientX-st.x, dy=e.clientY-st.y; st=null;
-      if(!S.so || !S.so.padOpen) return;
-      var t=soSwipeTarget(dx, dy, pad.clientHeight || window.innerHeight || 600);
-      if(!t){ setHint('Swipe UP to shoot — straight up: five-hole, short: low corner, long: top corner.'); return; }
-      soShoot(t); }); }
+  if(!_soPadWired){ _soPadWired=true;
+    pad.addEventListener('pointerdown', function(e){ if(e.preventDefault) e.preventDefault(); soPadDown(e.clientX, e.clientY); });
+    pad.addEventListener('pointermove', function(e){ soPadMove(e.clientX, e.clientY); });
+    pad.addEventListener('pointercancel', function(){ if(_soPd) _soPd.run.held=false; _soPd=null; });
+    pad.addEventListener('pointerup', function(e){ soPadUp(e.clientX, e.clientY, pad.clientHeight || window.innerHeight || 600); }); }
   S.so.padOpen=true; pad.hidden=false; }
 function soPadClose(){ var pad=document.getElementById('soPad'); if(pad) pad.hidden=true; if(S.so) S.so.padOpen=false; }
-function soShoot(target){ var so=S.so; if(!so || !so.cur) return; var cur=so.cur, sh=byId(cur.id), g=goalieFor(sh);
-  soPadClose();
-  var guess=SO_TARGETS[Math.floor(Math.random()*SO_TARGETS.length)], prob=soShotProb(sh, g, target, guess), goal=Math.random()<prob;
-  so.lastProb=prob;
-  matchEv('shot', {id:sh.id, g:g?g.id:null, target:target, guess:guess, res:goal?'goal':'save', so:1});
-  hj3dSend('cue', 'release'); sfx('shot');
-  so.marks[cur.team].push(goal?1:0); so.used[cur.team][sh.id]=1;
-  pushLog('Shootout — '+sh.name+' ('+targetLabel(target)+'): '+(goal ? '<b>GOAL</b>' : 'saved')+'.');
+function soPadMsg(big, small){ var e=document.querySelector('#soPad .so-help'); if(e) e.innerHTML=big+'<small>'+small+'</small>'; }
+function soPadDown(x, y){ var run=S.so && S.so.run; if(!run || run.done || run.team!==HUMAN_TEAM) return;
+  var pd={x:x, y:y, t0:Date.now(), moved:0, run:run}; _soPd=pd;
+  setTimeout(function(){ if(_soPd===pd && !pd.moved && !run.done) run.held=true; }, realMs(SO_HOLD_MS)); }   // tenir le doigt : il ralentit
+function soPadMove(x, y){ var pd=_soPd; if(!pd || pd.moved) return;
+  if(Math.abs(x-pd.x)+Math.abs(y-pd.y)>SO_MOVE_PX){ pd.moved=Date.now(); pd.run.held=false; } }
+function soPadUp(x, y, h){ var pd=_soPd; _soPd=null; if(!pd) return; var run=pd.run; run.held=false;
+  if(run.done || !S.so || S.so.run!==run) return;
+  var t=Date.now(), mv=pd.moved || t, st=soStroke({dx:x-pd.x, dy:y-pd.y, hold:mv-pd.t0, dur:Math.max(1, t-mv)}, h);
+  if(!run.now){   // l'approche : le couloir, la vitesse
+    if(st.dir==='L') run.lane=Math.max(-SO_LANES, run.lane-1); else if(st.dir==='R') run.lane=Math.min(SO_LANES, run.lane+1); else if(st.dir==='U') run.speed='fast';
+    return; }
+  soGesture(run, st); }
+function soGesture(run, st){ if(!st.dir) return;
+  run.strokes.push(st); var n=++run.seqN;
+  if(run.strokes[0].dir==='U' || run.strokes.length>=2){ var r=soRecognize(run.strokes, byId(run.id).hand); run.strokes=[];
+    if(r) soResolve(r); else soNoMove(); return; }
+  soLater(S.so, function(){ if(run.seqN===n && run.strokes.length===1 && !run.done){ run.strokes=[]; soNoMove(); } }, SO_SEQ_WAIT); }
+function soNoMove(){ soPadMsg('Try again', 'Move not recognized'); setHint('Move not recognized — try again!'); }
+function soResolve(r){ var so=S.so, run=so && so.run; if(!run || run.done) return; run.done=true; soPadClose();
+  var sh=byId(run.id), g=goalieFor(sh), team=run.team, timing=soTiming(soDist(run)), kind=r ? r.kind : 'poke';
+  var avg=run.ms.length ? run.ms.reduce(function(a, b){ return a+b; }, 0)/run.ms.length : SO_TICK.med, speed=avg>=560 ? 'slow' : (avg<=380 ? 'fast' : 'med');
+  var target=r ? r.target : '5H', guess=null, prob=0;
+  if(kind==='shot'){ guess=SO_TARGETS[Math.floor(Math.random()*SO_TARGETS.length)]; prob=Math.max(0.05, Math.min(0.75, soShotProb(sh, g, target, guess)+SO_TIME_S[timing])); }
+  else if(r){ var key=(g ? g.id : '')+':'+kind; prob=soFeintProb(sh, g, kind, r.q, timing, speed, so.seen[key]||0); so.seen[key]=(so.seen[key]||0)+1; }
+  var goal=Math.random()<prob; if(guess==null) guess=goal ? soMirror(target) : target;   // la feinte : le gardien mord (but) ou la lit (arret)
+  so.lastProb=prob; so.last={kind:kind, timing:timing, speed:speed, q:r ? r.q : 0};
+  var delay=0; if(r && kind!=='shot'){ matchEv('deke', {id:sh.id, feint:SO_FEINTS[kind].a, so:1}); delay=650; }
+  if(!r) pushLog('Shootout — '+(g ? g.name : 'the goalie')+' poke-checks the puck from '+sh.name+'.');
   soLater(so, function(){
-    if(goal){ matchEv('goal', {team:cur.team, by:sh.name, so:1}); sfx('goal'); } else sfx('save');
-    soBoard(goal ? 'GOAL!' : 'SAVE!');
-    soLater(so, function(){ hj3dSend('cue', 'aimend'); S.puckOwner=null; soNextAfter(); }, 1700); }, 600); }
+    matchEv('shot', {id:sh.id, g:g ? g.id : null, target:target, guess:guess, res:goal ? 'goal' : 'save', so:1});
+    hj3dSend('cue', 'release'); sfx(r ? 'shot' : 'poke');
+    so.marks[team].push(goal ? 1 : 0); so.used[team][sh.id]=1;
+    if(r) pushLog('Shootout — '+sh.name+' ('+(kind==='shot' ? targetLabel(target) : SO_FEINTS[kind].n)+', '+timing+'): '+(goal ? '<b>GOAL</b>' : 'saved')+'.');
+    soLater(so, function(){
+      if(goal){ matchEv('goal', {team:team, by:sh.name, so:1}); sfx('goal'); } else sfx('save');
+      soBoard(goal ? 'GOAL!' : (r ? 'SAVE!' : 'POKE CHECK!'));
+      soLater(so, function(){ hj3dSend('cue', 'aimend'); S.puckOwner=null; soNextAfter(); }, 1700); }, 600); }, delay); }
 function soBoard(msg){ var so=S.so, b=document.getElementById('soBoard'); if(!b) return; if(!so){ b.hidden=true; return; }
   b.hidden=false; var n=Math.max(SO_ROUNDS, so.marks.A.length, so.marks.B.length);
   [so.first, soOther(so.first)].forEach(function(t, row){ var m=so.marks[t], h='<span class="so-t">'+TEAM_ABBR[t]+'</span>';
@@ -7448,7 +7528,7 @@ function soBoard(msg){ var so=S.so, b=document.getElementById('soBoard'); if(!b)
     document.getElementById(row===0 ? 'soRowA' : 'soRowB').innerHTML=h; });
   if(msg!=null) document.getElementById('soMsg').textContent=msg; }
 function soHideAll(){ var b=document.getElementById('soBoard'), p=document.getElementById('soPad'), k=document.getElementById('soPick');
-  if(b) b.hidden=true; if(p) p.hidden=true; if(k) k.classList.remove('show'); }
+  if(b) b.hidden=true; if(p) p.hidden=true; if(k) k.classList.remove('show'); var hp=document.getElementById('soHelp'); if(hp) hp.classList.remove('show'); }
 function soEnd(w){ var so=S.so, cur=so.cur, last=cur && cur.team===w && so.marks[w][so.marks[w].length-1]===1;
   pushLog('<b>'+TEAM_NAME[w]+'</b> win the shootout '+soGoals(so.marks[w])+'–'+soGoals(so.marks[soOther(w)])+' !');
   soBoard(TEAM_ABBR[w]+' WIN');
@@ -8241,7 +8321,7 @@ function hj3dSlides(sl){   // glissements de ce render (S.slides : decalage depa
   var out={}; if(!sl) return out;
   for(var id in sl){ var s=sl[id], p=byId(id); if(!s || !p) continue;
     if(s.pts){ var pts=[]; for(var i=0;i<s.pts.length;i++) pts.push([p.c+s.pts[i].dx, p.r+s.pts[i].dy]); pts.push([p.c, p.r]);
-      out[id]={pts:pts, ms:Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE}; }   // courbe : duree du pion 2D (v411, v463)
+      out[id]={pts:pts, ms:s.ms || Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE}; }   // v537 : une duree imposee (l'approche de la fusillade)   // courbe : duree du pion 2D (v411, v463)
     else if(s.dx || s.dy) out[id]={pts:[[p.c+s.dx, p.r+s.dy],[p.c, p.r]], ms:1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE};   // --slidedur de la 2D
   }
   return out;
