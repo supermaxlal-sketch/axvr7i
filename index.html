@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v526</title>
+<title>Deck 3D v527</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -158,6 +158,12 @@
 .boardflash.go{animation:bflash .32s ease-out;}
 @keyframes bflash{0%{opacity:1;}100%{opacity:0;}}
 .goalsiren{position:fixed;inset:0;pointer-events:none;z-index:70;display:none;}
+#replayBar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:75;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 8px;border-radius:10px;background:rgba(10,18,32,.9);color:#fff;font:600 13px/1.25 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5);max-width:94vw;}   /* v527 : la reprise du but */
+#replayBar[hidden]{display:none;}
+#replayBar .rp-tag{background:#d8263b;color:#fff;font-weight:800;letter-spacing:.08em;padding:4px 8px;border-radius:5px;}
+#replayBar .rp-txt{display:flex;flex-direction:column;min-width:0;}
+#replayBar .rp-ast{font-weight:400;opacity:.85;font-size:12px;}
+#replaySkip{margin-left:4px;background:#fff;color:#0a1220;border:0;border-radius:7px;padding:7px 12px;font-weight:700;font-size:13px;}
 .goalsiren.go{display:block;animation:sirenpulse .36s ease-in-out 4;}
 @keyframes sirenpulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,40,30,0);}50%{box-shadow:inset 0 0 46px 16px rgba(255,40,30,.78);}}
 .pts.scorepop{display:inline-block;animation:scorepop .65s cubic-bezier(.2,1.7,.4,1);}
@@ -889,6 +895,7 @@ body:not(.vrink) .thumbx{display:none !important;}
       <div class="checkfx" id="checkfx" style="display:none"></div>
       <div class="boardflash" id="boardflash"></div>
       <div class="goalsiren" id="goalsiren"></div>
+      <div id="replayBar" hidden><span class="rp-tag">REPLAY</span><div class="rp-txt"><span class="rp-goal" id="rpGoal"></span><span class="rp-ast" id="rpAst"></span></div><button id="replaySkip" type="button">Skip</button></div>
       <div class="rcvring" id="rcvring"></div>
       <div class="goallight left" id="glLeft"></div>
       <div class="goallight right" id="glRight"></div>
@@ -1255,7 +1262,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v526';
+var GAME_VERSION='v527';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6670,7 +6677,7 @@ function celebrate(team,who){ if(S.celebrating) return; if(S.tut){ if(team===HUM
   render();
   var gs=document.getElementById('goalsiren'); if(gs){ gs.classList.remove('go'); void gs.offsetWidth; gs.classList.add('go'); setTimeout(function(){ gs.classList.remove('go'); }, realMs(1550)); }
   var pe=document.getElementById(team==='A'?'ptsA':'ptsB'); if(pe){ pe.classList.remove('scorepop'); void pe.offsetWidth; pe.classList.add('scorepop'); setTimeout(function(){ pe.classList.remove('scorepop'); }, realMs(750)); }
-  setTimeout(function(){ S.celebrating=false; S.cheer=null; if(S.tut && !tutPractice()){ S.animating=false; render(); return; }   /* v453 : lecon -- pas de mise au jeu ; v481 : la pratique, si */ if(S.overtime){ gameOver(team); } else { faceoff(team==='A'?'B':'A'); } }, realMs(1800)); }   // v463 : rythme reel
+  setTimeout(function(){ S.celebrating=false; S.cheer=null; if(S.tut && !tutPractice()){ S.animating=false; render(); return; }   /* v453 : lecon -- pas de mise au jeu ; v481 : la pratique, si */ goalReplay(team, who, function(){ if(S.overtime){ gameOver(team); } else { faceoff(team==='A'?'B':'A'); } }); }, realMs(1800)); }   // v527 : la reprise du but   // v463 : rythme reel
 // Force d'un centre a la mise au jeu : habilete (rec) + BON COTE du point (main vs point).
 // stickSide(p)=-1 -> fort vers les rangees hautes ; le point du haut (dotR<CTR_R) favorise ce centre.
 function foStrength(p, dotR){
@@ -8119,11 +8126,63 @@ function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien 
   if(!hj3dActive()) return;
   var js; try{ js=JSON.stringify(hj3dSnapshot(slides)); }catch(e){ if(window.console) console.error('hj3d snapshot', e); return; }
   if(js===HJ3D.last) return; HJ3D.last=js;
-  try{ HJ3D.cb('snap', js); }catch(e){ if(window.console) console.error('hj3d cb', e); }
+  try{ HJ3D.cb('snap', js); hj3dRec('snap', js); }catch(e){ if(window.console) console.error('hj3d cb', e); }   // v527 : gardee pour la reprise
 }
 function hj3dSend(kind, payload){   // v478 : evenement ('ev') ou repere de camera ('cue') vers Godot, dans l'ordre d'emission
   if(!hj3dActive()) return;
-  try{ HJ3D.cb(kind, typeof payload==='string' ? payload : JSON.stringify(payload)); }catch(e){ if(window.console) console.error('hj3d '+kind, e); }
+  try{ var _js=(typeof payload==='string' ? payload : JSON.stringify(payload)); HJ3D.cb(kind, _js); hj3dRec(kind, _js); }catch(e){ if(window.console) console.error('hj3d '+kind, e); }
+}
+// v527 : LA REPRISE DU BUT (3D seulement ; le concepteur : « la reprise apres un but, comme en temps reel, la sequence qui a mene
+// au but ») -- choix : depuis la prise de rondelle de l'equipe qui marque, au plus les 5 dernieres passes, ~12 s au plus avant
+// le but ; les actions enchainees a vitesse reelle (les pauses de plan raccourcies a RP_GAP) ; camera d'action, RALENTI des le
+// tir ; apres la celebration ; bandeau tele REPLAY + marqueur et passeurs ; bouton Skip. Le jeu garde les derniers messages
+// envoyes a la 3D (HJ3D_REC) et lui renvoie la sequence (message 'replay') ; la 3D la rejoue (live3d.gd).
+var RP_GAP=420, RP_MAX=12000, RP_TAIL=1600, RP_SLOW=0.35, HJ3D_REC=[];
+function hj3dRec(k, js){ if(k==='replay') return; var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
+  while(HJ3D_REC.length>600 || (HJ3D_REC.length && now-HJ3D_REC[0].t>90000)) HJ3D_REC.shift(); }
+function rpSnap(d){ delete d.cells; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
+function replayFeed(team){
+  var R=HJ3D_REC, gi=-1, i, j;
+  for(i=R.length-1;i>=0;i--){ if(R[i].k==='ev' && R[i].j.indexOf('"e":"goal"')>=0){ gi=i; break; } }
+  if(gi<0) return null;
+  var start=0, passes=0;   // depuis la prise de rondelle (la derniere photo ou l'autre equipe l'a), au plus 5 passes
+  for(j=gi-1;j>=0;j--){ var m=R[j];
+    if(m.k==='ev' && m.j.indexOf('"e":"pass"')>=0){ var pe=JSON.parse(m.j), pp=byId(pe.id); if(pp && pp.team===team && ++passes>5){ start=j+1; break; } }
+    if(m.k==='snap'){ var sn=JSON.parse(m.j), ow=(sn.puck && sn.puck.owner) ? byId(sn.puck.owner) : null; if(ow && ow.team!==team){ start=j; break; } } }
+  var end=gi; while(end+1<R.length && R[end+1].t-R[gi].t<=RP_TAIL) end++;
+  var out=[], tt=0, prev=null, shotT=-1;
+  for(j=start;j<=end;j++){ var e=R[j]; if(e.k!=='snap' && e.k!=='ev') continue;   // ni camera ni visee : la reprise a la sienne
+    if(prev!=null) tt+=Math.min(RP_GAP, e.t-prev); prev=e.t;
+    var d=JSON.parse(e.j); if(e.k==='snap') d=rpSnap(d);
+    if(e.k==='ev' && d.e==='shot' && j<=gi) shotT=tt;
+    out.push({t:tt, k:e.k, d:d}); }
+  var goalT=0; for(j=0;j<out.length;j++){ if(out[j].k==='ev' && out[j].d.e==='goal') goalT=out[j].t; }
+  if(goalT>RP_MAX){ var cut=goalT-RP_MAX, k0=0, last=null; while(k0<out.length && out[k0].t<cut) k0++;   // ~12 s : on garde la fin
+    for(j=k0-1;j>=0;j--){ if(out[j].k==='snap'){ last=out[j]; break; } }
+    out=out.slice(k0); if(last) out.unshift({t:cut, k:'snap', d:last.d}); }
+  while(out.length && out[0].k!=='snap') out.shift();   // elle commence par une photo
+  if(out.length<2) return null;
+  var base=out[0].t; out.forEach(function(m){ m.t-=base; }); if(shotT>=0) shotT=Math.max(0, shotT-base);
+  out.unshift({t:0, k:'cue', d:'dive'});
+  var endT=out[out.length-1].t+400, who='', ast=[], seen={};
+  for(j=gi;j>=0;j--){ if(R[j].k==='ev' && R[j].j.indexOf('"e":"goal"')>=0){ who=JSON.parse(R[j].j).by||''; break; } }
+  for(j=gi-1;j>=start && ast.length<2;j--){ if(R[j].k==='ev' && R[j].j.indexOf('"e":"pass"')>=0){ var pz=JSON.parse(R[j].j), pl=byId(pz.id);
+    if(pl && pl.team===team && pl.name!==who && !seen[pl.id]){ seen[pl.id]=1; ast.push(pl.name); } } }
+  return {feed:out, slow:shotT, end:endT, realMs:(shotT>=0 ? shotT+(endT-shotT)/RP_SLOW : endT), who:who, ast:ast};
+}
+function goalReplay(team, who, done){
+  if(!hj3dActive() || S.tut){ done(); return; }
+  var r=null; try{ r=replayFeed(team); }catch(e){ r=null; }
+  var bar=document.getElementById('replayBar');
+  if(!r || !bar){ done(); return; }
+  hj3dSend('replay', {feed:r.feed, slow:r.slow, end:r.end});
+  document.getElementById('rpGoal').textContent='GOAL — '+(r.who||who);
+  document.getElementById('rpAst').textContent=r.ast.length ? ('Assists: '+r.ast.join(', ')) : 'Unassisted';
+  bar.hidden=false;
+  var fin=false, sk=document.getElementById('replaySkip');
+  function finish(){ if(fin) return; fin=true; bar.hidden=true; sk.onclick=null; hj3dSend('cue', 'replay_stop'); done(); }
+  sk.onclick=function(e){ if(e) e.stopPropagation(); finish(); };
+  setTimeout(finish, realMs(r.realMs+300));
 }
 // v479 : le TIR VISE en 3D. La carte de tir (#shotOverlay) reste le chef d'orchestre (chrono, des, decision, resultat) ;
 // en vue 3D elle devient transparente en haut de l'ecran et Godot montre le tir vu du tireur. Un observateur suit
@@ -9898,7 +9957,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":202884,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":205380,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
