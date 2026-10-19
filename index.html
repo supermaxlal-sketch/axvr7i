@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v539</title>
+<title>Deck 3D v540</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1279,7 +1279,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v539';
+var GAME_VERSION='v540';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7369,9 +7369,10 @@ function soAiPick(team, n, exclude){ return soEligible(team).filter(function(q){
   .sort(function(a, b){ return soSkill(b)-soSkill(a); }).slice(0, n); }
 // v537 : la fusillade, version 2 -- l'approche que tu diriges (couloir, vitesse) et les 8 feintes au doigt (spec §2)
 var SO_TICK={slow:650, med:450, fast:320}, SO_ZONE=6, SO_LANES=2, SO_HOLD_MS=250, SO_KANE_HOLD=900, SO_SEQ_WAIT=700, SO_MOVE_PX=12, SO_FBASE=0.33;
-var SO_FEINTS={fhbh:{n:'Forehand–backhand', a:'deke'}, bhfh:{n:'Backhand–forehand', a:'deke'}, fakeshot:{n:'Fake shot', a:'fakeshot'},
-  datsyuk:{n:'Datsyuk', a:'toedrag'}, forsberg:{n:'Forsberg', a:'cutmiddle'}, nielsen:{n:'Nielsen backhand', a:'deke'},
-  kane:{n:'Kane slow-mo', a:'deke'}, legs:{n:'Between the legs', a:'betweenlegs'}};   // a : l'animation 3D existante la plus proche (v4 : les vraies)
+var SO_FEINTS={fhbh:{n:'Forehand–backhand', a:'so_fhbh', ms:700}, bhfh:{n:'Backhand–forehand', a:'so_bhfh', ms:700},
+  fakeshot:{n:'Fake shot', a:'so_fakeshot', ms:820, side:1, drop:1}, datsyuk:{n:'Datsyuk', a:'so_datsyuk', ms:1100, side:1, drop:1},
+  forsberg:{n:'Forsberg', a:'so_forsberg', ms:900, side:1}, nielsen:{n:'Nielsen backhand', a:'so_nielsen', ms:780, side:1},
+  kane:{n:'Kane slow-mo', a:'so_kane', ms:1300, side:1, drop:1}, legs:{n:'Between the legs', a:'betweenlegs', ms:720, drop:1}};   // v540 : chaque feinte son animation 3D (side : _f / _b = elle finit cote coup droit / revers), sa duree ; drop : le gardien qui mord tombe
 var SO_TIME_F={early:-0.12, good:0.06, late:-0.08}, SO_TIME_S={early:-0.06, good:0, late:-0.06};
 function soStroke(s, h){   // une glissade : {dx, dy, hold (ms avant de bouger), dur (ms en mouvement)} -> sa direction et sa nature
   var adx=Math.abs(s.dx), ady=Math.abs(s.dy), len=Math.sqrt(s.dx*s.dx+s.dy*s.dy), v=len/Math.max(1, s.dur||1), dir=null, pure=0;
@@ -7469,6 +7470,7 @@ function soAttempt(team, id){ var so=S.so, sh=byId(id); so.cur={team:team, id:id
 function soTick(){ var so=S.so, run=so && so.run; if(!run || run.done) return;
   var sh=byId(run.id), d=soDist(run);
   if(d<=1){ soResolve(null); return; }   // trop pres sans geste : le gardien pique la rondelle
+  if(!run.ms.length) hj3dSend('aim', {id:run.id, team:run.team, pick:false, pct:{}, secs:0});   // v540 : la camera derriere le tireur des l'approche
   var ms=SO_TICK[run.held ? 'slow' : run.speed]; run.ms.push(ms);
   var want=Math.max(CTR_R-SO_LANES, Math.min(CTR_R+SO_LANES, CTR_R+run.lane)), dr=want>sh.r ? 1 : (want<sh.r ? -1 : 0);   // le couloir vise, une rangee par pas
   var oc=sh.c, orr=sh.r; sh.c+=dir(run.team); sh.r+=dr;
@@ -7522,7 +7524,10 @@ function soResolve(r){ var so=S.so, run=so && so.run; if(!run || run.done) retur
   else if(r){ var key=(g ? g.id : '')+':'+kind; prob=soFeintProb(sh, g, kind, r.q, timing, speed, so.seen[key]||0); so.seen[key]=(so.seen[key]||0)+1; }
   var goal=Math.random()<prob; if(guess==null) guess=goal ? soMirror(target) : target;   // la feinte : le gardien mord (but) ou la lit (arret)
   so.lastProb=prob; so.last={kind:kind, timing:timing, speed:speed, q:r ? r.q : 0};
-  var delay=0; if(r && kind!=='shot'){ matchEv('deke', {id:sh.id, feint:SO_FEINTS[kind].a, so:1}); delay=650; }
+  var delay=0;
+  if(r && kind!=='shot'){ var F=SO_FEINTS[kind], ts=target==='5H' ? '' : target.charAt(1), fs=sh.hand==='D' ? 'R' : 'L';   // v540 : l'animation (cote coup droit / revers selon la main), le gardien mord (but) ou reste carre
+    matchEv('deke', {id:sh.id, feint:F.a+(F.side ? ((ts==='' || ts===fs) ? '_f' : '_b') : ''), ms:F.ms, so:1, g:g ? g.id : null, bite:goal, fake:ts==='' ? '' : (ts==='L' ? 'R' : 'L'), drop:!!F.drop});
+    delay=Math.round(F.ms*0.85); }   // le tir part a la fin de la feinte
   if(!r) pushLog('Shootout — '+(g ? g.name : 'the goalie')+' poke-checks the puck from '+sh.name+'.');
   soLater(so, function(){
     matchEv('shot', {id:sh.id, g:g ? g.id : null, target:target, guess:guess, res:goal ? 'goal' : 'save', so:1});
@@ -10242,7 +10247,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":235364,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":242404,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
