@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v524</title>
+<title>Deck 3D v525</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -124,6 +124,7 @@
   .checkfx.whiff .fxburst{background:radial-gradient(circle,rgba(150,225,255,.7),rgba(110,150,210,.3) 55%,transparent 72%);}
   .checkfx.whiff .fxtxt{color:#cfe8ff;}
   .pawn.menace{animation:menace .9s ease-in-out infinite;}
+  .pawn.blowby,.pawn.menace.blowby{animation:none; box-shadow:0 0 0 3px #ff3fb4,0 0 10px rgba(255,63,180,.85),0 2px 5px rgba(0,0,0,.4);}   /* v525 : tu le deborderais */
   @keyframes menace{0%,100%{box-shadow:0 0 0 2px rgba(255,120,55,.8),0 0 4px rgba(255,120,55,.5),0 2px 5px rgba(0,0,0,.4);}50%{box-shadow:0 0 0 4px rgba(255,145,75,.95),0 0 13px rgba(255,120,55,.9),0 2px 5px rgba(0,0,0,.4);}}
   .pawn.battling{z-index:7;animation:battleBump .26s cubic-bezier(.3,1.4,.5,1);}   /* v471 : un choc sec (etait .42s) */
   @keyframes battleBump{0%{transform:translate(0,0);}42%{transform:translate(var(--bx,0),var(--by,0)) scale(1.08);}70%{transform:translate(calc(var(--bx,0)*-.35),calc(var(--by,0)*-.35));}100%{transform:translate(0,0);}}
@@ -1254,7 +1255,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v524';
+var GAME_VERSION='v525';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6202,6 +6203,20 @@ function blowsBy(car, def){
   if(inFront && facingCar) return false;                           // controle de gap : bien plante face a lui -> il tient
   return (cs - ds) >= BLOWBY_MARGIN;                               // sinon : deborde si l'ecart de vitesse est reel
 }
+// v525 (le concepteur : « je ne suis jamais capable de blow out un defenseur » ; choix : MONTRER QUI ON PEUT DEBORDER) : pendant
+// ton plan, les defenseurs que ton porteur deborderait au contact (blowsBy) avec sa vitesse PREVUE (sa vitesse + les cases de ses
+// patinages planifies, au plus sa vitesse max), depuis la fin de son plan -> un anneau ROSE (classe 'blowby' du pion, lue par la
+// 3D). Rien s'il donne la rondelle dans son plan. La regle ne change pas.
+function blowbyTargets(){
+  if(!S.planning || S.turn!==HUMAN_TEAM || !S.puckOwner) return {};
+  var car=byId(S.puckOwner); if(!car || car.type!=='sk' || car.team!==HUMAN_TEAM) return {};
+  var sp=car.speed||0, cur={c:car.c, r:car.r};
+  for(var i=0;i<(S.atkPlan||[]).length;i++){ var a=S.atkPlan[i]; if(a.id!==car.id) continue;
+    if(a.kind==='move' || a.kind==='bankgo'){ sp+=(a.path && a.path.length) ? a.path.length : cheb(cur, {c:a.toC, r:a.toR}); cur={c:a.toC, r:a.toR}; }
+    else if(a.kind==='pass' || a.kind==='bank' || a.kind==='dump' || a.kind==='shoot' || a.kind==='cycle') return {}; }
+  var g=ghostOf(car), proj={id:car.id, team:car.team, type:'sk', c:g.c, r:g.r, speed:Math.min(spdCap(car), sp)}, out={};
+  for(var j=0;j<S.pieces.length;j++){ var d=S.pieces[j]; if(!d.onIce || d.type!=='sk' || d.team===car.team) continue; if(blowsBy(proj, d)) out[d.id]=true; }
+  return out; }
 function defSpeedAid(def){ return Math.min(2, Math.round((def&&def.speed||0)/2)); }
 function foStrip(checker, car){   // v467 : le centre adverse (oppId) poste en Body check / Poke check, ou chasseur de l'IA
   if(!S.foPress || !car || !checker || S.foPress.id!==car.id || S.foPress.oppId!==checker.id) return false;
@@ -7676,6 +7691,7 @@ function diagSnap(){   // diag : memorise la position de tous les pions + la ron
   if(S._posHist.length>16) S._posHist.shift();
 }
 function render(){
+  S._bbT=blowbyTargets(); if(S._bbT && Object.keys(S._bbT).length) tipTrigger('blowby');   // v525 : qui on peut deborder
   // DETECTEUR DE SAUT : une piece qui a change de case depuis le dernier render SANS slide en attente
   // = deplacement NON anime (la "teleportation"). On le trace pour retrouver la source.
   if(S.currentSeq && !S.faceoff && !S.needDraft && S._renderPos){
@@ -7775,7 +7791,7 @@ function render(){
       if(S.duelT.indexOf(p.id)>=0){ cell.className+=' dt'; clickable=true; }
       var pawn=document.createElement('div');
       var men=''; if(S.sel && S.puckOwner===S.sel){ var carM=byId(S.sel); if(carM && p.type==='sk' && p.team!==carM.team && cheb(p,carM)===1) men=' menace'; }
-      pawn.setAttribute('data-pid',p.id); if(p.type==='sk') pawn.setAttribute('data-speed', String(p.speed||0)); pawn.className='pawn '+p.team+(p.type==='g'?' g spr':' spr')+(p.id===S.sel?' sel':'')+(S.oneTimer===p.id?' onetimer':'')+(S.protecting===p.id?' prot':'')+(S.redirect===p.id?' rdr':'')+(S.cheer===p.team?' cheer':'')+(S.deflector===p.id?' deflect':'')+(defCommittedPawn(p.id)?' dcmp':'')+(S._acting===p.id?' acting':'')+(isMarked(p.id)?' shadowed':'')+activeOrderClass(p.id)+(planActed(p.id)?' done':'')+men;
+      pawn.setAttribute('data-pid',p.id); if(p.type==='sk') pawn.setAttribute('data-speed', String(p.speed||0)); pawn.className='pawn '+p.team+(p.type==='g'?' g spr':' spr')+(p.id===S.sel?' sel':'')+(S._bbT && S._bbT[p.id]?' blowby':'')+(S.oneTimer===p.id?' onetimer':'')+(S.protecting===p.id?' prot':'')+(S.redirect===p.id?' rdr':'')+(S.cheer===p.team?' cheer':'')+(S.deflector===p.id?' deflect':'')+(defCommittedPawn(p.id)?' dcmp':'')+(S._acting===p.id?' acting':'')+(isMarked(p.id)?' shadowed':'')+activeOrderClass(p.id)+(planActed(p.id)?' done':'')+men;
       if(S.battle && (S.battle.a.id===p.id || S.battle.b.id===p.id)){
         var _bs = (S.battle.a.id===p.id) ? S.battle.a : S.battle.b;
         pawn.classList.add('battling');
@@ -9722,6 +9738,7 @@ document.getElementById('tutBack').onclick=function(){ _hide('tutMenu'); showMai
    toi, draft). Seulement dans une partie lancee du menu (Quick Play / Play), jamais pendant une lecon. */
 var TIPS_KEY='hjTips', TIPS_ARMED=false, _tipQ=[];
 var TIPS={
+  blowby:"Pink ring: with this speed, your carrier blows by that defender if he tries to stop him.",
   plan:"Plan up to 3 actions, one per player. The Caribous plan at the same time. Then both plans play out, step by step.",
   ambush:"You defend now. Pick up to 3 defenders: a square, then an order (Body check, Block the pass...).",
   draft:"Each player plays only one period. Keep some good players for later.",
@@ -9881,7 +9898,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":204148,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":204580,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
