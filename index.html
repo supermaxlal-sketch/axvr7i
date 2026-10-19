@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v534</title>
+<title>Deck 3D v535</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1262,7 +1262,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v534';
+var GAME_VERSION='v535';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8076,12 +8076,12 @@ var HJ3D={ cb:null, last:'', failed:false, k:1, title:(typeof document!=='undefi
 function hj3dBench(){   // v505 : les joueurs hors glace de chaque equipe (pas au banc des punitions), 10 au plus
   var box={}, out={A:[], B:[]}; ((S.pen && S.pen.box) || []).forEach(function(b){ box[b.id]=1; });
   S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10) return;   // v517 : pas les places vides
-    out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M'}); });
+    out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M', name:q.name||'', look:q.look||''}); });   /* v535 : son look au banc */
   return out;
 }
 function hj3dRoom(){   // v507 : la chambre -- tous les joueurs de chaque equipe (18 au plus), avec leur nom (au-dessus du casier)
   var out={A:[], B:[]};
-  S.pieces.forEach(function(q){ if(!out[q.team] || out[q.team].length>=18) return; out[q.team].push({id:q.id, type:q.type, hand:q.hand||null, size:q.size||'M', name:q.name||''}); });
+  S.pieces.forEach(function(q){ if(!out[q.team] || out[q.team].length>=18) return; out[q.team].push({id:q.id, type:q.type, hand:q.hand||null, size:q.size||'M', name:q.name||'', look:q.look||''}); });   /* v535 : son look dans la chambre */
   return out;
 }
 function hj3dActive(){ return typeof HJ3D!=='undefined' && !!HJ3D && !!HJ3D.cb && !!VIEW3D_ON && !HJ3D.failed; }
@@ -9988,7 +9988,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":234036,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":235140,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
