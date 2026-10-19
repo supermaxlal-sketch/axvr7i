@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v538</title>
+<title>Deck 3D v539</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -173,8 +173,9 @@
 #soPad{position:fixed;inset:0;z-index:74;touch-action:none;display:flex;align-items:flex-end;justify-content:center;}
 #soPad .so-help{margin-bottom:calc(70px + env(safe-area-inset-bottom,0px));padding:8px 14px;border-radius:10px;background:rgba(10,18,32,.78);color:#fff;font:700 15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;pointer-events:none;display:flex;flex-direction:column;}
 #soPad .so-help small{font-weight:400;opacity:.85;font-size:12px;}
-.sohelp-list{display:flex;flex-direction:column;gap:7px;text-align:left;margin:10px 0;font-size:14px;line-height:1.35;}   /* v537 : la carte-aide des gestes */
-.sohelp-list b{color:#ffd166;}
+.sohelp-list{display:flex;flex-direction:column;gap:7px;text-align:left;margin:10px 0;font-size:14px;line-height:1.35;color:#e4edf7;}   /* v537 : la carte-aide des gestes ; v539 : texte clair (il etait bleu fonce sur fond fonce) */
+.sohelp-list b{color:#ffd166;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:17px;}   /* les fleches : une police qui les dessine bien */
+#soHelp .dsub{color:#c9d6e4;}
 #replaySkip{margin-left:4px;background:#fff;color:#0a1220;border:0;border-radius:7px;padding:7px 12px;font-weight:700;font-size:13px;}
 .goalsiren.go{display:block;animation:sirenpulse .36s ease-in-out 4;}
 @keyframes sirenpulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,40,30,0);}50%{box-shadow:inset 0 0 46px 16px rgba(255,40,30,.78);}}
@@ -1278,7 +1279,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v538';
+var GAME_VERSION='v539';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7428,6 +7429,7 @@ function soPickOpen(){ var so=S.so, sd=so.marks[HUMAN_TEAM].length>=SO_ROUNDS;
     : ('Pick your 3 shooters, in order. '+(so.first===HUMAN_TEAM ? 'You shoot first.' : 'The '+TEAM_NAME[so.first]+' shoot first.'));
   setHint(sd ? 'Sudden death — pick your next shooter.' : 'Shootout — pick your 3 shooters.');
   var hb=document.getElementById('soPickHelp'); if(hb) hb.onclick=function(){ soHelpOpen(null); };   // v537
+  var go=document.getElementById('soPickGo'); if(go) go.onclick=soPickGo;   // v539 : le bouton Start (il n'etait relie a rien : le concepteur « je clique sur Start, ca marche pas »)
   soPickRender(); document.getElementById('soPick').classList.add('show'); }
 function soPickRender(){ var so=S.so, base=so.marks[HUMAN_TEAM].length, list=document.getElementById('soPickList');
   list.innerHTML=soPickable().map(function(p){ var k=so.pick.indexOf(p.id);
