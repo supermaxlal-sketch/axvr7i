@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v550</title>
+<title>Deck 3D v551</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1288,7 +1288,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v550';
+var GAME_VERSION='v551';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7153,18 +7153,9 @@ function proceedFaceoff(dotC,dotR){ if(S.so) return;   /* v536 : pas de mise au 
   S.animating=true; clearSel(); render();
   if(tutPractice()){ setTimeout(function(){ applyFaceoff(fo, HUMAN_TEAM); }, 600); return; }   // v481 : pratique -- mise au jeu gagnee, sans duel
   var winner=faceoffWinner(fo);          // un seul choc -> gagnant (aucun choix du joueur)
-  renderFaceoffClash(fo, winner);
-  setTimeout(function(){ var ov=document.getElementById('faceoffOverlay'); if(ov) ov.classList.remove('show'); applyFaceoff(fo, winner); }, 1600);
-}
-function renderFaceoffClash(fo, winner){
-  var ov=document.getElementById('faceoffOverlay'); if(!ov) return;
-  var btns=document.getElementById('foBtns'); if(btns) btns.style.display='none';
-  var prompt=document.getElementById('foPrompt'); if(prompt) prompt.innerHTML='Face-off';
-  var ca=nearestSkater('A',fo.dotC,fo.dotR), cb=nearestSkater('B',fo.dotC,fo.dotR);
-  var rev=document.getElementById('foReveal');
-  if(rev) rev.innerHTML='<div class="frow"><span class="fteam A">'+(ca?ca.name:TEAM_NAME.A)+'</span> &#9876; <span class="fteam B">'+(cb?cb.name:TEAM_NAME.B)+'</span></div>'
-    +'<div class="fres">'+TEAM_NAME[winner]+' win the draw!</div>';
-  ov.classList.add('show'); sfx('bang');
+  // v551 (le concepteur) : plus de carton « X win the draw! » (le reste de l'ancien systeme pull / push / block) -- les joueurs
+  // se placent (1,6 s), la rondelle tombe et va au gagnant, sur la glace ; le journal le dit toujours
+  setTimeout(function(){ sfx('bang'); applyFaceoff(fo, winner); }, 1600);
 }
 var DRAFT_FSLOTS=['C','AG','AD'], DRAFT_DSLOTS=['DG','DD'], DRAFT_SLOTLBL={C:'Center',AG:'Left W',AD:'Right W',DG:'Left D',DD:'Right D'};
 function draftSlotsForType(pos){ return pos==='D' ? DRAFT_DSLOTS : DRAFT_FSLOTS; }
