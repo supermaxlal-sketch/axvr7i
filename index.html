@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v543</title>
+<title>Deck 3D v544</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1288,7 +1288,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v543';
+var GAME_VERSION='v544';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8436,7 +8436,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -9102,7 +9102,10 @@ function careerNewSchedules(c){ c.schedule={}; for(var d=1;d<=3;d++) c.schedule[
 // v542 : LES ARENAS UNIQUES (spec 2026-10-19-arenas-uniques-design.md, version 1) -- la recette d'arena d'une equipe (fixe ;
 // gardee dans la carriere) ; l'epoque suit la division courante (D3 le vieil arena de bois, D2 le colisee, D1 l'amphitheatre)
 var ARENA_SEATS=4;   // les sieges : 0 uni, 1 sections rayees, 2 damier, 3 le surnom ecrit dans les sieges
-function arenaMake(T){ var R=lookRng('arena|'+((T && T.key)||'')); var seats=Math.floor(R()*ARENA_SEATS); return {v:1, seats:seats, shape:Math.floor(R()*3)}; }   // v543 : shape = la forme de l'embleme (0 cercle, 1 ecusson, 2 losange)
+function arenaMake(T){ var R=lookRng('arena|'+((T && T.key)||'')); var seats=Math.floor(R()*ARENA_SEATS), shape=Math.floor(R()*3);
+  var tier=(T && T.tier)||60, n=tier>=70 ? 3+Math.floor(R()*3) : (tier>=66 ? 2+Math.floor(R()*2) : (tier>=62 ? 1+Math.floor(R()*2) : (R()<0.5 ? 0 : 1))), ys={}, k=0;   // v544 : l'histoire inventee (les championnats passes, selon la force)
+  while(Object.keys(ys).length<n && k++<60) ys[1950+Math.floor(R()*76)]=1;
+  return {v:1, seats:seats, shape:shape, banners:Object.keys(ys).map(Number).sort(function(a, b){ return a-b; })}; }   // v543 : shape = la forme de l'embleme (0 cercle, 1 ecusson, 2 losange)   // v543 : shape = la forme de l'embleme (0 cercle, 1 ecusson, 2 losange)
 // v543 (les arenas uniques, version 2 : l'embleme) : un logo pixel par equipe, genere de son animal -- les 24 surnoms sont des
 // animaux : une tete dessinee par animal (16 x 16 ; la moitie gauche en miroir, sauf les profils : huard, macareux, orque),
 // dans la forme de la recette (24 x 24), aux couleurs de l'equipe. Codes : . vide  X 1re couleur  x 1re foncee  s 2e couleur
@@ -9162,7 +9165,9 @@ function hj3dArena(){ var T=null, div=3;   // l'arena de l'equipe locale (carrie
   if(CAREER_MATCH && CAREER && CAREER.teams[CAREER_MATCH.home]){ T=CAREER.teams[CAREER_MATCH.home]; div=careerDivOf(CAREER, CAREER_MATCH.home); }
   else { T=CAREER_TEAMS.filter(function(x){ return x.key==='QUE'; })[0]; div=T ? T.div : 3; }
   if(!T) return null; var a=T.arena || arenaMake(T);
-  return {era:arenaEra(div), seats:a.seats, colors:(T.colors||['#1f6fb2', '#f2f2f2']).slice(0, 2), nick:String(T.nick||'').toUpperCase(), key:T.key, emblem:emblemOf(T).rows}; }   // v543 : l'embleme au centre de la glace
+  var bn=(a.banners || arenaMake(T).banners).slice();   // v544 : les bannieres -- l'histoire inventee + les titres de la carriere (saison 1 = 2026)
+  if(CAREER_MATCH && CAREER) (CAREER.history||[]).forEach(function(hh){ for(var d=1;d<=3;d++){ if(hh.champs && hh.champs[d]===T.key) bn.push(2025+hh.season); } });
+  return {era:arenaEra(div), seats:a.seats, colors:(T.colors||['#1f6fb2', '#f2f2f2']).slice(0, 2), nick:String(T.nick||'').toUpperCase(), key:T.key, emblem:emblemOf(T).rows, banners:bn}; }   // v543 : l'embleme au centre de la glace
 function careerDivOf(c, key){ for(var d=1;d<=3;d++){ if(c.divs[d].indexOf(key)>=0) return d; } return c.teams[key].div; }
 function careerTeamRating(T){ var t=0; for(var i=0;i<T.skaters.length;i++) t+=overall(T.skaters[i]); return t/T.skaters.length; }
 function careerPoisson(l){ var L=Math.exp(-l), k=0, p=1; do{ k++; p*=careerRand(); }while(p>L && k<20); return k-1; }
@@ -9689,7 +9694,7 @@ function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
     for(var f in CAREER_PDEF){ if(!(f in p)) p[f]=CAREER_PDEF[f]; }
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; CAREER_PK.forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
-    if(!p.st) p.st={gp:0, g:0, a:0}; }); if(!T.arena) T.arena=arenaMake(T); else if(T.arena.shape==null) T.arena.shape=arenaMake(T).shape; });   // v542 : une vieille carriere recoit les recettes d'arena ; v543 : la forme de l'embleme
+    if(!p.st) p.st={gp:0, g:0, a:0}; }); if(!T.arena) T.arena=arenaMake(T); else { if(T.arena.shape==null) T.arena.shape=arenaMake(T).shape; if(!T.arena.banners) T.arena.banners=arenaMake(T).banners; } });   // v544 : l'histoire des bannieres   // v542 : une vieille carriere recoit les recettes d'arena ; v543 : la forme de l'embleme
   return o;
 }
 function careerCloudDoc(){ return CAREER_CLOUD.db.doc('data/users/'+CAREER_CLOUD.uid+'/career'); }
@@ -10373,7 +10378,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":253140,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":258820,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
