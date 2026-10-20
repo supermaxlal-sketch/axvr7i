@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v540</title>
+<title>Deck 3D v541</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -163,17 +163,24 @@
 #replayBar .rp-tag{background:#d8263b;color:#fff;font-weight:800;letter-spacing:.08em;padding:4px 8px;border-radius:5px;}
 #replayBar .rp-txt{display:flex;flex-direction:column;min-width:0;}
 #replayBar .rp-ast{font-weight:400;opacity:.85;font-size:12px;}
-#soBoard{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:76;padding:8px 12px;border-radius:10px;background:rgba(10,18,32,.9);color:#fff;font:700 14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5);min-width:170px;}   /* v536 : la fusillade */
+#soBoard{position:fixed;left:50%;top:calc(54px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:76;padding:8px 12px;border-radius:10px;background:rgba(10,18,32,.9);color:#fff;font:700 14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5);min-width:170px;}   /* v536 : la fusillade */
 #soBoard[hidden],#soPad[hidden]{display:none;}
 #soBoard .so-row{display:flex;gap:8px;align-items:center;}
 #soBoard .so-t{width:46px;font-weight:800;letter-spacing:.06em;}
 #soBoard .so-m{width:16px;text-align:center;}
 #soBoard .so-m.g{color:#3ddc84;} #soBoard .so-m.s{color:#ff5a5a;} #soBoard .so-m.n{opacity:.35;}
 #soBoard .so-msg{text-align:center;font-size:18px;letter-spacing:.06em;}
-#soPad{position:fixed;inset:0;z-index:74;touch-action:none;display:flex;align-items:flex-end;justify-content:center;}
+#soPad{position:fixed;inset:0;z-index:74;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;}
 #soPad .so-help{margin-bottom:calc(70px + env(safe-area-inset-bottom,0px));padding:8px 14px;border-radius:10px;background:rgba(10,18,32,.78);color:#fff;font:700 15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;pointer-events:none;display:flex;flex-direction:column;}
 #soPad .so-help small{font-weight:400;opacity:.85;font-size:12px;}
 .sohelp-list{display:flex;flex-direction:column;gap:7px;text-align:left;margin:10px 0;font-size:14px;line-height:1.35;color:#e4edf7;}   /* v537 : la carte-aide des gestes ; v539 : texte clair (il etait bleu fonce sur fond fonce) */
+#soMoves{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:78;width:min(94vw,440px);padding:8px 10px 10px;border-radius:12px;background:rgba(10,18,32,.92);color:#fff;font:600 13px/1.25 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.5);}   /* v541 : au bout du trajet -- tirer (un coin) ou feinter */
+#soMoves[hidden]{display:none;}
+#soMoves .som-t{font-weight:800;letter-spacing:.08em;font-size:11px;opacity:.8;margin:4px 2px 4px;text-transform:uppercase;}
+#soMoves .som-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+#soMoves button{background:#1d3550;color:#fff;border:1px solid #36506e;border-radius:8px;padding:8px 4px;font:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
+#soMoves .som-net button{background:#123a2a;border-color:#2f7a55;}
+#soMoves button b{color:#ffd166;font-size:12px;}
 .sohelp-list b{color:#ffd166;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:17px;}   /* les fleches : une police qui les dessine bien */
 #soHelp .dsub{color:#c9d6e4;}
 #replaySkip{margin-left:4px;background:#fff;color:#0a1220;border:0;border-radius:7px;padding:7px 12px;font-weight:700;font-size:13px;}
@@ -908,9 +915,6 @@ body:not(.vrink) .thumbx{display:none !important;}
       <div class="checkfx" id="checkfx" style="display:none"></div>
       <div class="boardflash" id="boardflash"></div>
       <div class="goalsiren" id="goalsiren"></div>
-      <div id="replayBar" hidden><span class="rp-tag">REPLAY</span><div class="rp-txt"><span class="rp-goal" id="rpGoal"></span><span class="rp-ast" id="rpAst"></span></div><button id="replaySkip" type="button">Skip</button></div>
-      <div id="soBoard" hidden><div class="so-row" id="soRowA"></div><div class="so-row" id="soRowB"></div><div class="so-msg" id="soMsg"></div></div>
-      <div id="soPad" hidden><div class="so-help">Swipe up to shoot<small>Straight up: five-hole · Short: low corner · Long: top corner</small></div></div>
       <div class="rcvring" id="rcvring"></div>
       <div class="goallight left" id="glLeft"></div>
       <div class="goallight right" id="glRight"></div>
@@ -1000,7 +1004,12 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
 <div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
 <div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm dauto" id="soPickHelp">❔ Moves</button><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
-<div class="ov draft" id="soHelp"><div class="dcard"><div class="dtitle">🥅 Shootout moves</div><div class="dsub">Skate in: swipe ← → to change lane, ↑ to speed up, hold your finger to slow down. When <b>NOW!</b> shows, draw your move:</div><div class="sohelp-list"><div><b>↑</b> Shot — straight up: five-hole · short: low corner · long: top corner</div><div><b>← →</b> or <b>→ ←</b> Forehand–backhand deke</div><div><b>↓</b> then <b>←</b> or <b>→</b> Fake shot</div><div><b>long ↓</b> then <b>slow ←</b> or <b>→</b> Datsyuk</div><div><b>long ←</b> or <b>→</b> then <b>small ↑</b> Forsberg (one hand)</div><div><b>←</b> or <b>→</b> to your backhand, then <b>quick ↑</b> Nielsen</div><div><b>hold 1 s</b> then <b>quick ↑</b> Kane slow-mo (skate in slowly)</div><div><b>↓ ↑</b> (a V) Between the legs</div></div><div class="dsub">Too early: the goalie has not moved. Too late: he pokes the puck away. The same move twice: he reads it.</div><button class="dconfirm" id="soHelpOk">Got it</button></div></div>
+<div class="ov draft" id="soHelp"><div class="dcard"><div class="dtitle">🥅 Shootout moves</div><div class="dsub">Your turn: <b>draw your shooter's path</b> on the ice — slide your finger from him (or tap where he stops: a straight line). He skates it at the speed you drew it.</div><div class="sohelp-list"><div><b>Where the path ends</b> is where you shoot or deke: 3-4 squares from the net is best. Farther: the goalie has not moved. 2 squares: he may poke the puck away.</div><div><b>Shoot</b>: tap a corner (the buttons, or the targets on the net).</div><div><b>Deke</b>: tap one of the 8 moves — forehand–backhand, backhand–forehand, fake shot, Datsyuk, Forsberg, Nielsen, Kane, between the legs. Each shows its chance.</div><div><b>Kane</b> likes a slow approach: draw your path slowly.</div></div><div class="dsub">The same move twice: the goalie reads it.</div><button class="dconfirm" id="soHelpOk">Got it</button></div></div>
+<!-- v541 : hors de la patinoire (en 3D, la patinoire est tournee et le canevas 3D la recouvre) -->
+<div id="replayBar" hidden><span class="rp-tag">REPLAY</span><div class="rp-txt"><span class="rp-goal" id="rpGoal"></span><span class="rp-ast" id="rpAst"></span></div><button id="replaySkip" type="button">Skip</button></div>
+<div id="soBoard" hidden><div class="so-row" id="soRowA"></div><div class="so-row" id="soRowB"></div><div class="so-msg" id="soMsg"></div></div>
+<div id="soPad" hidden><div class="so-help">Draw your path<small>Slide from your shooter on the ice</small></div></div>
+<div id="soMoves" hidden><div class="som-t">Shoot</div><div class="som-grid som-net"><button data-so="TL">↖ Top left<b></b></button><button data-so="TR">↗ Top right<b></b></button><button data-so="BL">↙ Low left<b></b></button><button data-so="5H">↑ Five-hole<b></b></button><button data-so="BR">↘ Low right<b></b></button></div><div class="som-t">Deke</div><div class="som-grid" id="soMovesDk"></div></div>
 <div class="ov menu" id="mainMenu"><div class="mcard"><div class="mtitle">🏒 Hockey Deck</div><div class="msub">Strategy hockey</div>
 <div class="mmsg" id="mmMsg" style="display:none"></div>
 <button class="mbtn play" id="mmResume" style="display:none"></button>
@@ -1279,7 +1288,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v540';
+var GAME_VERSION='v541';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7464,10 +7473,58 @@ function soAttempt(team, id){ var so=S.so, sh=byId(id); so.cur={team:team, id:id
   S.pieces.forEach(function(q){ if(q.type==='sk') q.onIce=(q.id===id); }); soGoaliesHome();
   sh.c=CTR_C_CELL; sh.r=CTR_R; S.puckOwner=id; S.puckLoose=null; render(); soBoard('');   // la case du centre (CTR_C = 12,5 : le milieu exact)
   pushLog('Shootout — <b>'+sh.name+'</b> ('+TEAM_NAME[team]+') skates in.');
-  if(team===HUMAN_TEAM){ soPadOpen(); soPadMsg('Skate in', '← → lane · ↑ faster · hold: slower'); setHint(sh.name+' skates in: swipe ← → to change lane, ↑ to speed up, hold to slow down.'); }
-  else setHint('The '+TEAM_NAME[team]+' shooter: '+sh.name+'.');
+  if(team===HUMAN_TEAM){ so.run.phase='draw'; so.run.path=[]; so.run.k=0; soPadShow('Draw your path', 'Slide from '+sh.name+' on the ice — or tap where he stops');   // v541 : tu traces son trajet
+    setHint(sh.name+' has the puck: draw his path on the ice (slide from him). Where it ends, you shoot or deke.'); return; }
+  setHint('The '+TEAM_NAME[team]+' shooter: '+sh.name+'.');
   soLater(so, soTick, 700); }
+// v541 (le concepteur : « il faudrait que tu puisses faire le trajet de ton joueur ; ou tu arretes le trajet, c'est la que tu
+// tires ou tu feintes » ; choix : glisser comme en match, des boutons au bout, la distance compte, la vitesse selon ton trace)
+var SO_DRAW_FAST=100, SO_DRAW_SLOW=280, SO_MIN_D=2, SO_POKE=0.25, SO_PATH_MAX=16;
+function soSgn(x){ return x>0 ? 1 : (x<0 ? -1 : 0); }
+function soDrawing(){ var run=S.so && S.so.run; return !!(run && !run.done && run.team===HUMAN_TEAM && run.phase==='draw'); }
+function soPathAdd(run, c, r){   // le trace : case par case (les trous combles en ligne droite), sur la glace, jamais a moins de 2 cases du filet
+  var sh=byId(run.id), last=run.path.length ? run.path[run.path.length-1] : {c:sh.c, r:sh.r};
+  while(last.c!==c || last.r!==r){ var nc=last.c+soSgn(c-last.c), nr=last.r+soSgn(r-last.r);
+    if(!onIce(nc, nr) || Math.abs(goalCol(run.team)-nc)<SO_MIN_D || run.path.length>=SO_PATH_MAX) return;
+    last={c:nc, r:nr}; run.path.push(last); } }
+function soDrag(phase, c, r){ var run=S.so.run, sh=byId(run.id);   // le doigt glisse depuis le tireur (3D : hj3d.drag)
+  if(phase==='start'){ if(Math.max(Math.abs(c-sh.c), Math.abs(r-sh.r))>1) return false; run.path=[]; run.drawT0=Date.now(); run.drawing=true; return true; }
+  if(phase==='move'){ if(!run.drawing) return false; soPathAdd(run, c, r); render(); return true; }
+  if(phase==='end'){ if(!run.drawing) return false; run.drawing=false; soGo(run, false); return true; }
+  return false; }
+function soTapCell(c, r){ if(!soDrawing()) return false; var run=S.so.run; run.path=[]; soPathAdd(run, c, r); soGo(run, true); return true; }   // un toucher : en ligne droite
+function soGo(run, tap){ if(!run.path.length){ setHint('Draw a path: slide from your shooter on the ice.'); render(); return; }
+  var per=(Date.now()-(run.drawT0||Date.now()))/run.path.length;
+  run.speed=tap ? 'med' : (per<SO_DRAW_FAST ? 'fast' : (per>SO_DRAW_SLOW ? 'slow' : 'med'));   // la vitesse de ton trace
+  run.phase='skate'; run.k=0; soPadMsg(byId(run.id).name+' skates', run.speed==='slow' ? 'Slowly' : (run.speed==='fast' ? 'Fast' : 'Steady'));
+  hj3dSend('aim', {id:run.id, team:run.team, pick:false, pct:{}, secs:0});   // la camera derriere lui
+  render(); soLater(S.so, soTick, 250); }
+function soSpeedOf(run){ var avg=run.ms.length ? run.ms.reduce(function(a, b){ return a+b; }, 0)/run.ms.length : SO_TICK.med; return avg>=560 ? 'slow' : (avg<=380 ? 'fast' : 'med'); }
+function soMovesOpen(run){ run.phase='choose'; var sh=byId(run.id), g=goalieFor(sh), tm=soTiming(soDist(run)), sp=soSpeedOf(run), pct={}, key=function(k){ return (g ? g.id : '')+':'+k; };
+  var shot=function(t){ return Math.max(0.05, Math.min(0.75, soShotProb(sh, g, t, null)+SO_TIME_S[tm])); }, pc=0.2+((sh.maniement||50)/250);
+  SO_TARGETS.forEach(function(t){ pct[t]=Math.round(shot(t)*100); });
+  hj3dSend('aim', {id:run.id, team:run.team, pick:true, pct:pct, secs:0});   // les 5 coins du filet et leur % (on peut les toucher)
+  var box=document.getElementById('soMoves'), bs=box.querySelectorAll('.som-net button');
+  for(var i=0;i<bs.length;i++) bs[i].querySelector('b').textContent=pct[bs[i].getAttribute('data-so')]+'%';
+  document.getElementById('soMovesDk').innerHTML=Object.keys(SO_FEINTS).map(function(k){ var seen=S.so.seen[key(k)]||0;
+    var p=pc*soFeintProb(sh, g, k, 1, tm, sp, seen)+(1-pc)*soFeintProb(sh, g, k, 0.6, tm, sp, seen);
+    return '<button data-so="'+k+'">'+SO_FEINTS[k].n+'<b>'+Math.round(p*100)+'%</b></button>'; }).join('');
+  var all=box.querySelectorAll('button'); for(var j=0;j<all.length;j++){ (function(b){ b.onclick=function(){ soPick(b.getAttribute('data-so')); }; })(all[j]); }
+  box.hidden=false; soPadMsg('Shoot or deke', tm==='good' ? 'Good spot' : (tm==='early' ? 'Far: the goalie has not moved' : 'Close: he may poke it'));
+  setHint('Shoot (tap a corner) or deke (tap a move).'); }
+function soPick(v){ var run=S.so && S.so.run; if(!run || run.phase!=='choose') return; document.getElementById('soMoves').hidden=true;
+  if(SO_TARGETS.indexOf(v)>=0) soResolve({kind:'shot', target:v, q:1}); else if(SO_FEINTS[v]) soResolve(soHumanFeint(byId(run.id), v)); }
+function soHumanFeint(sh, k){ var fs=sh.hand==='D' ? 'R' : 'L', bs=fs==='L' ? 'R' : 'L', rs=Math.random()<0.5 ? 'L' : 'R', m=sh.maniement||50;
+  var tg={fhbh:'B'+bs, bhfh:'B'+fs, fakeshot:'B'+rs, datsyuk:'B'+rs, forsberg:'B'+fs, nielsen:'T'+bs, kane:Math.random()<0.3 ? '5H' : 'T'+rs, legs:'5H'}[k];
+  return {kind:k, target:tg, q:Math.random()<(0.2+m/250) ? 1 : 0.6}; }   // la proprete : ses mains (comme l'IA)
+function soPadShow(big, small){ var pad=document.getElementById('soPad'); if(pad) pad.hidden=false; if(S.so) S.so.padOpen=true; soPadMsg(big, small); }
 function soTick(){ var so=S.so, run=so && so.run; if(!run || run.done) return;
+  if(run.team===HUMAN_TEAM){ if(run.phase!=='skate') return;   // v541 : il patine ton trace, une case par pas
+    if(run.k>=run.path.length){ soMovesOpen(run); return; }
+    var hs=byId(run.id), nx=run.path[run.k++], hm=SO_TICK[run.speed], hc=hs.c, hr=hs.r; run.ms.push(hm);
+    hs.c=nx.c; hs.r=nx.r; if(!S.slides) S.slides={}; S.slides[hs.id]={dx:hc-hs.c, dy:hr-hs.r, pts:[{dx:hc-hs.c, dy:hr-hs.r}], cells:1, ms:hm};
+    soGoalieStep(run); matchEv('skate', {id:hs.id, pts:[[hc, hr], [hs.c, hs.r]], so:1}); render();
+    soLater(so, soTick, hm); return; }
   var sh=byId(run.id), d=soDist(run);
   if(d<=1){ soResolve(null); return; }   // trop pres sans geste : le gardien pique la rondelle
   if(!run.ms.length) hj3dSend('aim', {id:run.id, team:run.team, pick:false, pct:{}, secs:0});   // v540 : la camera derriere le tireur des l'approche
@@ -7516,7 +7573,8 @@ function soGesture(run, st){ if(!st.dir) return;
     if(r) soResolve(r); else soNoMove(); return; }
   soLater(S.so, function(){ if(run.seqN===n && run.strokes.length===1 && !run.done){ run.strokes=[]; soNoMove(); } }, SO_SEQ_WAIT); }
 function soNoMove(){ soPadMsg('Try again', 'Move not recognized'); setHint('Move not recognized — try again!'); }
-function soResolve(r){ var so=S.so, run=so && so.run; if(!run || run.done) return; run.done=true; soPadClose();
+function soResolve(r){ var so=S.so, run=so && so.run; if(!run || run.done) return; run.done=true; soPadClose(); var mv=document.getElementById('soMoves'); if(mv) mv.hidden=true;
+  if(r && soDist(run)<=SO_MIN_D && Math.random()<SO_POKE) r=null;   // v541 : de tres pres, le gardien peut piquer la rondelle
   var sh=byId(run.id), g=goalieFor(sh), team=run.team, timing=soTiming(soDist(run)), kind=r ? r.kind : 'poke';
   var avg=run.ms.length ? run.ms.reduce(function(a, b){ return a+b; }, 0)/run.ms.length : SO_TICK.med, speed=avg>=560 ? 'slow' : (avg<=380 ? 'fast' : 'med');
   var target=r ? r.target : '5H', guess=null, prob=0;
@@ -7545,7 +7603,7 @@ function soBoard(msg){ var so=S.so, b=document.getElementById('soBoard'); if(!b)
     document.getElementById(row===0 ? 'soRowA' : 'soRowB').innerHTML=h; });
   if(msg!=null) document.getElementById('soMsg').textContent=msg; }
 function soHideAll(){ var b=document.getElementById('soBoard'), p=document.getElementById('soPad'), k=document.getElementById('soPick');
-  if(b) b.hidden=true; if(p) p.hidden=true; if(k) k.classList.remove('show'); var hp=document.getElementById('soHelp'); if(hp) hp.classList.remove('show'); }
+  if(b) b.hidden=true; if(p) p.hidden=true; if(k) k.classList.remove('show'); var hp=document.getElementById('soHelp'); if(hp) hp.classList.remove('show'); var mv=document.getElementById('soMoves'); if(mv) mv.hidden=true; }
 function soEnd(w){ var so=S.so, cur=so.cur, last=cur && cur.team===w && so.marks[w][so.marks[w].length-1]===1, ga=soGoals(so.marks.A), gb=soGoals(so.marks.B);
   pushLog('<b>'+TEAM_NAME[w]+'</b> win the shootout '+soGoals(so.marks[w])+'–'+soGoals(so.marks[soOther(w)])+' !');
   soBoard(TEAM_ABBR[w]+' WIN');
@@ -8169,6 +8227,7 @@ function tapNote(c,r){
   S._taps=S._taps||[]; S._taps.unshift(t); if(S._taps.length>6) S._taps.pop(); return t;
 }
 function onCell(c,r){
+  if(S.so && soTapCell(c, r)) return;   // v541 : la fusillade -- toucher la glace = son trajet en ligne droite
   if(S.tut && tutTap(c,r)) return;   // v451 : lecon -- seuls les gestes permis
   var t=tapNote(c,r), sel0=S.sel, n0=(S.atkPlan||[]).length, g0=S.gestes, tr0=S.turn;
   var _dc0=S.defCommit, dsel0=_dc0?_dc0.selDef:null, dn0=_dc0?_dc0.picks.length:0;   // v427 : l embuscade a sa propre selection
@@ -8460,6 +8519,7 @@ function hj3dFail(err){   // Godot n'a pas pu demarrer (pas de WebGL 2...) : la 
   try{ setHint('3D view is not available on this device. The 2D rink is used.'); }catch(e){}
 }
 function hj3dDrag(phase, c, r){   // meme logique que wireRouteDrag (glisser au doigt sur la 2D)
+  if(soDrawing() || (S.so && S.so.run && S.so.run.drawing)) return soDrag(phase, c, r);   // v541 : le trajet du tireur de la fusillade
   if(phase==='start'){
     if(!isHumanAttackPlan() && !isHumanAmbush() && !isHumanLoose()) return false;
     var pc=pieceAt(c,r); if(!(pc && pc.onIce && pc.type==='sk' && pc.team===HUMAN_TEAM)) return false;
@@ -8482,6 +8542,7 @@ var hj3d={
   drag:function(phase, c, r){ return hj3dDrag(phase, c, r); },
   cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); return true; },   // v494 : la camera 3D (les bulles se placent sur la 3D)
   aim:function(t){   // v479 : toucher une cible du filet 3D = toucher le bouton 2D du meme coin
+    if(S.so && S.so.run && S.so.run.phase==='choose' && SO_TARGETS.indexOf(t)>=0){ soPick(t); return true; }   // v541 : la fusillade
     var saim=document.getElementById('saim');
     if(!S.aiming || !saim || saim.style.display==='none' || ['TL','TR','BL','BR','5H'].indexOf(t)<0) return false;
     onShotTarget(t); return true; }
@@ -8533,6 +8594,7 @@ function routeLines(){
     if(S.defCommit){ for(var i=0;i<S.defCommit.picks.length;i++){ var pk=S.defCommit.picks[i], pp=byId(pk.defId); if(pk.path && pp) both(pp, pk.path, pk.n||pk.path.length, 7); } }
   }
   if(S.route){ var p=byId(S.route.id); if(p){ var n=S.route.path.length ? routeStep(p, p.c, p.r, S.route.path, S.route.def?null:planState(p)).n : 0; both(p, S.route.path, n, 11); } }
+  var _sr=S.so && S.so.run; if(_sr && _sr.path && _sr.path.length && (_sr.phase==='draw' || _sr.phase==='skate')){ var _sp=byId(_sr.id); if(_sp) line([{c:_sp.c, r:_sp.r}].concat(_sr.path.slice(_sr.k||0)), true, 11); }   // v541 : le trajet du tireur
   return out;
 }
 function renderRoute(){
