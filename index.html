@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v541</title>
+<title>Deck 3D v542</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1288,7 +1288,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v541';
+var GAME_VERSION='v542';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8436,7 +8436,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), room:hj3dRoom(), abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), room:hj3dRoom(), arena:hj3dArena(), abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -9082,7 +9082,7 @@ function careerNew(myKey){   // une carriere neuve : les 24 equipes, ton equipe 
   var c={v:1, season:1, my:myKey, day:0, phase:'regular', teams:{}, divs:{1:[],2:[],3:[]}, schedule:{}, results:[], playoffs:null, history:[], next:null, last:null, uid:0};
   for(var i=0;i<CAREER_TEAMS.length;i++){ var T=JSON.parse(JSON.stringify(CAREER_TEAMS[i]));
     for(var j=0;j<T.skaters.length;j++) T.skaters[j].uid=++c.uid;
-    T.goalie.uid=++c.uid; c.teams[T.key]=T; c.divs[T.div].push(T.key); }
+    T.goalie.uid=++c.uid; T.arena=arenaMake(T); c.teams[T.key]=T; c.divs[T.div].push(T.key); }   // v542 : sa recette d'arena
   if(!c.teams[myKey] || c.teams[myKey].div!==3) return null;
   c.seed=1+Math.floor(careerRand()*1e9); careerUpgrade(c);   // v484 : age, plafonds, experience
   careerNewSchedules(c); return c;
@@ -9099,6 +9099,16 @@ function careerRoundRobin(keys){   // methode du cercle : n-1 rondes de n/2 matc
   return rounds;
 }
 function careerNewSchedules(c){ c.schedule={}; for(var d=1;d<=3;d++) c.schedule[d]=careerRoundRobin(c.divs[d]); c.day=0; c.phase='regular'; c.results=[]; c.playoffs=null; }
+// v542 : LES ARENAS UNIQUES (spec 2026-10-19-arenas-uniques-design.md, version 1) -- la recette d'arena d'une equipe (fixe ;
+// gardee dans la carriere) ; l'epoque suit la division courante (D3 le vieil arena de bois, D2 le colisee, D1 l'amphitheatre)
+var ARENA_SEATS=4;   // les sieges : 0 uni, 1 sections rayees, 2 damier, 3 le surnom ecrit dans les sieges
+function arenaMake(T){ var R=lookRng('arena|'+((T && T.key)||'')); return {v:1, seats:Math.floor(R()*ARENA_SEATS)}; }
+function arenaEra(div){ return div===1 ? 2 : (div===2 ? 1 : 0); }
+function hj3dArena(){ var T=null, div=3;   // l'arena de l'equipe locale (carriere) ; partie rapide : les Harfangs (ton equipe) a domicile
+  if(CAREER_MATCH && CAREER && CAREER.teams[CAREER_MATCH.home]){ T=CAREER.teams[CAREER_MATCH.home]; div=careerDivOf(CAREER, CAREER_MATCH.home); }
+  else { T=CAREER_TEAMS.filter(function(x){ return x.key==='QUE'; })[0]; div=T ? T.div : 3; }
+  if(!T) return null; var a=T.arena || arenaMake(T);
+  return {era:arenaEra(div), seats:a.seats, colors:(T.colors||['#1f6fb2', '#f2f2f2']).slice(0, 2), nick:String(T.nick||'').toUpperCase(), key:T.key}; }
 function careerDivOf(c, key){ for(var d=1;d<=3;d++){ if(c.divs[d].indexOf(key)>=0) return d; } return c.teams[key].div; }
 function careerTeamRating(T){ var t=0; for(var i=0;i<T.skaters.length;i++) t+=overall(T.skaters[i]); return t/T.skaters.length; }
 function careerPoisson(l){ var L=Math.exp(-l), k=0, p=1; do{ k++; p*=careerRand(); }while(p>L && k<20); return k-1; }
@@ -9625,7 +9635,7 @@ function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
     for(var f in CAREER_PDEF){ if(!(f in p)) p[f]=CAREER_PDEF[f]; }
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; CAREER_PK.forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
-    if(!p.st) p.st={gp:0, g:0, a:0}; }); });
+    if(!p.st) p.st={gp:0, g:0, a:0}; }); if(!T.arena) T.arena=arenaMake(T); });   // v542 : une vieille carriere recoit les recettes d'arena
   return o;
 }
 function careerCloudDoc(){ return CAREER_CLOUD.db.doc('data/users/'+CAREER_CLOUD.uid+'/career'); }
@@ -10309,7 +10319,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":242404,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":249236,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
