@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v553</title>
+<title>Deck 3D v554</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -494,6 +494,13 @@ button.act.cyc.on{box-shadow:0 0 0 3px #7fe0e6,0 0 12px rgba(127,224,230,.85);}
 .pawn.g.spr .simg{left:-25%;top:-25%;width:150%;height:150%;}
 /* ===== JUMBOTRON ===== */
 .jumbo{position:relative;padding-top:16px;margin-bottom:12px;}
+/* v554 : la jauge de momentum (du centre vers l'equipe qui l'a) */
+.momb{position:relative;display:block;width:64px;height:6px;margin:5px auto 0;background:#22384f;border-radius:3px;overflow:hidden;cursor:pointer;}
+.momb::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:#8fa8c0;}
+.momb .mfa,.momb .mfb{position:absolute;top:0;bottom:0;display:block;width:0%;transition:width .4s;}
+.momb .mfa{right:50%;} .momb .mfb{left:50%;}
+.momb.sm{display:inline-block;width:46px;margin:0;flex:none;}
+.vrink #momL{position:absolute;left:10px;bottom:5px;width:104px;height:4px;}   /* telephone : une ligne fine sous le pointage (l'horloge garde sa place) */
 .jrig{position:absolute;top:0;left:0;right:0;height:16px;}
 .jrig::before,.jrig::after{content:'';position:absolute;top:0;width:5px;height:16px;background:linear-gradient(#4a5f78,#26364a);box-shadow:0 0 0 2px #0a121d;}
 .jrig::before{left:24%;} .jrig::after{right:24%;}
@@ -863,6 +870,7 @@ body:not(.vrink) .thumbx{display:none !important;}
         <div class="jclock">
           <span class="jper" id="jper">PERIOD 1</span>
           <span class="per" id="per">3:00</span>
+          <span class="momb" id="momJ" onclick="momTip()" title="Momentum"><i class="mfa"></i><i class="mfb"></i></span>
         </div>
         <div class="jteam B"><span class="sog pen" id="penB"></span><span class="sog" id="sogB">SOG 0</span><span class="pts" id="ptsB">0</span><span class="nm">CARIBOUS</span></div>
       </div>
@@ -934,6 +942,7 @@ body:not(.vrink) .thumbx{display:none !important;}
   <div class="botbar" id="botbar">
   <div class="lsinfo">
     <span class="lssc"><span class="lstm">HAR</span><span class="lspt" id="lsA">0</span><span class="lsdash">-</span><span class="lspt" id="lsB">0</span><span class="lstm">CAR</span></span>
+    <span class="momb sm" id="momL" onclick="momTip()" title="Momentum"><i class="mfa"></i><i class="mfb"></i></span>
     <span class="lsclk" id="lsClk">P1 3:00</span>
     <span class="lspill" id="lsAct"></span>
   </div>
@@ -1288,7 +1297,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v553';
+var GAME_VERSION='v554';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2331,7 +2340,7 @@ function newGame(firstTeam){
   soHideAll();   // v536 : les panneaux de la fusillade
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, momentum:0, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
@@ -2576,7 +2585,7 @@ function redirectFacesPass(def, fromC){ var s=Math.sign(fromC - def.c); return s
 function n100(v){ return (typeof v==='number') ? v : 60; }
 function passRolls(p,t){ return !!(t && t.type==='sk' && (cheb(p,t)>5 || passFacingThr(p,t)<0)); }   // la passe « roule » : longue OU dos au jeu
 function passCatchProb(p,t){   // reception d'une passe longue / dos au jeu : 60 + 0,5 x (passe - 60) - 7 / case au-dela de 6 ; face +15 / dos -35
-  var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con');   // v504
+  var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con') + MOM_BONUS*momK(p.team);   // v504 ; v554 : le momentum
   return Math.max(0.05, Math.min(0.95, pr)); }
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
@@ -2670,6 +2679,7 @@ function checkProb(checker, carrier, opts){
         - 0.12*carSpeedGuard(carrier) + (carrierExposed(carrier) ? 0.10 : 0);
   if(Math.sign(checker.c - carrier.c) === -dir(carrier.team)) p-=0.50;   // de dos (cote fuite) : dangereux, rare
   if(carrierBacking(carrier)) p += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
+  p += MOM_BONUS*momK(checker.team);   // v554 : le momentum
   return Math.max(0.05, Math.min(0.95, p));
 }
 function checkThr(checker, carrier, opts){ return checkProb(checker, carrier, opts)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr)
@@ -2838,6 +2848,7 @@ function shotChance(sh,target){
   p+=(sh.off-4)*0.03;
   if(S.scram && S.scram.id===sh.id) p+=S.scram.bonus;
   p*=1+0.02*speechK(sh.team, 'con');   // v504 : « Believe in yourselves »
+  p*=1+MOM_BONUS*momK(sh.team);   // v554 : le momentum (x1,05 a jauge pleine)
   return Math.max(0.05, Math.min(0.80, p));
 }
 function cheb(a,b){ return Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r)); }
@@ -3498,6 +3509,7 @@ function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PU
   if(crowd>=2) pr=Math.max(pr+0.35, 0.80);   // DEUX adversaires (ou plus) dans le couloir : la passe ne passe presque jamais
   if(S._stratDef && S._stratDef.kind==='intercept' && best.team===S._stratDef.team) pr+=0.30;   // bonus strategie Trappe neutre
   pr+=0.005*speechK(best.team, 'sys')-0.005*speechK(p.team, 'con');   // v504 : « Stick to the system » (defense) / « Believe in yourselves » (passe)
+  pr-=MOM_BONUS*momK(p.team);   // v554 : le momentum du passeur (moins d'interceptions)
   pr=Math.max(0.05, Math.min(0.90, pr));
   return {def:best, crowd:crowd, prob:pr, thr:pr*6};   // thr : compat « seuil /6 »
 }
@@ -4619,6 +4631,7 @@ function startExchange(){
   flushPlanMomentum();   // v393 : une sequence coupee (passe, tir, contact) compte quand meme l'elan de ses gestes
   resetAlert();   // v380 : l'Alerte-passe ne dure qu'un tour
   S.gestes=3; S.carrierMoved=false; S.hiddenDef=[]; S.defRevealIdx=0; S.defOrders=[];
+  momDecay();   // v554 : le momentum revient vers le neutre a chaque tour
   var _atk=S.puckOwner?byId(S.puckOwner).team:null;
   var _reset=(_atk && S.rebStreak>=2 && !S.tut); if(_reset) S.rebStreak=0;   // v459 : pas pendant une lecon
   if(_atk===AI_TEAM){ if(_reset) announceReset(HUMAN_TEAM);
@@ -6222,6 +6235,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   var success=(_blowby||_feintBeat) ? false : tutLuck(pr, checker.team===HUMAN_TEAM);   /* v451 : etape guidee */ /* v420 : tirage au pourcentage */ var cName=checker.name, carName=C.name, cc=C.c, cr=C.r; S.animating=true; clearSel();
   if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))) penTry(checker, penRisk(checker, C, _run), penFoul(checker, C, _run));   // v445 : penalite (mise en echec VOULUE seulement)
   matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run});   // v447
+  if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
   if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.knock>=2?' with a full head of steam — '+carName+' is knocked flying!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
     else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
@@ -6336,6 +6350,7 @@ function pokeProb(p, car){
   var steps = -protBonus(car.id) + wearOn(car.id) - carSpeedGuard(car) + (_gap ? 0 : defSpeedAid(p)) + (carrierExposed(car)?1:0) + _d.mod;
   var pr = 0.30 + 0.006*(def-han) + g.side + g.stick + g.behind + steps/6;
   if(carrierBacking(car)) pr += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
+  pr += MOM_BONUS*momK(p.team);   // v554 : le momentum
   return Math.max(0.05, Math.min(0.85, pr));
 }
 function pokeOdds(p,car){ return pokeProb(p,car)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr) = chance x 6
@@ -6636,6 +6651,7 @@ function onShotTarget(t){
   countShotOnGoal(team);   // v438 : tir cadre (but, arret, rebond)
   matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null});   // v447 ; v495 : iron (poteau et dedans)
   animateShot2(spec, function(){
+    if(res!=='goal' && prob>=MOM_SAVE_P) momAdd(gteam, MOM_SAVE);   // v554 : un gros arret fait basculer le momentum
     if(res==='goal'){ S.score[team]++; document.getElementById('outcome').innerHTML='GOAL by '+shName+' !';
       // v404 : un but peut entrer meme si le gardien avait bien lu le tir -> le texte le dit (plus « Goalie READ your shot »)
       var goalTxt = _defl ? ('Tipped by '+_defl.name+' — the goalie had no chance') : (rel==='exact' ? ('the goalie read it ('+gShort+') but it beat him anyway') : (rel==='adjacent' ? ('the goalie was close ('+gShort+') but a step late') : ('the goalie went the wrong way ('+gShort+')')));
@@ -6728,7 +6744,19 @@ function placeLooseToward(c, r, tc, tr){
 }
 
 function flashGoalLight(side){ var el=document.getElementById(side==='left'?'glLeft':'glRight'); el.classList.add('lit'); setTimeout(function(){ el.classList.remove('lit'); }, 1500); }
-function celebrate(team,who){ if(S.celebrating) return; if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
+// v554 (le moral et le momentum, morceau 1 : le momentum dans le match ; choix du concepteur) : une jauge d'equipe, S.momentum
+// de -100 (B) a +100 (A), neutre au debut ; un but 40, une mise en echec reussie 15, un gros arret (tir a 25 % et plus) 15 ;
+// retour 5 par tour. L'equipe qui l'a : jusqu'a +5 points (passes, pokes, mises en echec) et x1,05 (tirs), proportionnel.
+var MOM_GOAL=40, MOM_HIT=15, MOM_SAVE=15, MOM_SAVE_P=0.25, MOM_DECAY=5, MOM_BONUS=0.05;
+function momAdd(team, pts){ if(S.so || !team) return; S.momentum=Math.max(-100, Math.min(100, (S.momentum||0) + (team==='A' ? pts : -pts))); }
+function momK(team){ var m=(S && S.momentum) || 0; return Math.max(0, team==='A' ? m : -m)/100; }   // 0..1 : la part de la jauge de cette equipe
+function momDecay(){ var m=S.momentum||0; S.momentum = m>0 ? Math.max(0, m-MOM_DECAY) : Math.min(0, m+MOM_DECAY); }
+function momTip(){ var m=S.momentum||0, t=m>0?'A':(m<0?'B':null), k=t?momK(t):0;
+  setHint(t ? ('Momentum: '+TEAM_NAME[t]+' — +'+speechFmt(100*MOM_BONUS*k)+'% passes, pokes and checks, shots ×'+(1+MOM_BONUS*k).toFixed(2)+'.') : 'Momentum: even.'); render(); }
+function paintMomentum(){ var m=S.momentum||0, L=teamLooks();
+  ['momJ','momL'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; var fa=el.querySelector('.mfa'), fb=el.querySelector('.mfb'); if(!fa || !fb) return;
+    fa.style.width=(m>0 ? Math.round(m/2) : 0)+'%'; fb.style.width=(m<0 ? Math.round(-m/2) : 0)+'%'; fa.style.background=L.A.p; fb.style.background=L.B.p; }); }
+function celebrate(team,who){ if(S.celebrating) return; momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
   flashGoalLight(team==='A'?'right':'left');
   render();
   var gs=document.getElementById('goalsiren'); if(gs){ gs.classList.remove('go'); void gs.offsetWidth; gs.classList.add('go'); setTimeout(function(){ gs.classList.remove('go'); }, realMs(1550)); }
@@ -8057,6 +8085,7 @@ function render(){
   var _la=document.getElementById('lsA'); if(_la){ _la.textContent=S.score.A; document.getElementById('lsB').textContent=S.score.B; }
   document.getElementById('ptsA').textContent=S.score.A;
   document.getElementById('ptsB').textContent=S.score.B;
+  paintMomentum();   // v554
   var _sh=S.shots||{A:0,B:0}, _sa=document.getElementById('sogA'), _sb=document.getElementById('sogB'); if(_sa){ _sa.textContent='SOG '+_sh.A; _sb.textContent='SOG '+_sh.B; }   // v438 : lancers au but
   var perEl=document.getElementById('per');
   paintClock();
