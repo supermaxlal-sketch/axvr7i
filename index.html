@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v552</title>
+<title>Deck 3D v553</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1288,7 +1288,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v552';
+var GAME_VERSION='v553';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1893,7 +1893,7 @@ function playerCardBig(p){
   var ovr=(p.type==='g') ? Math.round(((p.arret100||0)+(p.couverture100||0))/2) : overall(p);
   var bars=(p.type==='g')
     ? _bigBar('SAVE',p.arret100||0)+_bigBar('COV',p.couverture100||0)
-    : _bigBar('SHO',p.tir)+_bigBar('PAS',p.passe)+_bigBar('SPD',p.vitesse)+_bigBar('ACC',p.acceleration100||0)+_bigBar('PHY',p.physique)+_bigBar('DEF',p.defense)+_bigBar('HND',p.maniement);
+    : _bigBar('SHO',p.tir)+_bigBar('PAS',p.passe)+_bigBar('SPD',p.vitesse)+_bigBar('ACC',p.acceleration100||0)+_bigBar('PHY',p.physique)+_bigBar('DEF',p.defense)+_bigBar('HND',p.maniement)+_bigBar('FO',foRating(p));   // v553
   var pk=p.perk?('<span class="dcp-perk">'+PERK_INFO[p.perk].n+'</span>'):'';
   return '<div class="pcard '+p.team+'">'
     + '<div class="pcard-hd"><span class="pcard-ovr">'+ovr+'</span>'
@@ -6736,12 +6736,19 @@ function celebrate(team,who){ if(S.celebrating) return; if(S.tut){ if(team===HUM
   setTimeout(function(){ S.celebrating=false; S.cheer=null; if(S.tut && !tutPractice()){ S.animating=false; render(); return; }   /* v453 : lecon -- pas de mise au jeu ; v481 : la pratique, si */ goalReplay(team, who, function(){ if(S.overtime){ gameOver(team); } else { faceoff(team==='A'?'B':'A'); } }); }, realMs(1800)); }   // v527 : la reprise du but   // v463 : rythme reel
 // Force d'un centre a la mise au jeu : habilete (rec) + BON COTE du point (main vs point).
 // stickSide(p)=-1 -> fort vers les rangees hautes ; le point du haut (dotR<CTR_R) favorise ce centre.
-function foStrength(p, dotR){
-  if(!p) return 0;
+function foSkill(p){   // l'habilete aux mises au jeu (echelle ~[1,6]) -- sans le cote du point
   var skill = (typeof p.defense==='number' && typeof p.maniement==='number')
     ? (2 + ((p.defense+p.maniement)/2 - 30)/18)      // habilete mise au jeu = (defense+maniement)/2, converti a l'echelle ~[1,6]
     : ((typeof p.rec==='number')?p.rec:3);
   if(p.archetype==='faceoff') skill += 1.2;           // specialiste des mises au jeu
+  return skill;
+}
+// v553 (le concepteur : « une statistique de mise au jeu sur chaque joueur, quand on choisit nos joueurs ») : la meme habilete
+// sur 100, montree sur les cartes (barre FO) -- (DEF + HND)/2, +22 pour le specialiste ; le bon cote du point compte en plus
+function foRating(p){ return p ? Math.max(1, Math.min(99, Math.round(30 + 18*(foSkill(p) - 2)))) : 0; }
+function foStrength(p, dotR){
+  if(!p) return 0;
+  var skill = foSkill(p);
   var hand=0;
   if(dotR!==CTR_R){ var dotUp=(dotR<CTR_R)?-1:1; hand=(stickSide(p)===dotUp)?1:-1; }
   return skill + hand*1.5;   // le bon cote vaut ~3 points d'habilete d'ecart (fort vs faible)
@@ -7244,7 +7251,7 @@ function renderDraftCards(){
       + '<div class="dcard-hd"><span class="dcp-ovr">'+overall(p)+'</span>'
         + '<span class="dcard-id"><span class="dcp-name">'+roleLbl+hd+p.name+'</span>'
         + '<span class="dcp-arch">'+ai.e+' '+ai.n+'</span></span></div>'
-      + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+'</div>'
+      + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
       + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
     + '</div>'; }
   var fEl=document.getElementById('draftF'), dEl=document.getElementById('draftD');
