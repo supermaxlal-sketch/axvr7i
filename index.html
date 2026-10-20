@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v551</title>
+<title>Deck 3D v552</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1288,7 +1288,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v551';
+var GAME_VERSION='v552';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2594,7 +2594,9 @@ function classifyMove(p, fc, fr, c, r){
 }
 function applyMoveKinematics(p, fromC, fromR, toC, toR){
   if(!p || p.type!=='sk') return;
+  aiTurnAround(p, fromC, fromR, toC, toR);   // v552
   var m=classifyMove(p, fromC, fromR, toC, toR);
+  p._lastKind=m.kind;   // v552 : le porteur qui recule (carrierBacking)
   if(m.kind==='none') return;                                // pas de deplacement reel : ne compte pas comme bouge
   p._movedThisTurn=true;
   markSkated(p, fromC, fromR, toC, toR);   // v379/v381 : construira son elan dans resolveGlide + direction du mouvement
@@ -2602,6 +2604,19 @@ function applyMoveKinematics(p, fromC, fromR, toC, toR){
   var gain = (m.kind==='back') ? Math.ceil(m.pas/2) : m.pas;   // reculons : moitie moins vite
   p.speed=Math.min(spdCap(p), (p.speed||0) + gain);
 }
+// v552 : l'IA patine de l'avant -- elle pivote juste avant de reculer avec la rondelle (elle ne s'expose pas) ou sur 3 cases
+// et plus (un long retour) ; sur 1 ou 2 cases elle recule encore (un defenseur qui garde son ecart face au jeu). Ton equipe :
+// c'est toi qui pivotes (retaper le joueur). Hors lecons.
+function aiTurnAround(p, fromC, fromR, toC, toR){
+  if(!p || p.type!=='sk' || p.team!==AI_TEAM || S.tut) return;
+  var dc=Math.sign(toC-fromC), f=facingOf(p);
+  if(!dc || dc!==-f.dc) return;
+  if(S.puckOwner!==p.id && Math.max(Math.abs(toC-fromC), Math.abs(toR-fromR))<BACK_MAX) return;
+  p.facing={dc:dc, dr:0};
+  pushLog('<b>'+p.name+'</b> turns around.');
+}
+// v552 : le porteur qui recule (son dernier deplacement de ce tour etait a reculons) se fait deposseder plus facilement
+function carrierBacking(car){ return !!(car && car.type==='sk' && car._movedThisTurn && car._lastKind==='back'); }
 function decaySpeed(team){
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(p.type!=='sk' || p.team!==team) continue;
@@ -2654,6 +2669,7 @@ function checkProb(checker, carrier, opts){
   var p=base + 0.005*(effPhys(checker)-effPhys(carrier)) + 0.004*(n(checker.defense)-n(carrier.maniement))   /* v469 : gabarit */
         - 0.12*carSpeedGuard(carrier) + (carrierExposed(carrier) ? 0.10 : 0);
   if(Math.sign(checker.c - carrier.c) === -dir(carrier.team)) p-=0.50;   // de dos (cote fuite) : dangereux, rare
+  if(carrierBacking(carrier)) p += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
   return Math.max(0.05, Math.min(0.95, p));
 }
 function checkThr(checker, carrier, opts){ return checkProb(checker, carrier, opts)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr)
@@ -3572,7 +3588,11 @@ var DIR8R=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];   // les 8 di
 function dirIdx(dc,dr){ for(var i=0;i<8;i++){ if(DIR8R[i][0]===dc && DIR8R[i][1]===dr) return i; } return -1; }
 function turnSteps(v, dc, dr){ if(!v || (!v.dc && !v.dr) || (!dc && !dr)) return 0; var a=dirIdx(v.dc,v.dr), b=dirIdx(dc,dr); if(a<0||b<0) return 0; var d=Math.abs(a-b)%8; return Math.min(d, 8-d); }
 function keptMom(mom, v, dc, dr){ var t=turnSteps(v,dc,dr); return t<=1 ? mom : (t===2 ? Math.floor(mom/2) : 0); }
-function dirBudget(p, dc, dr, st){ if(p && p.type==='g') return 1; var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
+// v552 (le concepteur : « je ne veux pas qu'on patine toute la patinoire de reculons ») : a reculons (oppose a l'orientation),
+// 3 cases au plus par tour, meme lance ; de l'avant, rien ne change. Pour aller plus loin : pivoter (gratuit).
+var BACK_MAX=3;
+function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); return (p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; }
+function dirBudget0(p, dc, dr, st){ if(p && p.type==='g') return 1; var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
   if(p && turnSteps(v, dc, dr)>=3){ var _fo=facingOf(p);
     // v409 : RECUL FACE AU JEU -- il reculait en regardant le jeu (patin arriere) et remonte la ou il regarde :
     // arret-depart, pas un demi-tour -> il garde la moitie de son elan (comme un virage a 90 deg)
@@ -3611,6 +3631,12 @@ function skateCurve(p, cv){
   var end=cv.path[cv.path.length-1];
   if(cv.keep!==false) p._curveKeep=Math.max(p._curveKeep||0, keep);   // v410 : un trace avec un virage franc ne garde pas l'elan
   p.c=end.c; p.r=end.r;
+  // v552 : un demi-tour en courbe (135 deg et plus le long du trajet) : il arrive TOURNE vers sa nouvelle direction (v408 :
+  // « il y arrive tourne vers l'arriere ») -- sinon il patinerait a reculons, plafonne a 3 cases
+  var _all=[{c:oc, r:orr}].concat(cv.path), _n=_all.length;
+  if(_n>=3){ var _d0={dc:Math.sign(_all[1].c-_all[0].c), dr:Math.sign(_all[1].r-_all[0].r)}, _d1={dc:Math.sign(_all[_n-1].c-_all[_n-2].c), dr:Math.sign(_all[_n-1].r-_all[_n-2].r)};
+    if(_d1.dc && _d1.dc===-facingOf(p).dc && turnSteps(_d0, _d1.dc, _d1.dr)>=3) p.facing={dc:_d1.dc, dr:0}; }
+  p._lastKind=classifyMove(p, oc, orr, end.c, end.r).kind;   // v552 : le porteur qui recule
   var _smp=routeSample([{c:oc, r:orr}].concat(cv.path), 4);   // v411 : le pion glisse le long de la courbe (spline), plus de case en case
   for(var j=0;j<_smp.length-1;j++) pts.push({dx:_smp[j].c-end.c, dy:_smp[j].r-end.r});
   if(!S.slides) S.slides={}; S.slides[p.id]={dx:oc-end.c, dy:orr-end.r, pts:pts, cells:cv.path.length}; sfx('skate');
@@ -3622,7 +3648,9 @@ function skateToSpot(p, spot){
   if(spot.path){ var _r=skateCurve(p, spot);
     if(spot.rest!==undefined) p.route=null;   // v446 : plus de suite de trace au tour suivant (avant v410 : rangee sur le joueur)
     return _r; }
-  var oc=p.c, orr=p.r; p.c=spot.c; p.r=spot.r; addSlide(p.id, oc-spot.c, orr-spot.r); markSkated(p, oc, orr, spot.c, spot.r);
+  var oc=p.c, orr=p.r;
+  aiTurnAround(p, oc, orr, spot.c, spot.r); p._lastKind=classifyMove(p, oc, orr, spot.c, spot.r).kind;   // v552 : l'IA patine de l'avant ; le porteur qui recule
+  p.c=spot.c; p.r=spot.r; addSlide(p.id, oc-spot.c, orr-spot.r); markSkated(p, oc, orr, spot.c, spot.r);
   return {oc:oc, orr:orr};
 }
 // v410 : TRACE LIBRE -- part de ce tour d'un trace dessine (fonction pure). 45 deg = elan garde ; 90 deg = depuis le
@@ -6220,7 +6248,7 @@ function doProtect(){
   pushLog('<b>Protecting the puck</b>: '+p.name+' shields it and holds his ground.');
   sfx('catch'); clearSel(); spend(); render();
 }
-function carSpeedGuard(car){ return Math.min(2, Math.round((car&&car.speed||0)/2)); }
+function carSpeedGuard(car){ return carrierBacking(car) ? 0 : Math.min(2, Math.round((car&&car.speed||0)/2)); }   // v552 : a reculons, sa vitesse ne le protege plus
 // DEBORDEMENT (blow-by) : un porteur assez LANCE qui passe un defenseur MAL PLACE le deborde net.
 var BLOWBY_MARGIN=3;   // ecart de vitesse requis (reglable)
 function blowsBy(car, def){
@@ -6307,6 +6335,7 @@ function pokeProb(p, car){
   var _gap = (Math.sign(p.c-car.c)===dir(car.team) && carSpeedGuard(car)>0);   // v420 : controle de gap (pokeDirMod) -- la vitesse du defenseur y est deja comptee (recule / immobile / fonce) : pas de double bonus
   var steps = -protBonus(car.id) + wearOn(car.id) - carSpeedGuard(car) + (_gap ? 0 : defSpeedAid(p)) + (carrierExposed(car)?1:0) + _d.mod;
   var pr = 0.30 + 0.006*(def-han) + g.side + g.stick + g.behind + steps/6;
+  if(carrierBacking(car)) pr += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
   return Math.max(0.05, Math.min(0.85, pr));
 }
 function pokeOdds(p,car){ return pokeProb(p,car)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr) = chance x 6
