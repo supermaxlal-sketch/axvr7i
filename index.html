@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v555</title>
+<title>Deck 3D v556</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1299,7 +1299,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v555';
+var GAME_VERSION='v556';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8952,6 +8952,29 @@ function careerDress(uid){ var T=CAREER.teams[CAREER.my], p=careerPlayerByUid(T,
 function careerLineupGo(){ var T=CAREER.teams[CAREER.my], tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), n=T.skaters.filter(function(p){ return !p.inj && !p.rest; }).length;
   if(n!==tgt){ CAREER_MSG='Dress exactly '+tgt+' players ('+n+' now).'; careerRender(); return; }
   CAREER_MSG=''; careerStartMatch(); }
+// v556 (le moral et le momentum, morceau 2 : le moral entre les matchs ; choix du concepteur : l'equipe ET les joueurs, d'apres les
+// derniers resultats, vu au hub et au debut du match ; « juste en saison, pas en serie ») : le moral d'equipe = ses 5 derniers matchs
+// de saison (victoire +12, defaite en prolongation / fusillade -4, defaite -12 : -60..+60) ; un match de saison commence avec la jauge
+// de momentum penchee de la moitie de l'ecart ; chaque joueur repart avec la moitie de son moral du match d'avant (p.mor) ; en series,
+// tout repart a 0 et rien n'est garde ; une nouvelle saison remet tout a 0
+function careerTeamMorale(c, key){ var v=0, n=0, seq=[], R=(c && c.results)||[];
+  for(var i=R.length-1; i>=0 && n<5; i--){ var g=R[i]; if(g.po || (g.home!==key && g.away!==key)) continue; n++;
+    var me=g.home===key ? g.hs : g.as, op=g.home===key ? g.as : g.hs, w=me>op, otl=!w && (g.ot || g.so);
+    v+= w ? 12 : (otl ? -4 : -12); seq.unshift(w ? 'W' : (otl ? 'OTL' : 'L')); }
+  return {v:v, seq:seq}; }
+function moraleLabel(v){ return v>=30 ? 'Hot' : (v>=10 ? 'Good' : (v>-10 ? 'Even' : (v>-30 ? 'Low' : 'Cold'))); }
+function careerMoraleSides(){ return [['A', CAREER.teams[CAREER_MATCH.my]], ['B', CAREER.teams[CAREER_MATCH.opp]]]; }
+function careerMoraleStart(){   // au debut d'un match de carriere (apres newGame)
+  if(!CAREER || !CAREER_MATCH) return; S.momentum=0; S.mor={};
+  if(CAREER_MATCH.po) return;   // les series : chaque match repart a zero
+  var mA=careerTeamMorale(CAREER, CAREER_MATCH.my).v, mB=careerTeamMorale(CAREER, CAREER_MATCH.opp).v;
+  S.momentum=Math.max(-100, Math.min(100, Math.round((mA-mB)/2)));
+  careerMoraleSides().forEach(function(x){ S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl && pl.mor) S.mor[q.id]=Math.round(pl.mor/2); }); });
+}
+function careerMoraleEnd(){   // a la fin d'un match de saison : chacun garde son moral du match (pas en series)
+  if(!CAREER || !CAREER_MATCH || CAREER_MATCH.po) return;
+  careerMoraleSides().forEach(function(x){ S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl) pl.mor=Math.round((S.mor && S.mor[q.id]) || 0); }); });
+}
 function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversaire = B
   if(CAREER && !CAREER.teams[CAREER.my].coach){ careerGo('coach'); return false; }   // v503 : ton coach d'abord
   if(matchSaveIsToday(matchSaveRead())) return matchResume();   // v499 : ce match est sauvegarde -> on le reprend
@@ -8962,6 +8985,7 @@ function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversai
   CAREER_MATCH.roster={A:careerMatchRoster(CAREER.teams[CAREER_MATCH.my]), B:careerMatchRoster(CAREER.teams[CAREER_MATCH.opp])};   // fixe pour tout le match
   careerApplyLook(); _hide('careerOverlay'); _hide('mainMenu'); TIPS_ARMED=true; newGame('A'); MSAVE_ON=true;
   S.speech.A.carry=CAREER.carry||null;   // v504 : le discours d'apres-match du match precedent (moitie)
+  careerMoraleStart();   // v556 : le moral d'equipe et des joueurs (saison seulement)
   return true;
 }
 function careerGameOverButtons(){ var cc=document.getElementById('btnCareerContinue'), ng=document.getElementById('btnNewGame');
@@ -9156,6 +9180,7 @@ function careerFinishMatch(){   // le resultat compte, le reste du jour est simu
   CAREER.report=careerProgress();   // v484 : l'experience de tes joueurs, le bilan
   CAREER.carry=S.speechPost||null;   // v504 : le report du discours d'apres-match
   CAREER.report.coach=careerCoachProgress(a>b);   // v504 : ton coach progresse
+  careerMoraleEnd();   // v556 : chacun garde son moral du match (saison seulement)
   careerPlayDay(CAREER, (g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot, so:!!S._endSO} : {hs:b, as:a, ot:ot, so:!!S._endSO});
   careerSave(); careerClearLook(); _hide('gameoverOverlay'); newGame('A'); careerGo('report', true);   // v484 : le bilan d'abord
 }
@@ -9336,7 +9361,7 @@ function careerAgePlayer(p, R, goalie){   // age, talent, plafonds, position de 
   var u=R(); p.age=u<0.25?19+Math.floor(R()*4):(u<0.6?23+Math.floor(R()*5):(u<0.85?28+Math.floor(R()*4):32+Math.floor(R()*4)));
   var talent=0.3+0.7*R(); p.cap={}; p.capF={}; p.xp={};
   (goalie?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ p.cap[k]=Math.min(99, Math.max(p[k], Math.round(p[k]+careerMargin(p.age, R)*talent))); p.capF[k]=Math.round(R()*100)/100; p.xp[k]=0; });
-  p.lvl=1; p.txp=0; p.pts=0; p.perk2=p.perk2||null; p.perkPick=null; p.gp=0; p.st={gp:0, g:0, a:0};
+  p.lvl=1; p.txp=0; p.pts=0; p.perk2=p.perk2||null; p.perkPick=null; p.gp=0; p.st={gp:0, g:0, a:0}; p.mor=0;   /* v556 */
 }
 function careerUpgrade(c){   // v1 (v483) -> v2 : age, plafonds, experience pour tous les joueurs (graine de la carriere : reproductible)
   if(c && c.v===1){ c.seed=c.seed||20261008; var R=careerRng(c.seed);
@@ -9365,7 +9390,7 @@ function careerMakeDepth(T, pos, R, uid){   // v517 : un joueur de profondeur --
   var used={}, labs={}; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(p){ used[p.name]=1; labs[p.label]=1; });
   var pool=CAREER_DEPTH_NAMES[T.div===3?'fr':'en'].filter(function(x){ return !used[x]; }), name=pool[Math.floor(R()*pool.length)]||('Depth '+uid);
   var lab=name.slice(0, 2).toUpperCase(); for(var i=2;labs[lab] && i<name.length;i++) lab=(name[0]+name[i]).toUpperCase(); for(var j=1;labs[lab] && j<10;j++) lab=name[0].toUpperCase()+j;
-  var p={name:name, label:lab, pos:pos, archetype:b.archetype, perk:null, size:b.size, cm:b.cm, hand:R()<0.5?'G':'D', uid:uid, en:100, inj:null, rust:0, seq:null, rest:false};
+  var p={name:name, label:lab, pos:pos, archetype:b.archetype, perk:null, size:b.size, cm:b.cm, hand:R()<0.5?'G':'D', uid:uid, en:100, inj:null, rust:0, seq:null, rest:false, mor:0};
   ['tir', 'passe', 'vitesse', 'physique', 'defense', 'maniement'].forEach(function(k){ p[k]=Math.max(25, (b[k]||40)-2-Math.round(R()*4)); });
   careerAgePlayer(p, R, false); return p;
 }
@@ -9376,7 +9401,7 @@ function careerMakeGoalie2(T, R, uid){   // v489 : le gardien auxiliaire : 6 a 1
   var pool=CAREER_G2_NAMES[T.div===3?'fr':'en'].filter(function(x){ return !used[x]; }), name=pool[Math.floor(R()*pool.length)]||'Backup';
   var lab=name.slice(0, 2).toUpperCase(); for(var i=2;labs[lab] && i<name.length;i++) lab=(name[0]+name[i]).toUpperCase(); if(labs[lab]) lab='G2';
   var g={name:name, label:lab, arret100:Math.max(40, G.arret100-6-Math.round(R()*4)), couverture100:Math.max(40, G.couverture100-6-Math.round(R()*4)),
-    size:G.size, cm:G.cm, hand:G.hand, uid:uid, en:100, inj:null, rust:0, seq:null, rest:false};
+    size:G.size, cm:G.cm, hand:G.hand, uid:uid, en:100, inj:null, rust:0, seq:null, rest:false, mor:0};
   careerAgePlayer(g, R, true); return g;
 }
 // ---- v503 : LE COACH (spec docs/superpowers/specs/2026-10-12-coach-discours-presentation-design.md) ----
@@ -9659,6 +9684,7 @@ function careerRender(){
     h+='<div class="mtitle">'+careerSwatch(T)+careerEsc(T.full)+'</div><div class="msub">Season '+c.season+' · '+DIV_NAME[d]+'</div>';
     h+='<div class="crec">'+me.w+'-'+me.l+'-'+me.otl+' · '+me.pts+' pts · '+careerOrd(rk)+' of 8</div>';
     if(T.coach) h+='<div class="msub">Coach '+careerEsc(T.coach.name)+' · '+COACH_PROFILES[T.coach.prof].n+' · level '+T.coach.lvl+'</div>';   // v503
+    if(c.phase==='regular'){ var _tm=careerTeamMorale(c, c.my); h+='<div class="msub cmorale">Team morale: <b>'+moraleLabel(_tm.v)+'</b> ('+(_tm.v>0?'+':'')+_tm.v+')'+(_tm.seq.length ? ' &middot; '+_tm.seq.join(' ') : '')+'</div>'; }   // v556
     if(c.last){ var L=c.last; h+='<div class="clast">Last game: <b>'+(L.gf>L.ga?'Win':'Loss')+' '+L.gf+'–'+L.ga+(L.ot?(L.so?' (SO)':' (OT)'):'')+'</b> vs '+careerEsc(c.teams[L.opp].nick)+'</div>'; }
     if(CAREER_MSG) h+='<div class="cmsg">'+CAREER_MSG+'</div>';
     var g=careerMyGame(c);
@@ -9768,7 +9794,7 @@ function careerCloudInit(){
   }catch(e){ res(false); } });
   return CAREER_CLOUD.ready;
 }
-var CAREER_PDEF={lvl:1, txp:0, pts:0, perk2:null, perkPick:null, gp:0, en:100, inj:null, rust:0, seq:null, rest:false};   // v489
+var CAREER_PDEF={lvl:1, txp:0, pts:0, perk2:null, perkPick:null, gp:0, en:100, inj:null, rust:0, seq:null, rest:false, mor:0};   // v556 : mor = le moral garde d'un match de saison a l'autre   // v489
 function careerPack(c){   // pour le compte : sans les valeurs par defaut des joueurs (un document fait au plus 256 Ko)
   var o=JSON.parse(JSON.stringify(c));
   Object.keys(o.teams).forEach(function(k){ var T=o.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(p){
@@ -9820,6 +9846,7 @@ function careerNewSeason(c){   // les nouvelles divisions, un nouveau calendrier
   if(c.next){ c.next.up.forEach(function(k){ c.teams[k].div--; }); c.next.down.forEach(function(k){ c.teams[k].div++; }); c.next=null; }
   c.divs={1:[],2:[],3:[]}; Object.keys(c.teams).forEach(function(k){ c.divs[c.teams[k].div].push(k); });
   c.season++; careerNewSchedules(c);
+  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl) pl.mor=0; }); });   // v556 : une nouvelle saison, un moral neuf
 }
 /* ===== v451 : TUTORIEL (spec docs/superpowers/specs/2026-10-02-tutoriel-design.md) =====
    Lecons jouables : des etapes guidees (seuls les gestes surlignes repondent ; les tirages favorisent le joueur), puis
