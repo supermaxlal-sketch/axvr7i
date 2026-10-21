@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v558</title>
+<title>Deck 3D v559</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -234,6 +234,9 @@
 .ssit{color:#ffd23e;font-weight:700;}   /* v557 : la situation a l'entracte */
 .sfit{color:#6fdc8c;} .soff{color:#ff8a8a;}
 .dcp-mor{display:inline-block;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px;margin-left:4px;}   /* v555 : le moral du match */
+.dcp-temp{display:inline-block;font-size:9px;font-weight:700;color:#cfe3ff;border:1px solid #4a6a90;border-radius:4px;padding:0 4px;margin-left:4px;}   /* v559 : le temperament */
+.dcp-st{display:inline-block;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px;margin-left:4px;color:#0c1a2b;background:#ffd23e;}
+.dcp-st.st-angry{background:#ff7a6b;} .dcp-st.st-conf{background:#6fdc8c;} .dcp-st.st-panic{background:#8fc3ff;}
 .dcp-mor.up{color:#0c1a2b;background:#6fdc8c;} .dcp-mor.dn{color:#fff;background:#d9534f;}
 .dcp-role{display:inline-block;font-size:9px;font-weight:900;color:#fff;background:#2b6cb0;border-radius:4px;padding:1px 5px;margin-right:5px;}
 .dcp-hand{display:inline-block;font-size:9px;font-weight:900;border-radius:4px;padding:1px 5px;margin-right:5px;color:#0c1a2b;}
@@ -1302,7 +1305,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v558';
+var GAME_VERSION='v559';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1917,7 +1920,7 @@ function playerCardBig(p){
       + '<img class="pcard-photo" src="'+img+'" alt="">'
     + '</div>'
     + '<div class="pcard-bars">'+bars+'</div>'
-    + ((pk || morTag(p))?('<div class="pcard-ft">'+pk+morTag(p)+'</div>'):'')   // v555 : son moral
+    + ((pk || morTag(p) || stTag(p))?('<div class="pcard-ft">'+pk+morTag(p)+stTag(p)+'</div>'):'')   // v555 : son moral ; v559 : son temperament, son etat
   + '</div>';
 }
 function showPlayerCard(id){
@@ -2345,7 +2348,7 @@ function newGame(firstTeam){
   soHideAll();   // v536 : les panneaux de la fusillade
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, err:{}, stSeen:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
@@ -2590,7 +2593,7 @@ function redirectFacesPass(def, fromC){ var s=Math.sign(fromC - def.c); return s
 function n100(v){ return (typeof v==='number') ? v : 60; }
 function passRolls(p,t){ return !!(t && t.type==='sk' && (cheb(p,t)>5 || passFacingThr(p,t)<0)); }   // la passe « roule » : longue OU dos au jeu
 function passCatchProb(p,t){   // reception d'une passe longue / dos au jeu : 60 + 0,5 x (passe - 60) - 7 / case au-dela de 6 ; face +15 / dos -35
-  var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con') + MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p);   // v504 ; v554 : le momentum ; v555 : son moral
+  var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con') + MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'pass');   /* v559 */ // v504 ; v554 : le momentum ; v555 : son moral
   return Math.max(0.05, Math.min(0.95, pr)); }
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
@@ -2684,7 +2687,7 @@ function checkProb(checker, carrier, opts){
         - 0.12*carSpeedGuard(carrier) + (carrierExposed(carrier) ? 0.10 : 0);
   if(Math.sign(checker.c - carrier.c) === -dir(carrier.team)) p-=0.50;   // de dos (cote fuite) : dangereux, rare
   if(carrierBacking(carrier)) p += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
-  p += MOM_BONUS*momK(checker.team) + MOR_BONUS*morK(checker);   // v554 : le momentum ; v555 : son moral
+  p += MOM_BONUS*momK(checker.team) + MOR_BONUS*morK(checker) + stPts(checker, 'check') + stHand(carrier);   /* v559 */ // v554 : le momentum ; v555 : son moral
   return Math.max(0.05, Math.min(0.95, p));
 }
 function checkThr(checker, carrier, opts){ return checkProb(checker, carrier, opts)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr)
@@ -2855,6 +2858,7 @@ function shotChance(sh,target){
   p*=1+0.02*speechK(sh.team, 'con');   // v504 : « Believe in yourselves »
   p*=1+MOM_BONUS*momK(sh.team);   // v554 : le momentum (x1,05 a jauge pleine)
   p*=1+MOR_BONUS*morK(sh);   // v555 : son moral (x0,95 .. x1,05)
+  p*=stShot(sh);   // v559 : fache / panique x0,92, en confiance x1,08
   return Math.max(0.05, Math.min(0.80, p));
 }
 function cheb(a,b){ return Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r)); }
@@ -3515,7 +3519,7 @@ function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PU
   if(crowd>=2) pr=Math.max(pr+0.35, 0.80);   // DEUX adversaires (ou plus) dans le couloir : la passe ne passe presque jamais
   if(S._stratDef && S._stratDef.kind==='intercept' && best.team===S._stratDef.team) pr+=0.30;   // bonus strategie Trappe neutre
   pr+=0.005*speechK(best.team, 'sys')-0.005*speechK(p.team, 'con');   // v504 : « Stick to the system » (defense) / « Believe in yourselves » (passe)
-  pr-=MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p);   // v554 : le momentum du passeur (moins d'interceptions) ; v555 : son moral
+  pr-=MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'pass');   /* v559 : son etat */ // v554 : le momentum du passeur (moins d'interceptions) ; v555 : son moral
   pr=Math.max(0.05, Math.min(0.90, pr));
   return {def:best, crowd:crowd, prob:pr, thr:pr*6};   // thr : compat « seuil /6 »
 }
@@ -3599,7 +3603,7 @@ function stepMax(p){ return (p && p.type==='g') ? 1 : MAX_STEP; }   // patineurs
 // ELAN / INERTIE (v378) : la portee de PATINAGE depend de l'elan mom (separe du speed tir/contact).
 function accelStep(p){ return ((p && p.acceleration100) || 55) >= 70 ? 3 : 2; }   // pas d'accel : 2 ou 3 (v416 : +1 pour tous, etait 1 ou 2 -- plus de mouvement, plus de tirs)
 function ceilingMom(p){ return ((p && p.spd) || 4) >= 5 ? 5 : 4; }                 // plafond de portee = vitesse de pointe (jamais > 5)
-function moveBudget(p){ return (p && p.type==='g') ? 1 : Math.min(ceilingMom(p), ((p&&p.mom)||0) + accelStep(p)); }   // cases atteignables ce tour (TOUT DROIT : le max)
+function moveBudget(p){ if(p && p.type==='g') return 1; var _b=Math.min(ceilingMom(p), ((p&&p.mom)||0) + accelStep(p)); return _b-stStep(p, _b); }   /* v559 : sonne, 1 case de moins */   // cases atteignables ce tour (TOUT DROIT : le max)
 // v384 LIGNE DE COURSE : l'elan garde depend de l'angle avec la direction du dernier deplacement (p.vel).
 // 0 ou 1 cran de 45 (tout droit / virage doux) = tout ; 2 crans (angle droit) = moitie ; 3-4 (serre / demi-tour) = rien.
 var DIR8R=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];   // les 8 directions dans l'ordre du cercle
@@ -3609,7 +3613,7 @@ function keptMom(mom, v, dc, dr){ var t=turnSteps(v,dc,dr); return t<=1 ? mom : 
 // v552 (le concepteur : « je ne veux pas qu'on patine toute la patinoire de reculons ») : a reculons (oppose a l'orientation),
 // 3 cases au plus par tour, meme lance ; de l'avant, rien ne change. Pour aller plus loin : pivoter (gratuit).
 var BACK_MAX=3;
-function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); return (p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; }
+function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); _b=(p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; return _b-stStep(p, _b); }   /* v559 : sonne */
 function dirBudget0(p, dc, dr, st){ if(p && p.type==='g') return 1; var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
   if(p && turnSteps(v, dc, dr)>=3){ var _fo=facingOf(p);
     // v409 : RECUL FACE AU JEU -- il reculait en regardant le jeu (patin arriere) et remonte la ou il regarde :
@@ -6104,6 +6108,7 @@ function penFoul(checker, carrier, run){ return Math.sign(checker.c-carrier.c)==
 function penRisk(checker, carrier, run){ var f=penFoul(checker, carrier, run); return f==='behind' ? PEN_P_BEHIND : (f==='charge' ? PEN_P_CHARGE : 0); }
 function penTry(p, prob, foul){   // l arbitre leve le bras
   if(p && prob) prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined »
+  if(p && prob && stState(p)==='angry') prob*=ST_PEN;   // v559 : fache, x1,5
   if(!p || !foul || !prob || S.gameEnded || !(Math.random()<prob)) return false;
   if(penCount(p.team)>=PEN_MAX) return false;   // deja 2 punis : pas de 3e
   penState().delayed.push({team:p.team, id:p.id, foul:foul});
@@ -6356,7 +6361,7 @@ function pokeProb(p, car){
   var steps = -protBonus(car.id) + wearOn(car.id) - carSpeedGuard(car) + (_gap ? 0 : defSpeedAid(p)) + (carrierExposed(car)?1:0) + _d.mod;
   var pr = 0.30 + 0.006*(def-han) + g.side + g.stick + g.behind + steps/6;
   if(carrierBacking(car)) pr += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
-  pr += MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p);   // v554 : le momentum ; v555 : son moral
+  pr += MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'poke') + stHand(car);   /* v559 : son etat, celui du porteur */ // v554 : le momentum ; v555 : son moral
   return Math.max(0.05, Math.min(0.85, pr));
 }
 function pokeOdds(p,car){ return pokeProb(p,car)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr) = chance x 6
@@ -6371,7 +6376,7 @@ function doPoke(p,carId){
   clearSel(); render();
   animateDice({type:'duel', pct:true, ctx:'Poke check', atk:{name:pn, roll:a, ok:ok, sub:'Poke '+thr+'%'}}, function(){
     checkFx(ok?'poke':'pokemiss',cc,cr);   // rate = POKE MISSED (grise), plus le generique POKE !
-    morAdd(p, ok ? MOR_ACT : -MOR_ACT, ok ? MOR_TEAM : -MOR_TEAM); if(ok) morAdd(car, -MOR_ACT, -MOR_TEAM);   // v555 : le moral
+    if(ok){ stGood(p); stErr(car); }   /* v559 : il a perdu la rondelle */ morAdd(p, ok ? MOR_ACT : -MOR_ACT, ok ? MOR_TEAM : -MOR_TEAM); if(ok) morAdd(car, -MOR_ACT, -MOR_TEAM);   // v555 : le moral
     if(ok){ p.speed=0; car.speed=0; p.mom=0; car.mom=0; killContactRoutes(p, car); }   // le poke REUSSI casse l'elan ; un rate laisse filer le porteur
     if(ok && steal){
       S.puckOwner=pid; S.puckLoose=null; S.rcvPop=pid; careerTrack('steal', {id:pid});   // v484
@@ -6755,9 +6760,9 @@ function flashGoalLight(side){ var el=document.getElementById(side==='left'?'glL
 // de -100 (B) a +100 (A), neutre au debut ; un but 40, une mise en echec reussie 15, un gros arret (tir a 25 % et plus) 15 ;
 // retour 5 par tour. L'equipe qui l'a : jusqu'a +5 points (passes, pokes, mises en echec) et x1,05 (tirs), proportionnel.
 var MOM_GOAL=40, MOM_HIT=15, MOM_SAVE=15, MOM_SAVE_P=0.25, MOM_DECAY=5, MOM_BONUS=0.05;
-function momAdd(team, pts){ if(S.so || !team) return; S.momentum=Math.max(-100, Math.min(100, (S.momentum||0) + (team==='A' ? pts : -pts))); }
+function momAdd(team, pts){ if(S.so || !team) return; S.momentum=Math.max(-100, Math.min(100, (S.momentum||0) + (team==='A' ? pts : -pts))); stNoteAll(); }   // v559 : une equipe ecrasee panique
 function momK(team){ var m=(S && S.momentum) || 0; return Math.max(0, team==='A' ? m : -m)/100; }   // 0..1 : la part de la jauge de cette equipe
-function momDecay(){ var m=S.momentum||0; S.momentum = m>0 ? Math.max(0, m-MOM_DECAY) : Math.min(0, m+MOM_DECAY);
+function momDecay(){ stTick();   /* v559 : les etats avec une duree */ var m=S.momentum||0; S.momentum = m>0 ? Math.max(0, m-MOM_DECAY) : Math.min(0, m+MOM_DECAY);
   if(S.mor) for(var k in S.mor){ var v=S.mor[k]; S.mor[k] = v>0 ? Math.max(0, v-MOR_DECAY) : Math.min(0, v+MOR_DECAY); } }   // v555 : le moral personnel aussi, plus lentement
 function momTip(){ var m=S.momentum||0, t=m>0?'A':(m<0?'B':null), k=t?momK(t):0;
   setHint(t ? ('Momentum: '+TEAM_NAME[t]+' — +'+speechFmt(100*MOM_BONUS*k)+'% passes, pokes and checks, shots ×'+(1+MOM_BONUS*k).toFixed(2)+'.') : 'Momentum: even.'); render(); }
@@ -6770,23 +6775,72 @@ function paintMomentum(){ var m=S.momentum||0, L=teamLooks();
 // son equipe ; se faire enlever la rondelle -8 / -2 ; but +20 ; mise en echec reussie +10 ; gros arret +10. Retour 1 par tour.
 // Effet : jusqu'a +/-5 points sur ses passes, pokes, mises en echec ; tirs x0,95 .. x1,05. Une fleche sur sa carte.
 var MOR_ACT=8, MOR_TEAM=2, MOR_GOAL=20, MOR_HIT=10, MOR_SAVE=10, MOR_DECAY=1, MOR_BONUS=0.05;
-function morAdd(p, pts, teamPts){ if(!p || !p.id || S.so) return; if(!S.mor) S.mor={}; S.mor[p.id]=Math.max(-100, Math.min(100, (S.mor[p.id]||0)+pts)); if(teamPts) momAdd(p.team, teamPts); }
+function morAdd(p, pts, teamPts){ if(!p || !p.id || S.so) return; if(!S.mor) S.mor={}; S.mor[p.id]=Math.max(-100, Math.min(100, (S.mor[p.id]||0)+pts)); stNote(p); if(teamPts) momAdd(p.team, teamPts); }   // v559 : stNote
 function morK(p){ return (p && S && S.mor && S.mor[p.id]) ? S.mor[p.id]/100 : 0; }
-function morPass(p, ok){ morAdd(p, ok ? MOR_ACT : -MOR_ACT, ok ? MOR_TEAM : -MOR_TEAM); }
+function morPass(p, ok){ if(ok) stGood(p); else stErr(p); morAdd(p, ok ? MOR_ACT : -MOR_ACT, ok ? MOR_TEAM : -MOR_TEAM); }   // v559 : une passe ratee est une erreur
 function morTag(p){ var v=(S && S.mor && p) ? (S.mor[p.id]||0) : 0; if(Math.abs(v)<10) return '';
   var b=Math.round(MOR_BONUS*v*10)/10;   /* le bonus en points de % (0,05 x moral) */ return '<span class="dcp-mor '+(v>0?'up':'dn')+'" title="Game form">'+(v>0 ? '▲ +' : '▼ ')+b+'%</span>'; }
 function morTrack(e, d){   // depuis matchEv : les tirs, les feintes, les contacts (pokes et mises en echec)
   if(!d || d.so || (S && S.so)) return;
   if(e==='shot'){ var sh=byId(d.id); if(!sh) return;
+    if(d.res==='wide') stErr(sh); else if(d.res!=='block') stGood(sh);   // v559 : le tir a cote est une erreur
     if(d.res==='wide' || d.res==='block') morAdd(sh, -MOR_ACT, -MOR_TEAM); else morAdd(sh, MOR_ACT, MOR_TEAM);
     if((d.res==='save' || d.res==='catch' || d.res==='rebound') && d.g && (S._shotProb||0)>=MOM_SAVE_P) morAdd(byId(d.g), MOR_SAVE, 0); }
-  else if(e==='deke'){ var dp=byId(d.id); if(dp) morAdd(dp, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM); }
+  else if(e==='deke'){ var dp=byId(d.id); if(dp){ if(d.ok) stGood(dp); else stErr(dp); morAdd(dp, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM); } }   // v559 : la feinte ratee perd la rondelle
   else if(e==='hit'){ var ck=byId(d.id), cv=byId(d.on);
     if(d.body){ if(d.ok) morAdd(ck, MOR_HIT, 0); }
     else morAdd(ck, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM);
+    if(d.ok){ stGood(ck); if(cv) stErr(cv); if(cv && d.body) stSet(cv, 'stun'); }   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
     if(d.ok && cv) morAdd(cv, -MOR_ACT, -MOR_TEAM); }
 }
-function celebrate(team,who){ if(S.celebrating) return; (S.goalLog=S.goalLog||[]).push({team:team, per:S.period, clock:S.clock, ot:!!S.overtime});   /* v558 : pour les fins dramatiques */ momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ for(var _sci=0;_sci<S.pieces.length;_sci++){ if(S.pieces[_sci].team===team && S.pieces[_sci].name===who){ morAdd(S.pieces[_sci], MOR_GOAL, 0); break; } }   /* v555 : le marqueur */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
+// v559 (le moral et le momentum, morceau 4 : les etats des joueurs ; choix du concepteur : sonne, fache, en confiance, panique ;
+// des seuils, « mais chaque joueur est different : un gros gars ne va pas paniquer mais risque de se facher » ; un temperament a
+// part, visible ; les petits effets ; carte + 3D + journal). Un seul etat a la fois : sonne / fache (avec une duree, S.st) passent
+// avant ; sinon l'etat que dicte son moral (en confiance / panique). Les deux equipes ; pas les gardiens ; pas dans les lecons.
+var TEMPS=['steady', 'hothead', 'tough', 'fragile', 'streaky', 'leader'];
+var TEMP_NAME={steady:'Steady', hothead:'Hothead', tough:'Tough', fragile:'Fragile', streaky:'Streaky', leader:'Leader'};
+var ST_NAME={stun:'Stunned', angry:'Angry', conf:'Confident', panic:'Panicked'}, ST_ICON={stun:'💫', angry:'😠', conf:'🔥', panic:'😰'};
+var ST_LOG={stun:'is stunned', angry:'is angry', conf:'is confident', panic:'panics'};
+var ST_STUN=2, ST_ANGRY=3, ST_CONF=40, ST_PANIC=-40, ST_EDGE=25, ST_CRUSH=-50;   // tours ; seuils de moral ; Fragile / Streaky : +-25 ; equipe ecrasee
+var ST_PASS=0.08, ST_HAND=0.08, ST_HIT=0.10, ST_CONF_PTS=0.05, ST_SHOT=0.08, ST_PEN=1.5;   // les petits effets
+function tempRoll(p, key){   // le temperament tire selon le profil (cle = toujours le meme tirage pour le meme joueur)
+  var w={steady:40, hothead:12, tough:12, fragile:12, streaky:12, leader:12};
+  var big=p.archetype==='power' || p.archetype==='grinder' || p.size==='L' || (p.physique||0)>=75, small=p.archetype==='dangler' || p.archetype==='sniper' || p.size==='S';
+  if(big){ w.hothead+=12; w.tough+=12; w.fragile-=8; w.streaky-=4; }
+  if(small){ w.fragile+=10; w.streaky+=10; w.hothead-=8; w.tough-=8; }
+  if((p.age||0)>=30) w.leader+=16;
+  var tot=0; TEMPS.forEach(function(k){ w[k]=Math.max(2, w[k]); tot+=w[k]; });
+  var u=lookRng(String(key))()*tot; for(var i=0;i<TEMPS.length;i++){ u-=w[TEMPS[i]]; if(u<0) return TEMPS[i]; } return 'steady';
+}
+function careerTemp(pl){ if(!pl.temp) pl.temp=tempRoll(pl, 'temp:'+((CAREER && CAREER.seed)||0)+':'+pl.uid); return pl.temp; }   // carriere : tire une fois, garde dans la sauvegarde
+function tempOf(p){ if(!p || p.type!=='sk') return null; if(p.temp) return p.temp;
+  if(CAREER && CAREER_MATCH && p.uid){ var T=CAREER.teams[p.team==='A' ? CAREER_MATCH.my : CAREER_MATCH.opp], pl=T && careerPlayerByUid(T, p.uid); if(pl){ p.temp=careerTemp(pl); return p.temp; } }
+  p.temp=tempRoll(p, p.name||p.id); return p.temp; }
+function stLeaderOn(p){ for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q!==p && q.team===p.team && q.type==='sk' && q.onIce && tempOf(q)==='leader' && !penInBox(q.id)) return true; } return false; }
+function stState(p){ if(!p || p.type!=='sk' || !S || S.tut || S.so) return null;
+  var t=S.st && S.st[p.id]; if(t && t.n>0) return t.k;
+  var tp=tempOf(p), v=(S.mor && S.mor[p.id])||0, edge=(tp==='fragile' || tp==='streaky'), own=(p.team==='A' ? 1 : -1)*(S.momentum||0);
+  var calm=(tp==='hothead' || tp==='tough' || tp==='leader') || stLeaderOn(p);
+  if(!calm && (v<=(edge ? -ST_EDGE : ST_PANIC) || own<=ST_CRUSH)) return 'panic';
+  if(v>=(tp==='streaky' ? ST_EDGE : ST_CONF)) return 'conf';
+  return null; }
+function stOk(p){ return !!p && p.type==='sk' && !!S && !S.tut && !S.so; }
+function stSet(p, k){ if(!stOk(p)) return; var tp=tempOf(p); (S.st=S.st||{})[p.id]={k:k, n:k==='stun' ? (tp==='tough' ? 1 : (tp==='fragile' ? 3 : ST_STUN)) : ST_ANGRY}; stNote(p); }
+function stErr(p){ if(!stOk(p)) return; S.err=S.err||{}; var c=(S.err[p.id]||0)+1; S.err[p.id]=c; if(c>=(tempOf(p)==='hothead' ? 1 : 2)){ S.err[p.id]=0; stSet(p, 'angry'); } }   // passe ratee, rondelle perdue, tir a cote
+function stGood(p){ if(!stOk(p)) return; if(S.err) S.err[p.id]=0; var t=S.st && S.st[p.id]; if(t && t.k==='angry'){ delete S.st[p.id]; stNote(p); } }   // une bonne action : le compte a 0, la colere tombe
+function stTick(){ if(S.st) for(var id in S.st){ S.st[id].n--; if(S.st[id].n<=0) delete S.st[id]; } stNoteAll(); }   // un tour de plus
+function stNote(p){ if(!p || !S) return; S.stSeen=S.stSeen||{}; var k=stState(p); if(k!==(S.stSeen[p.id]||null)){ S.stSeen[p.id]=k; if(k && p.onIce) pushLog('<b>'+p.name+'</b> '+ST_LOG[k]+'.'); } }   // le journal : quand il entre dans un etat
+function stNoteAll(){ if(!S || !S.pieces) return; for(var i=0;i<S.pieces.length;i++) if(S.pieces[i].type==='sk') stNote(S.pieces[i]); }
+function stPts(p, kind){ var k=stState(p); if(!k) return 0;   // en points de % : passes (pass), pokes (poke), mises en echec (check)
+  if(kind==='pass') return k==='conf' ? ST_CONF_PTS : -ST_PASS;
+  if(kind==='poke') return k==='conf' ? ST_CONF_PTS : 0;
+  if(kind==='check') return k==='angry' ? ST_HIT : 0; return 0; }
+function stHand(car){ var k=stState(car); return (k==='stun' || k==='panic') ? ST_HAND : 0; }   // son maniement -8 : +8 pour qui le poke ou le frappe
+function stShot(sh){ var k=stState(sh); return (k==='angry' || k==='panic') ? 1-ST_SHOT : (k==='conf' ? 1+ST_SHOT : 1); }
+function stStep(p, b){ return (b>1 && stState(p)==='stun') ? 1 : 0; }   // sonne : 1 case de moins
+function stTag(p){ var tp=tempOf(p); if(!tp) return ''; var k=stState(p);
+  return '<span class="dcp-temp" title="Temperament">'+TEMP_NAME[tp]+'</span>'+(k ? '<span class="dcp-st st-'+k+'" title="'+ST_NAME[k]+'">'+ST_ICON[k]+' '+ST_NAME[k]+'</span>' : ''); }
+function celebrate(team,who){ if(S.celebrating) return; (S.goalLog=S.goalLog||[]).push({team:team, per:S.period, clock:S.clock, ot:!!S.overtime});   /* v558 : pour les fins dramatiques */ momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ for(var _sci=0;_sci<S.pieces.length;_sci++){ if(S.pieces[_sci].team===team && S.pieces[_sci].name===who){ stGood(S.pieces[_sci]); morAdd(S.pieces[_sci], MOR_GOAL, 0); break; } }   /* v555 : le marqueur */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
   flashGoalLight(team==='A'?'right':'left');
   render();
   var gs=document.getElementById('goalsiren'); if(gs){ gs.classList.remove('go'); void gs.offsetWidth; gs.classList.add('go'); setTimeout(function(){ gs.classList.remove('go'); }, realMs(1550)); }
@@ -7310,7 +7364,7 @@ function renderDraftCards(){
         + '<span class="dcard-id"><span class="dcp-name">'+roleLbl+hd+p.name+'</span>'
         + '<span class="dcp-arch">'+ai.e+' '+ai.n+'</span></span></div>'
       + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
-      + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
+      + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+stTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
     + '</div>'; }
   var fEl=document.getElementById('draftF'), dEl=document.getElementById('draftD');
   fEl.innerHTML=fwd.map(card).join(''); dEl.innerHTML=def.map(card).join('');
@@ -8516,7 +8570,7 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    players.push({id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||''}); }   /* v529 : la recette */
+    players.push({id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||''}); }   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
   if(focus==null && S.faceoff && S.faceoff.dotC!=null) focus=S.faceoff.dotC;   // v477 : pendant une mise au jeu, la camera 3D va au point de mise au jeu
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
@@ -10559,7 +10613,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":293044,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":295540,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
