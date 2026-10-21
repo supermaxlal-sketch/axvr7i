@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v559</title>
+<title>Deck 3D v560</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1305,7 +1305,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v559';
+var GAME_VERSION='v560';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3613,7 +3613,7 @@ function keptMom(mom, v, dc, dr){ var t=turnSteps(v,dc,dr); return t<=1 ? mom : 
 // v552 (le concepteur : « je ne veux pas qu'on patine toute la patinoire de reculons ») : a reculons (oppose a l'orientation),
 // 3 cases au plus par tour, meme lance ; de l'avant, rien ne change. Pour aller plus loin : pivoter (gratuit).
 var BACK_MAX=3;
-function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); _b=(p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; return _b-stStep(p, _b); }   /* v559 : sonne */
+function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); _b=(p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; _b-=stStep(p, _b); return (p && S && S._huntSlow===p.id && _b>1) ? _b-1 : _b; }   /* v559 : sonne ; v560 : le chasseur seme par un plus rapide */
 function dirBudget0(p, dc, dr, st){ if(p && p.type==='g') return 1; var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
   if(p && turnSteps(v, dc, dr)>=3){ var _fo=facingOf(p);
     // v409 : RECUL FACE AU JEU -- il reculait en regardant le jeu (patin arriere) et remonte la ou il regarde :
@@ -4817,10 +4817,23 @@ function markGoalSideCell(marked, team){   // case COTE BUT : un pas entre le ma
   var nc=defendCol(team), gc=Math.max(0, Math.min(COLS-1, marked.c + Math.sign(nc - marked.c)));
   return {c:gc, r:marked.r};
 }
-function markPursue(marker, marked){   // le marqueur se deplace vers la case cote-but du marque (portee = elan, evite l'occupation)
+// v560 (le concepteur : « l'IA semble toujours venir directement ou j'arrive, on dirait qu'elle triche » ; verifie : elle ne lit
+// pas ton plan, son chasseur te colle a chaque action ; choix : un pas en retard, la vitesse le seme, la feinte le fait mordre) :
+// le CHASSEUR de l'IA (seulement lui) vise ou le porteur etait au debut de l'action d'avant (o.seen : les positions de ce temps) ;
+// un porteur plus rapide que lui (vitesse) : 1 case de moins par action ; une feinte reussie ou un virage serre qui le seme :
+// il perd l'action en cours et la suivante (o.biteTo).
+function huntLag(o, marked){ if(!marked) return null; var was=o.seen ? o.seen[marked.id] : null, now={};
+  for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.team===marked.team && q.onIce) now[q.id]={c:q.c, r:q.r}; }
+  o.seen=now; return was || null; }
+function huntOutrun(car, h){ return ((car && car.vitesse)||60) > ((h && h.vitesse)||60); }
+function huntBite(h, rk){ var o=S.defOrders||[]; for(var i=0;i<o.length;i++){ if(o[i].hunt && !o[i].used && o[i].defId===h.id){ o[i].biteTo=rk+1; pushLog('<b>'+h.name+'</b> bites on the fake!'); } } }
+function huntBiteOnDeke(carId){ var c=byId(carId), sq=S.currentSeq, rk=sq ? sq.rank : 0, o=S.defOrders||[]; if(!c || S.puckOwner!==carId) return;
+  for(var i=0;i<o.length;i++){ var h=o[i].hunt && !o[i].used ? byId(o[i].defId) : null; if(h && h.team!==c.team) huntBite(h, rk); } }
+function markPursue(marker, marked, from, hunt){   // le marqueur se deplace vers la case cote-but du marque (portee = elan, evite l'occupation)
   if(!marker||!marked||!marker.onIce||!marked.onIce) return false;
-  var cell=markGoalSideCell(marked, marker.team), oc=marker.c, orr=marker.r;
-  var spot=slideToward(marker, cell.c, cell.r, {});
+  var cell=markGoalSideCell(from||marked, marker.team), oc=marker.c, orr=marker.r;   // v560 : le chasseur, un pas en retard (from)
+  S._huntSlow=(hunt && huntOutrun(marked, marker)) ? marker.id : null;   // v560 : plus rapide que lui -> 1 case de moins
+  var spot=slideToward(marker, cell.c, cell.r, {}); S._huntSlow=null;
   if(spot.c===oc && spot.r===orr) return false;
   skateToSpot(marker, spot);   // v383 : suivre son homme = patiner (il prend de la vitesse) ; v408 : courbe possible
   return true;
@@ -4831,9 +4844,11 @@ function markPursueAll(seq){   // a chaque temps : chaque marqueur poursuit son 
   for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i];
     if(o.order!=='mark'||o.used) continue;
     var marker=byId(o.defId), marked=markTargetOf(o);   // v383 : 'PUCK' -> le porteur courant
+    var from=o.hunt ? huntLag(o, marked) : null;   // v560 : le chasseur vise ou il etait au debut de l'action d'avant
     if(S._shook && S._shook.id===(marked?marked.id:o.markId) && seq && S._shook.rank===seq.rank) continue;   // seme ce temps : le marqueur ne suit pas
+    if(o.hunt && o.biteTo!=null && seq && seq.rank<=o.biteTo) continue;   // v560 : il a mordu a la feinte
     if(marker&&marked&&marker.onIce&&marked.onIce&&marker.team!==marked.team){
-      if(markPursue(marker, marked)) pushLog('<span style="color:#ff8fbf">Mark</span>: '+marker.name+' stays with '+marked.name+'.');
+      if(markPursue(marker, marked, from, o.hunt)) pushLog('<span style="color:#ff8fbf">Mark</span>: '+marker.name+' stays with '+marked.name+'.');
     }
   }
 }
@@ -4867,6 +4882,7 @@ function cutDuel(seq, p){
   var mk=markerOf(p.id); if(!mk) return;                          // pas marque -> rien
   if(Math.random() < cutDuelProb(p, mk)){   /* v423 : sur 100 */
     S._shook={id:p.id, rank:(seq?seq.rank:0)};                    // GAGNE : seme ce temps
+    huntBite(mk, seq ? seq.rank : 0);   // v560 : le chasseur perd aussi l'action suivante
     pushLog('<span style="color:#ff8fbf">Sharp cut</span>: '+p.name+' cuts and loses '+mk.name+'!');
     bonusTrigger(p, 'cut');   // v438 : echappee
   }
@@ -8070,7 +8086,7 @@ function matchNew(){ return {v:(typeof GAME_VERSION!=='undefined'?GAME_VERSION:'
 function matchRec(k, data){ if(typeof S==='undefined' || !S || !S.match || S.match.events.length>=MATCH_MAX) return;
   var e={k:k, per:S.period||1, clk:Math.round((S.clock||0)*10)/10, t:Date.now()-(S.match.t0||Date.now())}; for(var key in data) e[key]=data[key]; S.match.events.push(e); }   // v447 : t = ms depuis le debut (rythme du lecteur Godot)
 // v447 : EVENEMENTS A ANIMER pour le lecteur de matchs Godot (spec 2026-09-30-godot-lecteur-de-matchs-design.md)
-function matchEv(e, data){ var d={e:e}; for(var key in data) d[key]=data[key]; if(e==='skate' && d.pts) noteSkate(d.id, d.pts);   /* v523 */ hj3dSend('ev', d); matchRec('ev', d); careerTrack(e, d); morTrack(e, d); if(e==='shot' && S._lateDef){ var _ls=S._lateDef; S._lateDef=null; lateDefStep(_ls); } }   /* v524 */   // v484 : le compteur de carriere   // v478 : aussi vers la 3D (Godot anime l'action)
+function matchEv(e, data){ var d={e:e}; for(var key in data) d[key]=data[key]; if(e==='deke' && d.ok && !d.so) huntBiteOnDeke(d.id);   /* v560 : la feinte fait mordre le chasseur */ if(e==='skate' && d.pts) noteSkate(d.id, d.pts);   /* v523 */ hj3dSend('ev', d); matchRec('ev', d); careerTrack(e, d); morTrack(e, d); if(e==='shot' && S._lateDef){ var _ls=S._lateDef; S._lateDef=null; lateDefStep(_ls); } }   /* v524 */   // v484 : le compteur de carriere   // v478 : aussi vers la 3D (Godot anime l'action)
 function matchPtsU(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil((n-1)/(max||40))), b=false;   // v521 : trajet allege a pas de temps EGAUX (un contact marque le point garde qui le suit)
   for(var i=0;i<n;i++){ if(pts[i].b) b=true; if(i%step && i!==n-1) continue; var a=[Math.round(pts[i].c*100)/100, Math.round(pts[i].r*100)/100]; if(b) a.push(1); b=false; out.push(a); } return out; }
 function matchPts(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil(n/(max||40)));   // trajectoire allegee (cases, 2 decimales ; b = contact)
