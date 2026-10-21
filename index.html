@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v557</title>
+<title>Deck 3D v558</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -230,6 +230,7 @@
 .dcp-name{font-size:13px;font-weight:800;color:#fff;}
 .dcp-st{font-size:10px;color:#9fb6cd;margin-top:2px;}
 .dcp-perk{display:inline-block;font-size:9px;font-weight:800;color:#0c1a2b;background:#7fd1d1;border-radius:4px;padding:1px 5px;margin-top:4px;}
+.sdrama{color:#ffd23e;margin-top:4px;}   /* v558 : le titre de la fin dramatique */
 .ssit{color:#ffd23e;font-weight:700;}   /* v557 : la situation a l'entracte */
 .sfit{color:#6fdc8c;} .soff{color:#ff8a8a;}
 .dcp-mor{display:inline-block;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px;margin-left:4px;}   /* v555 : le moral du match */
@@ -1301,7 +1302,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v557';
+var GAME_VERSION='v558';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2344,7 +2345,7 @@ function newGame(firstTeam){
   soHideAll();   // v536 : les panneaux de la fusillade
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, momentum:0, mor:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
@@ -6785,7 +6786,7 @@ function morTrack(e, d){   // depuis matchEv : les tirs, les feintes, les contac
     else morAdd(ck, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM);
     if(d.ok && cv) morAdd(cv, -MOR_ACT, -MOR_TEAM); }
 }
-function celebrate(team,who){ if(S.celebrating) return; momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ for(var _sci=0;_sci<S.pieces.length;_sci++){ if(S.pieces[_sci].team===team && S.pieces[_sci].name===who){ morAdd(S.pieces[_sci], MOR_GOAL, 0); break; } }   /* v555 : le marqueur */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
+function celebrate(team,who){ if(S.celebrating) return; (S.goalLog=S.goalLog||[]).push({team:team, per:S.period, clock:S.clock, ot:!!S.overtime});   /* v558 : pour les fins dramatiques */ momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ for(var _sci=0;_sci<S.pieces.length;_sci++){ if(S.pieces[_sci].team===team && S.pieces[_sci].name===who){ morAdd(S.pieces[_sci], MOR_GOAL, 0); break; } }   /* v555 : le marqueur */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
   flashGoalLight(team==='A'?'right':'left');
   render();
   var gs=document.getElementById('goalsiren'); if(gs){ gs.classList.remove('go'); void gs.offsetWidth; gs.classList.add('go'); setTimeout(function(){ gs.classList.remove('go'); }, realMs(1550)); }
@@ -8961,8 +8962,8 @@ function careerLineupGo(){ var T=CAREER.teams[CAREER.my], tgt=Math.min(DRESS_N, 
 // tout repart a 0 et rien n'est garde ; une nouvelle saison remet tout a 0
 function careerTeamMorale(c, key){ var v=0, n=0, seq=[], R=(c && c.results)||[];
   for(var i=R.length-1; i>=0 && n<5; i--){ var g=R[i]; if(g.po || (g.home!==key && g.away!==key)) continue; n++;
-    var me=g.home===key ? g.hs : g.as, op=g.home===key ? g.as : g.hs, w=me>op, otl=!w && (g.ot || g.so);
-    v+= w ? 12 : (otl ? -4 : -12); seq.unshift(w ? 'W' : (otl ? 'OTL' : 'L')); }
+    var me=g.home===key ? g.hs : g.as, op=g.home===key ? g.as : g.hs, w=me>op, otl=!w && (g.ot || g.so), dr=g.dr && g.dz!==key;   // v558 : dr = fin dramatique (dz : annulee par « Forget it »)
+    v+= w ? (dr ? 20 : 12) : (otl ? (dr ? -12 : -4) : (dr ? -20 : -12)); seq.unshift(w ? 'W' : (otl ? 'OTL' : 'L')); }
   return {v:v, seq:seq}; }
 function moraleLabel(v){ return v>=30 ? 'Hot' : (v>=10 ? 'Good' : (v>-10 ? 'Even' : (v>-30 ? 'Low' : 'Cold'))); }
 function careerMoraleSides(){ return [['A', CAREER.teams[CAREER_MATCH.my]], ['B', CAREER.teams[CAREER_MATCH.opp]]]; }
@@ -8970,12 +8971,14 @@ function careerMoraleStart(){   // au debut d'un match de carriere (apres newGam
   if(!CAREER || !CAREER_MATCH) return; S.momentum=0; S.mor={};
   if(CAREER_MATCH.po) return;   // les series : chaque match repart a zero
   var mA=careerTeamMorale(CAREER, CAREER_MATCH.my).v, mB=careerTeamMorale(CAREER, CAREER_MATCH.opp).v;
-  S.momentum=Math.max(-100, Math.min(100, Math.round((mA-mB)/2)));
+  S.momentum=Math.max(-100, Math.min(100, Math.round((mA-mB)/2)+((CAREER.carry && CAREER.carry.post==='refocus') ? DRAMA_REFOCUS : 0)));   // v558 : « refocus »
   careerMoraleSides().forEach(function(x){ S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl && pl.mor) S.mor[q.id]=Math.round(pl.mor/2); }); });
 }
 function careerMoraleEnd(){   // a la fin d'un match de saison : chacun garde son moral du match (pas en series)
   if(!CAREER || !CAREER_MATCH || CAREER_MATCH.po) return;
-  careerMoraleSides().forEach(function(x){ S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl) pl.mor=Math.round((S.mor && S.mor[q.id]) || 0); }); });
+  var dr=dramaEnd('A'), fg=!!(S.speechPost && S.speechPost.post==='forget');   // v558 : une fin dramatique -- les gagnants +10, les perdants -10 (« Forget it » : pas pour les tiens)
+  careerMoraleSides().forEach(function(x){ var won=S.score[x[0]]>S.score[x[0]==='A' ? 'B' : 'A'], ex=!dr ? 0 : (won ? DRAMA_MOR : ((fg && x[0]===HUMAN_TEAM) ? 0 : -DRAMA_MOR));
+    S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl) pl.mor=Math.max(-100, Math.min(100, Math.round((S.mor && S.mor[q.id]) || 0)+ex)); }); });
 }
 function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversaire = B
   if(CAREER && !CAREER.teams[CAREER.my].coach){ careerGo('coach'); return false; }   // v503 : ton coach d'abord
@@ -9183,7 +9186,9 @@ function careerFinishMatch(){   // le resultat compte, le reste du jour est simu
   CAREER.carry=S.speechPost||null;   // v504 : le report du discours d'apres-match
   CAREER.report.coach=careerCoachProgress(a>b);   // v504 : ton coach progresse
   careerMoraleEnd();   // v556 : chacun garde son moral du match (saison seulement)
-  careerPlayDay(CAREER, (g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot, so:!!S._endSO} : {hs:b, as:a, ot:ot, so:!!S._endSO});
+  var _my=(g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot, so:!!S._endSO} : {hs:b, as:a, ot:ot, so:!!S._endSO};
+  if(dramaEnd('A') && !CAREER_MATCH.po){ _my.dr=1; if(S.speechPost && S.speechPost.post==='forget') _my.dz=CAREER.my; }   // v558 : la fin dramatique compte au moral
+  careerPlayDay(CAREER, _my);
   careerSave(); careerClearLook(); _hide('gameoverOverlay'); newGame('A'); careerGo('report', true);   // v484 : le bilan d'abord
 }
 function careerExitMatch(){ matchSaveClear(); if(S.paused) togglePause(); careerClearLook(); newGame('A'); careerGo('hub'); }   // un match quitte ne compte pas
@@ -9318,7 +9323,7 @@ function careerPlayDay(c, my){   // le jour : ton resultat (my = {hs, as, ot} vu
   if(c.phase==='regular'){
     for(var d=1;d<=3;d++){ (c.schedule[d][c.day]||[]).forEach(function(g){
       var mine=(g[0]===c.my || g[1]===c.my), r;
-      if(mine && my) r={home:g[0], away:g[1], hs:my.hs, as:my.as, ot:!!my.ot, so:!!my.so};
+      if(mine && my){ r={home:g[0], away:g[1], hs:my.hs, as:my.as, ot:!!my.ot, so:!!my.so}; if(my.dr){ r.dr=1; if(my.dz) r.dz=my.dz; } }   // v558
       else { careerAiPrep(c.teams[g[0]]); careerAiPrep(c.teams[g[1]]); r=careerSimGame(c, g[0], g[1]); careerSimEffects(c.teams[g[0]]); careerSimEffects(c.teams[g[1]]); }   // v489
       r.div=d; r.day=c.day; r.mine=mine; c.results.push(r); }); }
     careerDayEnd(c);   // v489 : decompte et recuperation
@@ -9503,14 +9508,15 @@ function speechOpen(moment, done){   // v504 : le vestiaire -- ton coach parle (
   var _tv=hj3dActive(), ov=document.getElementById('speechOverlay'); ov.classList.toggle('tv', _tv);
   S.speechOpen.angle=speechRoomAngle(moment); S.speechOpen.mood=speechMood(moment);   // v507 : la chambre -- un angle different a chaque discours ; apres le match, fete ou silence
   if(_tv) speechRoomCue(HUMAN_TEAM, S.speechOpen.angle, S.speechOpen.mood);
-  if(S.speechOpen.mood==='win') crowd('cheer');
+  if(moodWon(S.speechOpen.mood)) crowd('cheer');
   var ttl={pre:'Locker room — before the game', inter:'Locker room — intermission', post:'Locker room — after the game'}[moment];
   var h='<div class="wcard"><div class="wicon">📣</div><div class="wbig">'+ttl+'</div><div class="wsub">Coach '+careerEsc(co.name)+' · '+COACH_PROFILES[co.prof].n+' · level '+co.lvl+'</div>';
-  if(moment==='post') h+='<div class="wsub">'+(S.speechOpen.mood==='win' ? 'The room celebrates. ' : 'A quiet room. ')+'Half of it lasts the whole next game.</div>';   // v507
+  if(moment==='post'){ var _dr=dramaEnd(HUMAN_TEAM); h+=(_dr ? '<div class="wbig sdrama">'+_dr.title+'</div>' : '')+'<div class="wsub">'+({win:'The room celebrates. ', wild:'The room goes wild. ', loss:'A quiet room. ', heavy:'A heavy silence. '}[S.speechOpen.mood]||'')+'Half of it lasts the whole next game.</div>'; }   // v507 ; v558 : le titre de la fin dramatique
   if(!_tv) h+=speechArt(HUMAN_TEAM);   // v507 : en 2D, la chambre dessinee
   else h+='<div class="angles">'+ROOM_ANGLES.map(function(a){ return '<button class="perkbtn" data-angle="'+a+'" onclick="speechAngle(\''+a+'\')">'+ROOM_ANGLE_NAME[a]+'</button>'; }).join('')+'</div>';   // v507 : les angles de la chambre
   h+='<div class="tones">';
-  if(moment==='post') POST_KEYS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+POST_TONES[k].say+'”</b><small>'+postPreview(co, k, S.speechOpen.mood==='win')+'</small></button>'; });   // v518 : apres le match, ses trois tons
+  if(moment==='post') POST_KEYS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+POST_TONES[k].say+'”</b><small>'+postPreview(co, k, moodWon(S.speechOpen.mood))+'</small></button>'; });
+  if(moment==='post'){ var _dk=dramaPostKey(); if(_dk) h+='<button class="dconfirm" data-tone="'+_dk+'" onclick="speechChoose(\''+_dk+'\')"><b>“'+DRAMA_TONES[_dk].say+'”</b><small>'+DRAMA_TONES[_dk].fx+'</small></button>'; }   // v558 : le 4e discours   // v518 : apres le match, ses trois tons
   else { if(moment==='inter') h+='<div class="wsub ssit">'+sitTitle(HUMAN_TEAM)+'</div>';   // v557 : la situation
     COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+(moment==='inter' ? sitText(HUMAN_TEAM, k) : SPEECH_TONES[k])+'”</b><small>'+speechPreview(co, k)+(moment==='inter' ? sitTag(HUMAN_TEAM, k) : '')+'</small></button>'; }); }
   ov.innerHTML=h+'</div></div>'; _show('speechOverlay');
@@ -9521,8 +9527,8 @@ function speechApply(team, moment, tone, k, co){
   pushLog('<b>'+careerEsc(co.name)+'</b> ('+TEAM_NAME[team]+'): “'+SPEECH_TONES[tone]+'”'+(k<0 ? ' — the players don\'t buy it.' : ''));
 }
 function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say) return;
-  if(o.moment==='post'){ if(!POST_TONES[tone]) return;   // v518 : les trois tons d'apres-match
-    var cp=coachOf(HUMAN_TEAM), ch=POST_TONES[tone].ch, kp=postRoll(cp, tone, o.mood==='win');
+  if(o.moment==='post'){ if(DRAMA_TONES[tone]){ speechDrama(o, tone); return; } if(!POST_TONES[tone]) return;   // v518 : les trois tons d'apres-match
+    var cp=coachOf(HUMAN_TEAM), ch=POST_TONES[tone].ch, kp=postRoll(cp, tone, moodWon(o.mood));
     S.speechPost={tone:ch, k:kp, post:tone}; S.speechUse[ch]=(S.speechUse[ch]||0)+1;
     pushLog('<b>'+careerEsc(cp.name)+'</b> ('+TEAM_NAME[HUMAN_TEAM]+'): “'+POST_TONES[tone].say+'”'+(kp<0 ? ' — the players don\'t buy it.' : ''));
     render(); speechSay(o, [{team:HUMAN_TEAM, co:cp, tone:ch, k:kp, text:POST_TONES[tone].say}], 0); return; }
@@ -9571,7 +9577,26 @@ function speechEnd(o){ S.speechOpen=null; _hide('speechOverlay'); document.getEl
 // apres la 2e Over the shoulder, apres le match Players ; boutons d'angles ; apres le match : fete (victoire) ou silence.
 var ROOM_ANGLES=['wide', 'coach', 'shoulder', 'players'], ROOM_ANGLE_NAME={wide:'Wide', coach:'Coach', shoulder:'Shoulder', players:'Players'};
 function speechRoomAngle(moment){ if(moment==='pre') return 'wide'; if(moment==='post') return 'players'; return S.period===2 ? 'coach' : 'shoulder'; }
-function speechMood(moment){ if(moment!=='post') return ''; return S.score[HUMAN_TEAM]>S.score[HUMAN_TEAM==='A' ? 'B' : 'A'] ? 'win' : 'loss'; }
+// v558 (le moral et le momentum, morceau 3 : les fins dramatiques ; choix du concepteur : le but gagnant dans les 30 dernieres
+// secondes, la prolongation, la fusillade, la remontee, « mene apres 2 periodes par plus de 1 but et perd » ; effets : le moral compte
+// plus, une scene speciale, des discours speciaux ; « tel quel ») : priorite remontee / avance perdue (le gagnant a tire de l'arriere
+// de 2 buts ou plus ; mener par 2 apres deux periodes et perdre en fait partie) > but gagnant tardif > prolongation > fusillade.
+var DRAMA_LATE=30, DRAMA_MOR=10, DRAMA_REFOCUS=10;
+var DRAMA_TITLES={comeback:['What a comeback!', 'Blown lead'], late:['Last-second winner!', 'Beaten at the buzzer'], ot:['Overtime winner!', 'Lost in overtime'], so:['Shootout win!', 'Lost in the shootout']};
+var DRAMA_TONES={forget:{say:'Forget it — we get them next time!', fx:'Cancels the extra morale hit of this ending.'}, refocus:{say:'Great finish — now refocus!', fx:'The next game starts with +10 momentum.'}};
+function dramaEnd(team){   // la fin du match, vue de cette equipe : {k, win, title} ou null
+  var A=S.score.A||0, B=S.score.B||0; if(A===B) return null;
+  var w=A>B ? 'A' : 'B', l=w==='A' ? 'B' : 'A', s={A:0, B:0}, back=0, gw=null, k=null;
+  (S.goalLog||[]).forEach(function(g){ s[g.team]++; back=Math.max(back, s[l]-s[w]); if(!gw && g.team===w && s[w]===S.score[l]+1) gw=g; });   // gw = le but gagnant
+  if(back>=2) k='comeback'; else if(gw && gw.per>=3 && !gw.ot && gw.clock<=DRAMA_LATE) k='late'; else if(S._endSO) k='so'; else if(S._endOT) k='ot';
+  return k ? {k:k, win:team===w, title:DRAMA_TITLES[k][team===w ? 0 : 1]} : null;
+}
+function dramaPostKey(){ var d=dramaEnd(HUMAN_TEAM); return (d && CAREER_MATCH && !CAREER_MATCH.po) ? (d.win ? 'refocus' : 'forget') : null; }   // le 4e discours (saison seulement : c'est la ou le moral compte)
+function moodWon(m){ return m==='win' || m==='wild'; }
+function speechMood(moment){ if(moment!=='post') return ''; var won=S.score[HUMAN_TEAM]>S.score[HUMAN_TEAM==='A' ? 'B' : 'A']; return dramaEnd(HUMAN_TEAM) ? (won ? 'wild' : 'heavy') : (won ? 'win' : 'loss'); }   // v558 : wild / heavy apres une fin dramatique
+function speechDrama(o, tone){ if(dramaPostKey()!==tone) return; var cd=coachOf(HUMAN_TEAM);   // v558 : le 4e discours -- pas de report de ton, son effet a lui
+  S.speechPost={tone:null, k:0, post:tone}; pushLog('<b>'+careerEsc(cd.name)+'</b> ('+TEAM_NAME[HUMAN_TEAM]+'): “'+DRAMA_TONES[tone].say+'”');
+  render(); speechSay(o, [{team:HUMAN_TEAM, co:cd, tone:null, k:0, text:DRAMA_TONES[tone].say}], 0); }
 function speechRoomCue(team, angle, mood){ hj3dSend('cue', 'room:'+team+':'+angle+(mood ? ':'+mood : '')); }
 function speechAngle(a){ var o=S.speechOpen; if(!o || ROOM_ANGLES.indexOf(a)<0) return; o.angle=a; if(hj3dActive()) speechRoomCue(HUMAN_TEAM, a, o.mood); }
 function speechArt(team){   // v507 : la chambre dessinee (2D) -- casiers, joueurs assis, logo au plancher, le coach devant le tableau
@@ -10534,7 +10559,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":292068,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":293044,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
