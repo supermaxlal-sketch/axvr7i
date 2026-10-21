@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v556</title>
+<title>Deck 3D v557</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -230,6 +230,8 @@
 .dcp-name{font-size:13px;font-weight:800;color:#fff;}
 .dcp-st{font-size:10px;color:#9fb6cd;margin-top:2px;}
 .dcp-perk{display:inline-block;font-size:9px;font-weight:800;color:#0c1a2b;background:#7fd1d1;border-radius:4px;padding:1px 5px;margin-top:4px;}
+.ssit{color:#ffd23e;font-weight:700;}   /* v557 : la situation a l'entracte */
+.sfit{color:#6fdc8c;} .soff{color:#ff8a8a;}
 .dcp-mor{display:inline-block;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px;margin-left:4px;}   /* v555 : le moral du match */
 .dcp-mor.up{color:#0c1a2b;background:#6fdc8c;} .dcp-mor.dn{color:#fff;background:#d9534f;}
 .dcp-role{display:inline-block;font-size:9px;font-weight:900;color:#fff;background:#2b6cb0;border-radius:4px;padding:1px 5px;margin-right:5px;}
@@ -1299,7 +1301,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v556';
+var GAME_VERSION='v557';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9459,8 +9461,42 @@ function postPreview(co, tone, won){ var ch=POST_TONES[tone].ch, t=speechTier(co
   return lbl+': '+speechFx(ch, t*f*coachMul(co)); }
 function careerTeamTired(team){ var n=0, t=0; S.pieces.forEach(function(q){ if(q.team===team && q.onIce && q.type==='sk' && q.uid){ n++; t+=careerLiveEn(q); } }); return n>0 && t/n<60; }
 function aiSpeechTone(team){ var co=coachOf(team); if(!co) return 'mot'; var me=S.score[team], op=S.score[team==='A'?'B':'A'];
+  if(S.speechOpen && S.speechOpen.moment==='inter'){ var _st=SPEECH_SIT[speechSituation(team)]; if(_st && co[_st.fit]>=45) return _st.fit; }   // v557 : il lit sa situation
   var cand=careerTeamTired(team) ? ['mot'] : (me<op ? ['mot', 'con'] : (me>op ? ['dis', 'sys'] : COACH_SKILLS));
   var b=cand[0]; cand.forEach(function(k){ if(co[k]>co[b]) b=k; }); return b; }
+// v557 (le concepteur : « des discours quand c'est egalite apres une periode, apres deux, quand on joue bien defensivement, quand on
+// donne beaucoup de lancers, quand on a des chances mais on marque pas, 1-0, 2-0, 3-0, 4-0, 0-2, 0-4 ... il faut que ca paraisse dans le
+// discours du coach entre les periodes » ; choix : les mots ET le bon choix) : a l'entracte, la situation de l'equipe (13, dans l'ordre
+// de priorite de speechSituation) ; le ton qui colle (fit) x1,5, celui qui ne colle pas (off) x0,5 ; la phrase du coach en parle ;
+// l'IA lit aussi sa situation et choisit le ton qui colle.
+var SPEECH_SIT={
+  lead4:{t:'{me}–{op} after {n} — up by {d}.', fit:'dis', off:'con', say:{mot:"We're up big — keep skating, keep the pressure.", dis:"We're up big — no silly penalties, no gifts.", sys:"We're up big — same plan, shift after shift.", con:"We're up big — but no hero plays now."}},
+  lead3:{t:'{me}–{op} after {n} — up by 3, they will push.', fit:'sys', off:'con', say:{mot:"Three goals — they will throw everything at us.", dis:"Three goals — don't give them a power play.", sys:"Three goals — don't let up, play our game.", con:"Three goals — careful, no fancy stuff."}},
+  down4:{t:'{me}–{op} after {n} — down by {D}.', fit:'mot', off:'sys', say:{mot:"We're down four — play for pride, every shift!", dis:"We're down four — at least no more penalties.", sys:"We're down four — the system alone won't save us.", con:"We're down four — one goal at a time."}},
+  down3:{t:'{me}–{op} after {n} — down by 3.', fit:'mot', off:'dis', say:{mot:"We're down three — we need a push, right now!", dis:"We're down three — stay out of the box.", sys:"We're down three — tighten up first.", con:"We're down three — get one early and they'll feel it."}},
+  outshot:{t:'{me}–{op} after {n} — they are outshooting us {os}–{ms}.', fit:'sys', off:'con', say:{mot:"They're outshooting us — we need more legs.", dis:"They're outshooting us — no penalties on top of it.", sys:"They're outshooting us — tighten up in our zone!", con:"They're outshooting us — don't open up more."}},
+  chances:{t:"{me}–{op} after {n} — {ms} shots, but the goals don't come.", fit:'con', off:'dis', say:{mot:"We're getting chances — keep crashing the net.", dis:"We're getting chances — stay patient.", sys:"We're getting chances — keep the same plan.", con:"We're getting chances — keep shooting, they'll go in!"}},
+  solid:{t:'{me}–{op} after {n} — only {os} shots against: our defense is solid.', fit:'sys', off:'mot', say:{mot:"Our defense is solid — keep the legs going.", dis:"Our defense is solid — stay smart.", sys:"Our defense is solid — same thing, every shift!", con:"Our defense is solid — now let's push a bit."}},
+  lead2:{t:'{me}–{op} after {n} — up by 2.', fit:'sys', off:'con', say:{mot:"Two-goal lead — keep working.", dis:"Two-goal lead — no penalties, no gifts.", sys:"Two-goal lead — stay sharp, play our system!", con:"Two-goal lead — don't get fancy."}},
+  lead1:{t:'{me}–{op} after {n} — a one-goal game.', fit:'dis', off:'mot', say:{mot:"One-goal game — don't burn out now.", dis:"One-goal game — protect it, no penalties!", sys:"One-goal game — play it tight.", con:"One-goal game — get the insurance goal."}},
+  tie1:{t:'Tied {me}–{op} after one.', fit:'con', off:'dis', say:{mot:"Tied after one — set the pace.", dis:"Tied after one — stay patient.", sys:"Tied after one — keep our structure.", con:"Tied after one — go take the lead!"}},
+  tie2:{t:'Tied {me}–{op} after two.', fit:'mot', off:'sys', say:{mot:"Tied after two — 20 minutes, empty the tank!", dis:"Tied after two — the first penalty could cost us.", sys:"Tied after two — don't just sit back.", con:"Tied after two — next goal wins it."}},
+  down1:{t:'{me}–{op} after {n} — down by one.', fit:'con', off:'dis', say:{mot:"Down by one — keep pushing.", dis:"Down by one — stay calm.", sys:"Down by one — trust the plan.", con:"Down by one — we're right there, go get it!"}},
+  down2:{t:'{me}–{op} after {n} — down by 2.', fit:'mot', off:'sys', say:{mot:"Down two — we need a push, right now!", dis:"Down two — no penalties, we can't afford it.", sys:"Down two — sitting back won't do it.", con:"Down two — one at a time."}}
+};
+function speechSituation(team){   // la situation a l'entracte, vue de cette equipe (S.period = la periode qui commence)
+  var other=team==='A' ? 'B' : 'A', me=S.score[team]||0, op=S.score[other]||0, d=me-op, pp=Math.max(1, (S.period||2)-1), sh=S.shots||{A:0, B:0}, ms=sh[team]||0, os=sh[other]||0;
+  if(d>=4) return 'lead4'; if(d===3) return 'lead3'; if(d<=-4) return 'down4'; if(d===-3) return 'down3';
+  if(os>=8 && os>=1.8*Math.max(1, ms)) return 'outshot';
+  if(ms>=8 && me<=1 && d<=0) return 'chances';
+  if(os<=4*pp && d>=0) return 'solid';
+  if(d===2) return 'lead2'; if(d===1) return 'lead1'; if(d===0) return pp>=2 ? 'tie2' : 'tie1'; if(d===-1) return 'down1'; return 'down2';
+}
+function sitFactor(team, tone){ var st=SPEECH_SIT[speechSituation(team)]; return !st ? 1 : (st.fit===tone ? 1.5 : (st.off===tone ? 0.5 : 1)); }
+function sitTitle(team){ var st=SPEECH_SIT[speechSituation(team)], other=team==='A' ? 'B' : 'A', me=S.score[team]||0, op=S.score[other]||0, sh=S.shots||{A:0, B:0};
+  return st.t.replace('{me}', me).replace('{op}', op).replace('{d}', me-op).replace('{D}', op-me).replace('{n}', ((S.period||2)-1)>=2 ? 'two' : 'one').replace('{ms}', sh[team]||0).replace('{os}', sh[other]||0); }
+function sitText(team, tone){ var st=SPEECH_SIT[speechSituation(team)]; return SPEECH_TONES[tone]+(st ? ' — '+st.say[tone] : ''); }
+function sitTag(team, tone){ var f=sitFactor(team, tone); return f>1 ? ' · <b class="sfit">Fits the situation ×1.5</b>' : (f<1 ? ' · <b class="soff">Off the mark ×0.5</b>' : ''); }
 function speechOpen(moment, done){   // v504 : le vestiaire -- ton coach parle (tu choisis le ton) ; l'IA aussi (sauf apres le match)
   var co=coachOf(HUMAN_TEAM); if(!co){ done(); return; }
   S.speechOpen={moment:moment, done:done};
@@ -9475,7 +9511,8 @@ function speechOpen(moment, done){   // v504 : le vestiaire -- ton coach parle (
   else h+='<div class="angles">'+ROOM_ANGLES.map(function(a){ return '<button class="perkbtn" data-angle="'+a+'" onclick="speechAngle(\''+a+'\')">'+ROOM_ANGLE_NAME[a]+'</button>'; }).join('')+'</div>';   // v507 : les angles de la chambre
   h+='<div class="tones">';
   if(moment==='post') POST_KEYS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+POST_TONES[k].say+'”</b><small>'+postPreview(co, k, S.speechOpen.mood==='win')+'</small></button>'; });   // v518 : apres le match, ses trois tons
-  else COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+SPEECH_TONES[k]+'”</b><small>'+speechPreview(co, k)+'</small></button>'; });
+  else { if(moment==='inter') h+='<div class="wsub ssit">'+sitTitle(HUMAN_TEAM)+'</div>';   // v557 : la situation
+    COACH_SKILLS.forEach(function(k){ h+='<button class="dconfirm" data-tone="'+k+'" onclick="speechChoose(\''+k+'\')"><b>“'+(moment==='inter' ? sitText(HUMAN_TEAM, k) : SPEECH_TONES[k])+'”</b><small>'+speechPreview(co, k)+(moment==='inter' ? sitTag(HUMAN_TEAM, k) : '')+'</small></button>'; }); }
   ov.innerHTML=h+'</div></div>'; _show('speechOverlay');
 }
 function speechApply(team, moment, tone, k, co){
@@ -9490,9 +9527,10 @@ function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say) return;
     pushLog('<b>'+careerEsc(cp.name)+'</b> ('+TEAM_NAME[HUMAN_TEAM]+'): “'+POST_TONES[tone].say+'”'+(kp<0 ? ' — the players don\'t buy it.' : ''));
     render(); speechSay(o, [{team:HUMAN_TEAM, co:cp, tone:ch, k:kp, text:POST_TONES[tone].say}], 0); return; }
   if(!SPEECH_TONES[tone]) return;
-  var co=coachOf(HUMAN_TEAM), k=speechRoll(co, tone); speechApply(HUMAN_TEAM, o.moment, tone, k, co);
-  var lines=[{team:HUMAN_TEAM, co:co, tone:tone, k:k}], ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
-  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai), ak=speechRoll(ac, at); speechApply(ai, o.moment, at, ak, ac); lines.push({team:ai, co:ac, tone:at, k:ak}); }
+  var _in=(o.moment==='inter'), co=coachOf(HUMAN_TEAM), k=speechRoll(co, tone); if(_in && k>0) k*=sitFactor(HUMAN_TEAM, tone);   // v557 : le ton qui colle a la situation
+  speechApply(HUMAN_TEAM, o.moment, tone, k, co);
+  var lines=[{team:HUMAN_TEAM, co:co, tone:tone, k:k, text:_in ? sitText(HUMAN_TEAM, tone) : null}], ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
+  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai), ak=speechRoll(ac, at); if(_in && ak>0) ak*=sitFactor(ai, at); speechApply(ai, o.moment, at, ak, ac); lines.push({team:ai, co:ac, tone:at, k:ak, text:_in ? sitText(ai, at) : null}); }
   render(); speechSay(o, lines, 0);
 }
 function speechSay(o, lines, i){   // v505 : le coach dit sa phrase (la camera 3D est sur son banc), puis l'adversaire ; un toucher passe
