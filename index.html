@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v568</title>
+<title>Deck 3D v569</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1306,7 +1306,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v568';
+var GAME_VERSION='v569';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1563,13 +1563,17 @@ function resolveSeq(seq){
       return;
     }
     var _ggGo=(a.go && seq._gg===p.id); if(_ggGo){ seq.def.splice(seq.rank, 0, null); seq._gg=null; }   // v430 : le va du une-deux enchaine la passe (pas d etape de defense ; son coup passe au rang suivant)
+    // v569 (le concepteur : « le joueur defensif se met direct en avant de mon joueur avant meme que j'aie le temps de faire mon
+    // move » ; choix : EN MEME TEMPS) : on note la defense AVANT ce temps -- un adversaire qui entre dans le couloir du porteur
+    // pendant ce temps ne le coupe plus : le porteur le contourne et ils se rencontrent (contact au passage, a ses %)
+    var _preDef={}; for(var _pi=0;_pi<S.pieces.length;_pi++){ var _pq=S.pieces[_pi]; if(_pq.team!==p.team) _preDef[_pq.id]=_pq.c+','+_pq.r; }
     var df=_ggGo ? null : resolveSeqDefStep(seq);          // le defenseur bouge dabord
     if(df==='takeover') return;
     // Le defenseur vient de bouger : il a pu se GLISSER dans le couloir du porteur. On revalide le
     // chemin pour ne JAMAIS traverser un adversaire (bug : passer par-dessus un joueur).
     if(_bend && !planCanBendMove(p, a.viaC, a.viaR, a.toC, a.toR)){ _bend=false; atc=a.viaC; atr=a.viaR; }   // coude desormais bloque -> on vise le point de virage en ligne droite
     var _det=null;   // v492 : le chemin du contournement, positions du moment (le defenseur a pu bouger)
-    if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr); if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id)); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
+    if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr), _cutIn=!!_pb2.blocker && S.puckOwner===p.id && _preDef[_pb2.blocker.id]!=null && _preDef[_pb2.blocker.id]!==(_pb2.blocker.c+','+_pb2.blocker.r);   /* v569 : il vient d'entrer dans le couloir, en meme temps */ if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id), _cutIn ? [_pb2.blocker.id] : null); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
       else if(_pb2.mate){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog(p.name+' pulls up behind '+_pb2.mate.name+'.'); } }   // v443
     var oc=p.c, orr=p.r, sp;
     if(_det){ skateToSpot(p, detourSpot(p, _det)); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
@@ -4332,10 +4336,10 @@ function lineBlockers(fc, fr, tc, tr, who){
 }
 // le chemin du contournement : le plus court en pas de roi, a au plus 1 case de la ligne droite, sans aucun joueur ;
 // egalite -> le plus pres de la ligne, puis le cote du centre. {path:[cases sans le depart], around:[contournes], to} ou null
-function detourPath(p, fc, fr, tc, tr, who){
+function detourPath(p, fc, fr, tc, tr, who, allow){   // v569 : allow = les adversaires qu'on peut contourner meme avec la rondelle (entres dans le couloir en meme temps)
   if(!p || (fc===tc && fr===tr) || !onIce(tc,tr) || who(tc,tr)) return null;
   var around=lineBlockers(fc, fr, tc, tr, who); if(!around.length) return null;
-  for(var i=0;i<around.length;i++) if(!canBypass(p, around[i])) return null;
+  for(var i=0;i<around.length;i++) if(!canBypass(p, around[i]) && !(allow && allow.indexOf(around[i].id)>=0)) return null;
   var lx=tc-fc, ly=tr-fr, LL=lx*lx+ly*ly, maxLen=Math.max(Math.abs(lx), Math.abs(ly))+1, best=null, bs=null, path=[];
   function off(x,y){ var t=Math.max(0, Math.min(1, ((x-fc)*lx+(y-fr)*ly)/LL)), px=fc+lx*t-x, py=fr+ly*t-y; return Math.sqrt(px*px+py*py); }
   function score(){ var a=0, b=0; for(var j=0;j<path.length;j++){ a+=off(path[j].c, path[j].r); b+=Math.abs(path[j].r-CTR_R); } return [path.length, a, b]; }
