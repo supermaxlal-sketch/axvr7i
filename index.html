@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v569</title>
+<title>Deck 3D v570</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1306,7 +1306,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v569';
+var GAME_VERSION='v570';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1566,14 +1566,16 @@ function resolveSeq(seq){
     // v569 (le concepteur : « le joueur defensif se met direct en avant de mon joueur avant meme que j'aie le temps de faire mon
     // move » ; choix : EN MEME TEMPS) : on note la defense AVANT ce temps -- un adversaire qui entre dans le couloir du porteur
     // pendant ce temps ne le coupe plus : le porteur le contourne et ils se rencontrent (contact au passage, a ses %)
-    var _preDef={}; for(var _pi=0;_pi<S.pieces.length;_pi++){ var _pq=S.pieces[_pi]; if(_pq.team!==p.team) _preDef[_pq.id]=_pq.c+','+_pq.r; }
-    var df=_ggGo ? null : resolveSeqDefStep(seq);          // le defenseur bouge dabord
+    var _preDef={}; for(var _pi=0;_pi<S.pieces.length;_pi++){ var _pq=S.pieces[_pi]; if(_pq.team!==p.team) _preDef[_pq.id]={c:_pq.c, r:_pq.r, mom:_pq.mom||0}; }   // v570 : et son elan
+    S._race=null; var df=_ggGo ? null : resolveSeqDefStep(seq);          // le defenseur bouge dabord
     if(df==='takeover') return;
+    S._race=raceSetup(seq, p, _preDef, racePath(p, a, atc, atr, _bend, _crv));   // v570 : LA COURSE -- qui arrive le premier
+    if(df && df!=='takeover' && raceLate(df.id)) df=null;   // v570 : le defenseur de ce temps arrive trop tard : pas de contact
     // Le defenseur vient de bouger : il a pu se GLISSER dans le couloir du porteur. On revalide le
     // chemin pour ne JAMAIS traverser un adversaire (bug : passer par-dessus un joueur).
     if(_bend && !planCanBendMove(p, a.viaC, a.viaR, a.toC, a.toR)){ _bend=false; atc=a.viaC; atr=a.viaR; }   // coude desormais bloque -> on vise le point de virage en ligne droite
     var _det=null;   // v492 : le chemin du contournement, positions du moment (le defenseur a pu bouger)
-    if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr), _cutIn=!!_pb2.blocker && S.puckOwner===p.id && _preDef[_pb2.blocker.id]!=null && _preDef[_pb2.blocker.id]!==(_pb2.blocker.c+','+_pb2.blocker.r);   /* v569 : il vient d'entrer dans le couloir, en meme temps */ if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id), _cutIn ? [_pb2.blocker.id] : null); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
+    if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr), _cutIn=!!_pb2.blocker && raceCut(_pb2.blocker.id);   /* v569 / v570 : il est entre dans le couloir le premier -- on le contourne, la rencontre */ if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id), _cutIn ? [_pb2.blocker.id] : null); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
       else if(_pb2.mate){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog(p.name+' pulls up behind '+_pb2.mate.name+'.'); } }   // v443
     var oc=p.c, orr=p.r, sp;
     if(_det){ skateToSpot(p, detourSpot(p, _det)); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
@@ -3721,8 +3723,8 @@ function routeStep(p, fc, fr, path, st){
 function routeSpot(p, path, kind, avoidC, avoidR){
   if(!p || !path || !path.length) return null;
   var rs=routeStep(p, p.c, p.r, path), cells=[], blocked=false, around=[];
-  for(var i=0;i<rs.n;i++){ var q=path[i], o=pieceAt(q.c,q.r);
-    if(o && o.id!==p.id && i+1<rs.n && canBypass(p, o)){   // v492 : un joueur s'est mis sur le trace -> un pas de cote, le trace reprend
+  for(var i=0;i<rs.n;i++){ var q=path[i], o=pieceAt(q.c,q.r); if(o && raceLate(o.id)) o=null;   /* v570 : trop tard */
+    if(o && o.id!==p.id && i+1<rs.n && (canBypass(p, o) || raceCut(o.id))){   /* v570 : arrive le premier : la rencontre */   // v492 : un joueur s'est mis sur le trace -> un pas de cote, le trace reprend
       var sd=routeSide(p, cells.length?cells[cells.length-1]:{c:p.c, r:p.r}, path[i+1], q, avoidC, avoidR);
       if(sd){ cells.push(sd); around.push(o); continue; } }
     if(!onIce(q.c,q.r) || (o && o.id!==p.id) || (q.c===avoidC && q.r===avoidR)){ blocked=true; break; }
@@ -4297,6 +4299,40 @@ function planLabel(a){
   if(a.kind==='dump')  return nm+' dumps it in';
   return nm;
 }
+// v570 (le concepteur, apres v569 : « si le defenseur est a 4 cases de mon joueur, les deux bougent en meme temps, et mon joueur
+// a 2 cases a faire pour se rendre au but, il devrait s'y rendre avant le defenseur -- a moins que le defenseur arrive avec de la
+// vitesse et que moi je sois immobile » ; choix : selon l'ELAN) : LA COURSE. Chacun avance a raceSpeed(son elan avant le temps)
+// cases par temps (arrete 1, lance jusqu'a 2). Pour chaque adversaire qui a bouge pendant ce temps et finit sur le chemin du
+// porteur ou a cote : le porteur passe la case (ou s'eloigne de lui) avant qu'il arrive -> TROP TARD (S._race.late : il ne coupe
+// pas, ne touche pas, il est transparent) ; sinon il arrive le premier -> EN TRAVERS (S._race.cut : la rencontre de v569).
+function raceSpeed(mom){ return 1+0.25*Math.min(4, Math.max(0, mom||0)); }
+function racePath(p, a, tc, tr, bend, crv){   // les cases du porteur pendant ce temps (sans la case de depart)
+  var out=[], at={c:p.c, r:p.r};
+  function line(c, r){ var dx=Math.sign(c-at.c), dy=Math.sign(r-at.r), n=Math.max(Math.abs(c-at.c), Math.abs(r-at.r));
+    for(var k=1;k<=n;k++) out.push({c:at.c+dx*Math.min(k,Math.abs(c-at.c)), r:at.r+dy*Math.min(k,Math.abs(r-at.r))}); at={c:c, r:r}; }
+  if(crv && a.path && a.path.length){ var rs=routeStep(p, p.c, p.r, a.path); return a.path.slice(0, rs.n).map(function(q){ return {c:q.c, r:q.r}; }); }
+  if(bend && a.viaC!=null){ line(a.viaC, a.viaR); line(a.toC, a.toR); return out; }
+  line(tc, tr); return out; }
+function raceSetup(seq, p, pre, cells){
+  var R={seq:seq, rank:seq.rank, late:{}, cut:{}}; if(!p || S.puckOwner!==p.id || !cells || !cells.length) return R;
+  var vc=raceSpeed(p.mom), n=cells.length;
+  for(var i=0;i<S.pieces.length;i++){ var d=S.pieces[i], w=pre[d.id]; if(!w || !d.onIce || d.type!=='sk' || (w.c===d.c && w.r===d.r)) continue;
+    var on=-1, kb=-1; for(var k=0;k<n;k++){ var q=cells[k]; if(on<0 && q.c===d.c && q.r===d.r) on=k+1; if(cheb(q, d)<=1) kb=k+1; }
+    if(on<0 && kb<0) continue;
+    var vd=raceSpeed(w.mom), td=cheb(w, d)/vd, tcar=on>=0 ? on/vc : (kb>=n ? Infinity : (kb+1)/vc);   // il passe la case ; ou il s'eloigne de lui
+    var first=false, ddx=Math.sign(d.c-w.c), ddy=Math.sign(d.r-w.r), m=cheb(w, d);   // face a face : une case commune ou il passe le premier
+    for(var j=1;j<=m && !first;j++){ var X={c:w.c+ddx*Math.min(j,Math.abs(d.c-w.c)), r:w.r+ddy*Math.min(j,Math.abs(d.r-w.r))};
+      for(var kc=0;kc<n;kc++){ if(cells[kc].c===X.c && cells[kc].r===X.r){ if(j/vd<=(kc+1)/vc) first=true; break; } } }
+    if(tcar<td && !first) R.late[d.id]=1; else if(on>=0) R.cut[d.id]=1; }
+  var fin=cells[n-1];   // un retardataire sur la case d'arrivee du porteur : il s'arrete a cote (le porteur y est deja)
+  for(var id in R.late){ var d2=byId(id); if(d2 && d2.c===fin.c && d2.r===fin.r) raceBump(d2, pre[id]); }
+  return R; }
+function raceBump(d, w){ var best=null, bd=1e9;
+  for(var k=0;k<DIRS8.length;k++){ var x=d.c+DIRS8[k][0], y=d.r+DIRS8[k][1]; if(!onIce(x,y) || pieceAt(x,y)) continue; var dd=cheb({c:x, r:y}, w); if(dd<bd){ bd=dd; best={c:x, r:y}; } }
+  if(best){ d.c=best.c; d.r=best.r; } }
+function raceOn(){ var R=S._race; return !!(R && S.currentSeq===R.seq && R.seq.rank===R.rank) ? R : null; }
+function raceLate(id){ var R=raceOn(); return !!(R && R.late[id]); }   // arrive trop tard : transparent, pas de contact
+function raceCut(id){ var R=raceOn(); return !!(R && R.cut[id]); }     // arrive le premier, sur le chemin : la rencontre
 function pathBlocked(p, tc, tr){
   // renvoie la derniere case libre AVANT un adversaire sur le trajet
   var dx=Math.sign(tc-p.c), dy=Math.sign(tr-p.r);
@@ -4305,7 +4341,7 @@ function pathBlocked(p, tc, tr){
   for(var k=1;k<=steps;k++){
     var x=p.c+dx*Math.min(k,Math.abs(tc-p.c)), y=p.r+dy*Math.min(k,Math.abs(tr-p.r));
     if(!onIce(x,y)) break;
-    var o=pieceAt(x,y);
+    var o=pieceAt(x,y); if(o && raceLate(o.id)) o=null;   // v570 : arrive trop tard, le porteur est deja passe
     if(o && o.id!==p.id && o.team!==p.team){ hit=o; break; }   // adversaire : on sarrete
     if(o && o.id!==p.id){ mate=o; break; }                      // coequipier : on sarrete aussi (v443 : on dit lequel)
     lastOK={c:x, r:y};
@@ -6051,6 +6087,7 @@ function contactsAlongPath(p, fromC, fromR, toC, toR){
     for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i];
       if(!e.onIce || e.type!=='sk' || e.team===p.team) continue;   // adversaires seulement
       if(chargedPending(e)) continue;               // v523 : il charge son coup (son mouvement + Poke / Body check est a venir)
+      if(raceLate(e.id)) continue;                  // v570 : il est arrive trop tard
       if(seen[e.id]) continue;                      // un seul contact par defenseur
       if(Math.max(Math.abs(e.c-x), Math.abs(e.r-y))===1){ seen[e.id]=true; out.push(e); }
     }
