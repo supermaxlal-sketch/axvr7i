@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v574</title>
+<title>Deck 3D v575</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1306,7 +1306,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v574';
+var GAME_VERSION='v575';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2868,11 +2868,18 @@ function shotChance(sh,target){
   p*=stShot(sh);   // v559 : fache / panique x0,92, en confiance x1,08
   p=Math.max(0.05, Math.min(0.80, p));
   // v564 (le concepteur : « la rondelle passe au travers du filet » -- un tir de la ligne des buts, a cote du filet ; choix :
-  // presque impossible, comme dans la vraie vie) : sur la ligne des buts ou derriere, au plus SHOT_ZERO_ANGLE
-  if((sh.team==='A' ? (NET_A-sh.c) : (sh.c-NET_B))<=0) p=Math.min(p, SHOT_ZERO_ANGLE);
-  return p;
+  // presque impossible, comme dans la vraie vie) : sur la ligne des buts ou derriere, au plus SHOT_ZERO_ANGLE ; v575 : selon l'angle
+  return angleProb(sh, p);
 }
 var SHOT_ZERO_ANGLE=0.03;
+// v575 (le concepteur : « but de marde du coin » ; choix : selon l'angle) : l'angle du tireur avec la ligne des buts (vers le
+// centre du filet) ; sur la ligne ou derriere : 0. Sous SHOT_FULL_ANGLE, la chance descend vers SHOT_ZERO_ANGLE (au carre de
+// l'angle : elle remonte doucement) ; a 30 degres et plus, normale. (2,1) : 1 case devant, 4 sur le cote = 14 degres -> ~8 %.
+var SHOT_FULL_ANGLE=30;
+function shotAngleDeg(q){ var front=(q.team==='A' ? (NET_A-q.c) : (q.c-NET_B)), side=Math.abs(q.r-CTR_R);
+  if(front<=0) return 0; if(side===0) return 90; return Math.atan2(front, side)*180/Math.PI; }
+function angleProb(q, p){ var a=shotAngleDeg(q); if(a>=SHOT_FULL_ANGLE) return p;
+  var k=Math.pow(a/SHOT_FULL_ANGLE, 2); return Math.min(p, SHOT_ZERO_ANGLE+(Math.max(p, SHOT_ZERO_ANGLE)-SHOT_ZERO_ANGLE)*k); }
 function cheb(a,b){ return Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r)); }
 // v397 : COINS = BANDE. Les coins arrondis de la glace (rayon 28 pi x MARK_SCALE) cachent les cases dont le
 // centre tombe hors de la glace (4 vrais coins + 8 voisines, en 26x11) : ces cases sont la BANDE, ni joueur
@@ -5741,8 +5748,15 @@ function doPass(p,targetId){
     if(_stride && pmiss && Math.random()<_rescue) pmiss=false;   // v419 : recue dans la course malgre tout
   }
   if(pmiss){
-    var _pms=Math.max(1, Math.min(5, Math.ceil((pdie-pthr)/15))), _pmv=rotVec(tc-pc, tr-pr, (Math.random()<0.5?-1:1)*0.10*_pms);   // v421 : ecart 1-100 -> 1-5 ; v441 : de travers
-    var _pms2=puckPath(pc, pr, _pmv.x, _pmv.y, boardPower(PUCK_POW.passShort, PUCK_POW.passLong, pdist, 3, 8)), pl=_pms2.rest;   // v441 : VRAIE PHYSIQUE -- elle file et peut longer la bande
+    var _pms=Math.max(1, Math.min(5, Math.ceil((pdie-pthr)/15)));   // v421 : ecart 1-100 -> 1-5
+    // v575 (le concepteur : « la passe ratee doit faire du sens » ; choix : elle meurt pres du receveur) : elle vise un point A COTE ou
+    // DERRIERE le receveur, a 1 case (de justesse) jusqu'a 3 (tres ratee), et s'y arrete en ralentissant -- avant : la force d'une
+    // passe, de travers jusqu'a 29 degres, elle traversait la glace (jusqu'a son propre filet, ou 14 colonnes plus loin)
+    var _pl0=Math.hypot(tc-pc, tr-pr)||1, _ux=(tc-pc)/_pl0, _uy=(tr-pr)/_pl0, _pm=1+(_pms-1)*0.5, _phi=(Math.random()*2-1)*1.3;   // +-75 degres : derriere .. a cote
+    var _ex=tc+_pm*(_ux*Math.cos(_phi)-_uy*Math.sin(_phi)), _ey=tr+_pm*(_uy*Math.cos(_phi)+_ux*Math.sin(_phi));
+    _ex=Math.max(-0.4, Math.min(COLS-0.6, _ex)); _ey=Math.max(-0.4, Math.min(ROWS-0.6, _ey));
+    var _pmd=Math.hypot(_ex-pc, _ey-pr), _pmp=(_pmd+BOARD_STOP/BOARD_PHYS.ice)/(BOARD_SPEED/BOARD_PHYS.ice);   // la force qui s'arrete la (frottement de la glace)
+    var _pms2=puckPath(pc, pr, _ex-pc, _ey-pr, _pmp), pl=_pms2.rest;   // v441 : VRAIE PHYSIQUE -- elle file et peut longer la bande
     var pEnter = !inOffZone(team,pc) && inOffZone(team,pl.c);
     var pOff = (pEnter && teammateInOffZone(team,p.id)) ? team : null;
     flyPuckPath(_pms2.pts,function(){
@@ -6731,6 +6745,7 @@ function onShotTarget(t){
   if(_cleanFar && _cdist>=3 && !_ot){ prob = Math.min(prob, _cdist>=4 ? 0.02 : 0.06); }   // tir de loin (ligne bleue+) sans ecran : le gardien voit tout -> arrete quasi a coup sur ; il faut du trafic devant pour marquer de loin
   prob = Math.min(0.95, prob + feintSpaceBonus(sh.id)); consumeFeintSpace(sh.id);   // spin-o-rama : espace ouvert par la feinte -> +10% sur ce tir, consomme une fois
   prob = Math.min(0.97, prob + cycleShotBonus()); resetCycle();   // cycle : defense brouillee -> +10% par cycle (plafond +30%), consomme sur le tir
+  prob = angleProb((_defl && _defl.team===sh.team) ? _defl : sh, prob);   // v575 : l'angle, apres TOUS les bonus (une deviation d'un adversaire reste sous le plafond du tireur ; celle d'un coequipier : son angle a lui)
   S._shotProb = prob;   // expose pour tests/diagnostic
   var rl=Math.random();
   var res;
