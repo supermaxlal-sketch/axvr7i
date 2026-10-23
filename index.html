@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v573</title>
+<title>Deck 3D v574</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1306,7 +1306,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v573';
+var GAME_VERSION='v574';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6136,7 +6136,7 @@ function startPassContacts(seq, p, oc, orr, ambushId){
   // porteur percute a coup sur, meme s'il ne finit pas colle. On l'ajoute s'il n'est pas deja liste.
   // v432 : TOUT adversaire dont la course de cette etape croise celle du porteur tente sa chance (avant : seulement un checkeur)
   var _xs = (S.puckOwner===p.id) ? crossingOpponents(p) : [], _xcIds={};
-  for(var _xi=0;_xi<_xs.length;_xi++){ var _xq=_xs[_xi].q, _dup=false; for(var _h=0;_h<hits.length;_h++){ if(hits[_h].id===_xq.id){ _dup=true; break; } } if(!_dup) hits.push(_xq); _xcIds[_xq.id]=true; }   // v473 : deja colle au trajet ET croise -> c'est un croisement (avant : drapeau perdu, contact jete s'il finissait loin)
+  for(var _xi=0;_xi<_xs.length;_xi++){ var _xq=_xs[_xi].q, _dup=false; if(raceLate(_xq.id)) continue;   /* v574 (le concepteur : « contact pas rapport », 2:39 de la prolongation) : arrive trop tard au croisement (v570), il ne touche pas -- avant, il plaquait a 3 cases */ for(var _h=0;_h<hits.length;_h++){ if(hits[_h].id===_xq.id){ _dup=true; break; } } if(!_dup) hits.push(_xq); _xcIds[_xq.id]=true; }   // v473 : deja colle au trajet ET croise -> c'est un croisement (avant : drapeau perdu, contact jete s'il finissait loin)
   if(!hits.length) return false;
   var queue = hits.map(function(d){ return {d:d, anticipated:(ambushId!=null && d.id===ambushId), cross:!!_xcIds[d.id]}; });
   S.planNext=null;                                  // c est la file qui relance la sequence
@@ -7156,7 +7156,13 @@ function clockTick(){
 }
 setInterval(clockTick, 100);
 // --- filet de securite : detecte un blocage et relance le jeu ---
-var _stuckSince=0, _stuckSig='', _animSince=0, _animSig='';
+var _stuckSince=0, _stuckSig='', _animSince=0, _animSig='', _timerSince=0, _timerLogged=false;
+// v574 : TEMOIN pour le fichier de match (Send match) -- l'etat exact quand le jeu se fige : ce qui met le chrono en pause, la
+// phase, la sequence (le gel du concepteur du 2026-10-22 : chrono du gardien affiche mais fige 3,5 min, sans « Play unfreezes »)
+function stallInfo(kind){ var ov=[]; for(var i=0;i<OV_IDS.length;i++){ var e=document.getElementById(OV_IDS[i]); if(e&&e.classList.contains('show')) ov.push(OV_IDS[i]); }
+  return {kind:kind, anim:!!S.animating, plan:!!S.planning, def:!!S.defCommit, aim:!!S.aiming, fo:!!S.faceoff, fow:!!S.foWait, rep:!!S._replay3d, paused:!!S.paused,
+    ended:!!S.gameEnded, draft:!!S.needDraft, cel:!!S.celebrating, ov:ov.join(','), pc:S.planClock, gk:S.gkClock, seq:S.currentSeq ? (S.currentSeq.rank+(S.currentSeq.dead?'x':'')) : null,
+    owner:S.puckOwner||null, turn:S.turn, ai:!!S.aiPlan, v3d:hj3dActive()}; }
 // v405 : « signature de progres » -- si le journal, l'etape de la sequence, la rondelle ou les joueurs changent,
 // le jeu AVANCE (meme s'il enchaine des animations) : le filet de securite ne doit pas le couper.
 function progressSig(){ var h=0; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce) h=(h*31+q.c*13+q.r+7)%1000003; }
@@ -7165,10 +7171,12 @@ setInterval(function(){
   if(S.so){ _animSince=0; _stuckSince=0; return; }   // v536 : la fusillade attend ton choix ou ta glissade : ce n'est pas un blocage
   // une animation figee plus de 4 s SANS AUCUN PROGRES est un blocage (v405 : plus seulement « animation en cours »)
   if(S.animating){
+    if(S._replay3d || (S.foWait && !S.foWait.done)){ _animSince=0; _stuckSig=''; return; }   // v574 : une attente de la 3D (reprise du but, mise au jeu : jusqu'a 5,5 s), qui a sa propre fin -- avant, le filet la coupait a 4 s (15 « Play unfreezes » dans 2 matchs du concepteur) et rendait la main en pleine action
     _stuckSig='';   // v455 : un blocage se mesure depuis la FIN de la derniere animation (avant : le compteur gardait l'heure d'avant l'animation et coupait une sequence vivante si l'etat d'apres ressemblait a l'etat d'avant -- ex. Retry d'une lecon)
     var _ps=progressSig();
     if(!_animSince || _ps!==_animSig){ _animSince=Date.now(); _animSig=_ps; }
     else if(Date.now()-_animSince>(function(){ for(var _oi=0;_oi<OV_IDS.length;_oi++){ var _oe=document.getElementById(OV_IDS[_oi]); if(_oe&&_oe.classList.contains('show')) return 12000; } return 4000; })()){   // v439 : un ecran affiche (scene de tir, des...) = une animation longue normale -> 12 s
+      matchRec('stall', stallInfo('anim'));   // v574 : le temoin
       _animSince=0; S.animating=false;
       pushLog('<span style="color:#ffb36b">Play unfreezes.</span>');
       if(!S.puckOwner && !S.puckLoose && !S.faceoff && !S.needDraft){
@@ -7185,6 +7193,9 @@ setInterval(function(){
     return;
   }
   _animSince=0;
+  // v574 : un chrono qui DEVRAIT tourner (ton plan ou ton embuscade, gardien a la rondelle) mais reste en pause plus de 8 s -> le temoin
+  if((S.planning||S.defCommit) && !S.paused && !S.tut && gkTimerOn() && clockPaused()){ if(!_timerSince) _timerSince=Date.now(); else if(!_timerLogged && Date.now()-_timerSince>8000){ _timerLogged=true; matchRec('stall', stallInfo('timer')); } }
+  else { _timerSince=0; _timerLogged=false; }
   if(S.paused||S.gameEnded||S.needDraft||S.faceoff||S.planning||S.defCommit||S.aiming||S.speechOpen||S.tunnelOn||(S.tut&&S.tut.hold)) { _stuckSince=0; return; }   // v504 : le discours n'est pas un blocage   // v451 : pause explicative
   for(var i=0;i<OV_IDS.length;i++){ var e=document.getElementById(OV_IDS[i]); if(e&&e.classList.contains('show')){ _stuckSince=0; return; } }
   // v427 : + signature de PROGRES (journal, rang de la sequence, joueurs) -- sinon le chrono courait pendant les animations
@@ -8745,9 +8756,9 @@ function goalReplay(team, who, done){
   hj3dSend('replay', {feed:r.feed, slow:r.slow, end:r.end});
   document.getElementById('rpGoal').textContent='GOAL — '+(r.who||who);
   document.getElementById('rpAst').textContent=r.ast.length ? ('Assists: '+r.ast.join(', ')) : 'Unassisted';
-  bar.hidden=false;
+  bar.hidden=false; S._replay3d=true;   // v574 : le filet de securite attend la fin de la reprise
   var fin=false, sk=document.getElementById('replaySkip');
-  function finish(){ if(fin) return; fin=true; bar.hidden=true; sk.onclick=null; hj3dSend('cue', 'replay_stop'); done(); }
+  function finish(){ if(fin) return; fin=true; S._replay3d=false; bar.hidden=true; sk.onclick=null; hj3dSend('cue', 'replay_stop'); done(); }
   sk.onclick=function(e){ if(e) e.stopPropagation(); finish(); };
   setTimeout(finish, realMs(r.realMs+300));
 }
