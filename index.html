@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v572</title>
+<title>Deck 3D v573</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1306,7 +1306,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v572';
+var GAME_VERSION='v573';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3437,15 +3437,27 @@ function ironPick(sh, t, mode){
 // le tir a frappe le cadre sans rentrer : POST! / CROSSBAR!, ding, journal ; la rondelle suit ironSim (la 3D recoit les
 // hauteurs) ; hors jeu -> sifflet, mise au jeu dans la zone ; devant le but -> le gardien est deroute ; sinon rondelle libre
 var IRON_TXT={out:'over the glass — out of play', glass:'off the glass and back down', front:'it drops right in front', far:'it pops out to the high slot', behind:'it dies behind the net', corner:'it kicks out to the corner'};
+// v573 : le trajet apres le cadre, allege (au plus 60 points, pas de temps egaux), avec ses chocs a LEUR place -- ironSim (le code du
+// labo, tel quel) ne les note pas : un virage net entre deux pas (> 30 degres) est un choc, au croisement de l'arrivee et du depart ;
+// il prend la place du point garde qui le suit (avant : demi-tour jusqu'a 0,6 m avant la bande, « surtout en arriere du but »)
+function ironTrail(pts){ var n=pts.length, step=Math.max(1, Math.ceil(n/60)), mp=[], pz=[], hit=null;
+  for(var i=0;i<n;i++){
+    if(i>=2 && i<n-1 && !hit){ var a=pts[i-2], b=pts[i-1], c=pts[i], d=pts[i+1], ux=b.c-a.c, uy=b.r-a.r, vx=d.c-c.c, vy=d.r-c.r, lu=Math.hypot(ux,uy), lv=Math.hypot(vx,vy);
+      if(lu>1e-4 && lv>1e-4 && (ux*vx+uy*vy)/(lu*lv)<0.866){ var den=ux*vy-uy*vx, wx=c.c-b.c, wy=c.r-b.r;
+        var t=Math.abs(den)>1e-9 ? (wx*vy-wy*vx)/den : 0, hx=b.c+ux*t, hy=b.r+uy*t;   // b + t.u = c - s.v : le sommet du virage
+        if(!(t>=0 && Math.hypot(hx-b.c, hy-b.r)<=lu+lv)){ hx=c.c; hy=c.r; }
+        hit={c:hx, r:hy, z:Math.max(0, (b.z+c.z)/2)}; } }
+    if(i%step && i!==n-1) continue; var q=(hit && i!==n-1) ? hit : pts[i]; hit=null;
+    mp.push([Math.round(q.c*100)/100, Math.round(q.r*100)/100]); pz.push(Math.round(q.z*1000)/1000); }
+  return {mp:mp, pz:pz}; }
 function ironPlay(sh, t, sim){
   var team=sh.team, bar=sim.target==='bar', word=bar?'crossbar':'post';
   checkFx(bar?'bar':'post', sh.c, sh.r);
   document.getElementById('outcome').innerHTML=sh.name+' hits the '+(bar?'CROSSBAR':'POST')+'!';
   pushLog('<b>'+sh.name+'</b> rings it off the '+word+' — '+(IRON_TXT[sim.res]||'it stays out')+'.');
   var p0=sim.pts[0]; matchEv('shot', {id:sh.id, target:t, res:word, iron:sim.target, ip:[Math.round(p0.c*100)/100, Math.round(p0.r*100)/100, Math.round(p0.z*1000)/1000]});   // ip : le point de contact (la 3D)
-  var pts=[{c:sh.c, r:sh.r, z:0.05}].concat(sim.pts), mp=[], pz=[], n=pts.length, step=Math.max(1, Math.ceil(n/60));
-  for(var i=0;i<n;i++){ if(i%step && i!==n-1) continue; mp.push([Math.round(pts[i].c*100)/100, Math.round(pts[i].r*100)/100]); pz.push(Math.round(pts[i].z*1000)/1000); }
-  matchEv('puck', {pts:mp, pz:pz, ms:Math.min(3000, 20*(n-1)), team:team});   // la 3D : la rondelle en l'air (hauteurs en cases)
+  var pts=[{c:sh.c, r:sh.r, z:0.05}].concat(sim.pts), n=pts.length, tr=ironTrail(pts);
+  matchEv('puck', {pts:tr.mp, pz:tr.pz, ms:Math.min(3000, 20*(n-1)), team:team});   // la 3D : la rondelle en l'air (hauteurs en cases)
   S._puckCell={c:sh.c, r:sh.r}; S.puckOwner=null; S.puckLoose=null; S.animating=true; render();
   flyPuckPath(pts, function(){
     S.animating=false;
@@ -3501,10 +3513,13 @@ function puckPath(x0,y0,dx,dy,power){
   var P=BOARD_PHYS, P2={rest:P.rest, board:P.board, ice:P.ice, corner:P.corner+0.5};
   var sim=boardSim(x0+0.5,y0+0.5,dx,dy,power,P2,COLS+1,ROWS+1,function(x,y,px,py){ var o=netObs(x-0.5,y-0.5,px-0.5,py-0.5); return o ? {x:o.x+0.5, y:o.y+0.5, nx:o.nx, ny:o.ny} : null; });
   var hit={}, n=0, last=-9, L=sim.pts.length-1;
-  for(var i=0;i<sim.hits.length;i++){ var h=sim.hits[i]; if(h.i-last>3){ hit[h.i]=true; n++; } last=h.i; }
+  for(var i=0;i<sim.hits.length;i++){ var h=sim.hits[i]; if(h.i-last>3){ hit[h.i]=h; n++; } last=h.i; }
   var pts=[], keep=function(j){ return j===0 || j===L || j%2===0; };
   for(var j=0;j<=L;j++){ if(keep(j)){ var q=sim.pts[j]; pts.push({c:q.c-0.5, r:q.r-0.5, b:false}); } }
-  for(var k in hit){ var jj=+k, at=(jj>=L) ? pts.length-1 : Math.min(pts.length-1, Math.ceil(jj/2)); if(at>=0) pts[at].b=true; }
+  // v573 (le concepteur : « c'est comme s'il rebondissait sur la premiere ligne du carre derriere le but ») : le point garde qui suit
+  // un choc devient LE POINT DU CHOC -- avant, la rondelle faisait demi-tour au point garde, jusqu'a 0,8 m avant la bande ou le filet
+  for(var k in hit){ var jj=+k, hk=hit[k], at=(jj>=L) ? pts.length-1 : Math.min(pts.length-1, Math.ceil(jj/2));
+    if(at<0) continue; pts[at].b=true; if(at<pts.length-1){ pts[at].c=hk.c-0.5; pts[at].r=hk.r-0.5; } }
   var end=pts[pts.length-1];
   return {pts:pts, bounces:n, rest:{c:Math.max(0,Math.min(COLS-1,Math.round(end.c))), r:Math.max(0,Math.min(ROWS-1,Math.round(end.r)))}};
 }
@@ -8154,8 +8169,11 @@ function matchRec(k, data){ if(typeof S==='undefined' || !S || !S.match || S.mat
   var e={k:k, per:S.period||1, clk:Math.round((S.clock||0)*10)/10, t:Date.now()-(S.match.t0||Date.now())}; for(var key in data) e[key]=data[key]; S.match.events.push(e); }   // v447 : t = ms depuis le debut (rythme du lecteur Godot)
 // v447 : EVENEMENTS A ANIMER pour le lecteur de matchs Godot (spec 2026-09-30-godot-lecteur-de-matchs-design.md)
 function matchEv(e, data){ var d={e:e}; for(var key in data) d[key]=data[key]; if(e==='deke' && d.ok && !d.so) huntBiteOnDeke(d.id);   /* v560 : la feinte fait mordre le chasseur */ if(e==='skate' && d.pts) noteSkate(d.id, d.pts);   /* v523 */ hj3dSend('ev', d); matchRec('ev', d); careerTrack(e, d); morTrack(e, d); if(e==='shot' && S._lateDef){ var _ls=S._lateDef; S._lateDef=null; lateDefStep(_ls); } }   /* v524 */   // v484 : le compteur de carriere   // v478 : aussi vers la 3D (Godot anime l'action)
-function matchPtsU(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil((n-1)/(max||40))), b=false;   // v521 : trajet allege a pas de temps EGAUX (un contact marque le point garde qui le suit)
-  for(var i=0;i<n;i++){ if(pts[i].b) b=true; if(i%step && i!==n-1) continue; var a=[Math.round(pts[i].c*100)/100, Math.round(pts[i].r*100)/100]; if(b) a.push(1); b=false; out.push(a); } return out; }
+function matchPtsU(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil((n-1)/(max||40))), hit=null;   // v521 : trajet allege a pas de temps EGAUX
+  // v573 : un contact saute par l'allegement prend la place du point garde qui le suit (avant : seulement sa marque -- la 3D faisait
+  // demi-tour au point garde, jusqu'a 0,5 m avant la bande ; le concepteur : « comme s'il rebondissait sur la premiere ligne du carre derriere le but »)
+  for(var i=0;i<n;i++){ if(pts[i].b && !hit) hit=pts[i]; if(i%step && i!==n-1) continue; var q=(hit && i!==n-1) ? hit : pts[i];
+    var a=[Math.round(q.c*100)/100, Math.round(q.r*100)/100]; if(hit) a.push(1); hit=null; out.push(a); } return out; }
 function matchPts(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil(n/(max||40)));   // trajectoire allegee (cases, 2 decimales ; b = contact)
   for(var i=0;i<n;i++){ var q=pts[i]; if(i%step && i!==n-1 && !q.b) continue; var a=[Math.round(q.c*100)/100, Math.round(q.r*100)/100]; if(q.b) a.push(1); out.push(a); } return out; }
 function matchRoster(){ var out=[]; for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
