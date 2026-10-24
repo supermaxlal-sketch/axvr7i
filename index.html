@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v577</title>
+<title>Deck 3D v578</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -314,6 +314,7 @@
 .tuthl{animation:tutpulse 1.1s ease-in-out infinite;outline:3px solid #ffd23e;outline-offset:-3px;}
 @keyframes tutpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,210,62,.85);}50%{box-shadow:0 0 0 7px rgba(255,210,62,0);}}
 .tbpull{font-family:var(--pxu);font-size:12px;font-weight:800;padding:6px 10px;border:2px solid var(--pxink);background:#c9542e;color:#fff;cursor:pointer;align-self:flex-start;}   /* v455 */
+.tbzone{background:#2f6fa8;}   /* v578 : sortie de zone */
 /* v456 : bulle de conseil (met le jeu en pause) */
 .ov.tip{z-index:270;background:rgba(5,11,19,.55);}
 .tipcard{background:#fff8d6;color:#14263a;border:3px solid var(--pxink);box-shadow:0 4px 0 rgba(0,0,0,.45);padding:12px 14px;width:min(380px,90vw);font-family:var(--pxu);}
@@ -1313,7 +1314,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v577';
+var GAME_VERSION='v578';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1549,6 +1550,7 @@ function resolveSeq(seq){
     return;
   }
 
+  if(a.kind==='zoneout'){ zoneOutRun(seq, p); return; }   // v578 : sortie de zone (les 5 en zone neutre)
   if(a.kind==='move'){
     var _preMateInZone = teammateInOffZone(p.team, p.id);   // HORS-JEU PORTE : on retient qui etait DEJA en zone AVANT ce mouvement. Un partenaire MIROIR qui franchit la ligne EN MEME TEMPS (mirrorMoveNow, plus bas) ne doit pas compter -> plus de faux hors-jeu simultane.
     resolveCutIfAny(seq, a);   // duel de coupe AVANT que le marqueur poursuive (seme le marqueur ce temps si gagne)
@@ -3954,7 +3956,7 @@ function battleScore(p, L){
 }
 // v422 : TOUT SUR 100, famille 3 -- la BATAILLE. Chance que A gagne le choc : 50 + 0,4 x (physique A - B)
 // + 0,3 x (maniement A - B) ; position de chacun (sur la rondelle +10, bon cote +5, face +10 / dos -10, protege +15) ;
-// priorite du camp non perdant +10 ; SOUTIEN +5 par coequipier de plus colle a la rondelle (max +10) ; 10-90 %.
+// priorite du camp non perdant +10 ; SOUTIEN +15 par coequipier de plus colle a la rondelle (max +30 ; v578, avant +5 / +10) ; 10-90 %.
 function battlePosBonus(p, L){
   var d=Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r)), v=(d===0 ? 0.20 : 0);   // sur la rondelle : +10, et il la « voit » forcement (vaut le +10 « face » d'un voisin)
   var dr=L.r-p.r; if(dr!==0 && (dr>0?1:-1)===stickSide(p)) v+=0.05;
@@ -3962,10 +3964,12 @@ function battlePosBonus(p, L){
   if(S.protecting===p.id) v+=0.15;
   return v;
 }
+// v578 (le concepteur : « le surnombre autour d'un joueur doit influencer » ; son choix : +15 par coequipier, au plus +30)
+var BATTLE_SUP=0.15, BATTLE_SUP_MAX=0.30;
 function battleSupport(p, L){ var n=0;
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.type!=='sk' || q.team!==p.team || q.id===p.id) continue;
     if(Math.max(Math.abs(q.c-L.c), Math.abs(q.r-L.r))<=1) n++; }
-  return Math.min(0.10, 0.05*n); }
+  return Math.min(BATTLE_SUP_MAX, BATTLE_SUP*n); }
 // v468 : la priorite vaut +10 % ; juste apres une mise en echec reussie, le plaqueur dans la bataille a +35 % (HIT_RECOVER)
 var HIT_RECOVER=0.35;
 function battlePrioTerm(A, B){
@@ -4319,6 +4323,7 @@ function planLabel(a){
   if(a.kind==='bankgo') return nm+' bank and go';
   if(a.kind==='pass')  return nm+' passes to '+(byId(a.target)?byId(a.target).name:'?');
   if(a.kind==='cycle') return nm+' cycles to '+(byId(a.target)?byId(a.target).name:'?');
+  if(a.kind==='zoneout') return nm+' and his line get out of the zone';   // v578
   if(a.kind==='shoot')   return nm+' SHOOTS';
   if(a.kind==='wrap')    return nm+' WRAPAROUND';
   if(a.kind==='pivot')   return nm+' pivots';
@@ -4630,7 +4635,7 @@ function toggleMirror(){
 // Haut du panneau : aide + 3 cases (joueur + action) ; bas : Annuler, Miroir, GO + anneau de minuterie.
 // Attaque = S.atkPlan (+ joueur selectionne en cours) ; defense = S.defCommit.picks (+ dc.selDef).
 function tbEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
-var TB_VERB={bank:'Bank pass',bankgo:'Bank & go',move:'Skate',pass:'Pass',cycle:'Cycle',shoot:'Shoot',wrap:'Wrap',dump:'Dump',dangle:'Deke',deke:'Deke',protect:'Protect',pivot:'Pivot',hold:'Hold'};
+var TB_VERB={bank:'Bank pass',bankgo:'Bank & go',move:'Skate',pass:'Pass',cycle:'Cycle',shoot:'Shoot',wrap:'Wrap',dump:'Dump',dangle:'Deke',deke:'Deke',protect:'Protect',pivot:'Pivot',hold:'Hold',zoneout:'Out of the zone'};   // v578 : sortie de zone
 var TB_ORDER={check:'Check',block:'Block pass',poke:'Poke',sblock:'Block shot',mark:'Mark'};
 function tbAtkVerb(a){ if(a.cont) return 'Route'; if(a.go) return 'Go'; if(a.stride) return 'In stride'; return TB_VERB[a.kind]||a.kind; }   // v419 : passe dans la course
 function tbDefVerb(k){ if(k.cont) return 'Route'; if(k.kind==='order') return TB_ORDER[k.order]||k.order; return 'Move'+(k.order?(' + '+(TB_ORDER[k.order]||k.order)):''); }
@@ -4684,6 +4689,7 @@ function renderThumbBar(){
   else { maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); for(i=0;i<dc.picks.length;i++) done.push({id:dc.picks[i].defId, what:tbDefVerb(dc.picks[i])}); curId=dc.selDef||null;
     var _lp=dc.picks[dc.picks.length-1]; if(curId && _lp && _lp.defId===curId) curId=null; }   /* il complete encore SA glissade (« and then? ») : pas une 2e case */
   var h=(atk && penCanPull(HUMAN_TEAM) ? '<button class="tbpull" onclick="pullGoalie(HUMAN_TEAM)">Pull goalie — extra attacker</button>' : '')   /* v455 : le 6e attaquant aussi sur telephone */
+    +(atk && zoneOutOK() ? '<button class="tbpull tbzone" onclick="zoneOutGo()">Get out of the zone</button>' : '')   /* v578 */
     +(atk?'<div class="tbhint">'+tbEsc(hint)+'</div>':'')+'<div class="tbslots">';   /* en defense, la barre d'embuscade donne deja la consigne */
   for(i=0;i<Math.max(maxn,done.length);i++){
     if(i<done.length) h+=tbSlot(i, done[i].id, done[i].what, done[i].pending?'cur':'done');
@@ -4701,12 +4707,92 @@ function renderThumbBar(){
   go.innerHTML=g; go.style.display='flex'; if(S.tut) tutDecorateButtons();   // v451
   updateThumbTimer();
 }
+// v578 (le concepteur : « Strategie : bouton get out of the zone » ; ses choix : « toujours dans les deux cas, mais tu dois avoir
+// la rondelle » -- ma zone ou la leur ; il prend les 3 moves ; « Tous arrivent » : les 5 finissent en zone neutre, sans limite de
+// distance ; « comme un plan » : la defense joue ses temps et un adversaire sur le chemin du porteur peut tenter un poke ou une
+// mise en echec ; « Tout droit » : chacun monte sur sa rangee, en evitant les autres, les defenseurs derriere les avants).
+// Une seule action 'zoneout' du porteur : les 4 autres partent en meme temps (comme le miroir), le porteur fait le chemin.
+function inOwnZone(team, c){ return team==='A' ? c<=BLUE_B : c>=BLUE_A; }
+function zoneOutCol(team, kind){ return Math.round(CTR_C + dir(team)*(kind==='D' ? -1.5 : 1.5)); }   // 26x11 : A -> avants 14, D 11
+function zoneOutOK(){
+  if(!S || !S.planning || S.bonus || S.tut || S.so || S.defCommit || (S.atkPlan && S.atkPlan.length)) return false;
+  var car=S.puckOwner ? byId(S.puckOwner) : null;
+  if(!car || car.team!==HUMAN_TEAM || car.type!=='sk' || !car.onIce) return false;
+  return inOffZone(car.team, car.c) || inOwnZone(car.team, car.c);
+}
+// la case de chacun en zone neutre : sa colonne (avants / D), sa rangee ; prise (un coequipier deja place, un adversaire, un
+// gardien, le couloir du porteur) -> la rangee libre la plus proche. Le porteur d'abord.
+function zoneOutTargets(team, car){
+  var sk=onIceSkaters(team), out={}, taken={};
+  sk.sort(function(x, y){ return (y.id===car.id) - (x.id===car.id); });
+  for(var i=0;i<sk.length;i++){ var q=sk[i], col=zoneOutCol(team, q.pos==='D' ? 'D' : 'F'), sg=(q.r<=CTR_R) ? 1 : -1, t=null;
+    for(var k=0;k<ROWS*2 && !t;k++){ var r=q.r + (k%2 ? sg : -sg)*Math.ceil(k/2); if(k===0) r=q.r;
+      if(r<0 || r>=ROWS || !onIce(col, r) || taken[col+','+r]) continue;
+      var o=pieceAt(col, r); if(o && !(o.team===team && o.type==='sk')) continue;
+      t={c:col, r:r}; }
+    if(!t) t={c:q.c, r:q.r};
+    out[q.id]=t; taken[t.c+','+t.r]=1;
+    if(q.id===car.id){ var dx=Math.sign(t.c-q.c), dy=Math.sign(t.r-q.r), n=Math.max(Math.abs(t.c-q.c), Math.abs(t.r-q.r));   // son couloir (meme trace que pathBlocked)
+      for(var j=1;j<n;j++) taken[(q.c+dx*Math.min(j, Math.abs(t.c-q.c)))+','+(q.r+dy*Math.min(j, Math.abs(t.r-q.r)))]=1; }
+  }
+  return out;
+}
+function zoneOutGo(){
+  if(!zoneOutOK()) return;
+  S.atkPlan=[{id:S.puckOwner, kind:'zoneout'}];
+  resolvePlan();
+}
+// les cases du porteur jusqu'a sa case : tout droit ; quelqu'un sur sa ligne -> il le contourne ; impossible -> il s'arrete devant
+function zoneOutCells(p, t){
+  function line(tc, tr){ var dx=Math.sign(tc-p.c), dy=Math.sign(tr-p.r), n=Math.max(Math.abs(tc-p.c), Math.abs(tr-p.r)), out=[];
+    for(var k=1;k<=n;k++) out.push({c:p.c+dx*Math.min(k, Math.abs(tc-p.c)), r:p.r+dy*Math.min(k, Math.abs(tr-p.r))});
+    return out; }
+  if(p.c===t.c && p.r===t.r) return [];
+  var who=whoAt(p.id), bl=lineBlockers(p.c, p.r, t.c, t.r, who), occ=who(t.c, t.r);
+  if(!bl.length && !occ) return line(t.c, t.r);
+  var dt=occ ? null : detourPath(p, p.c, p.r, t.c, t.r, who, bl.map(function(o){ return o.id; }));
+  if(dt) return dt.path;
+  var pb=pathBlocked(p, t.c, t.r); if(pb.blocker) pushLog('<b>'+pb.blocker.name+'</b> stands in the way — '+p.name+' has to stop.');
+  return line(pb.spot.c, pb.spot.r);
+}
+// la sortie : au 1er passage, la defense joue son temps, puis les 4 autres partent tout droit (comme le miroir). Le porteur
+// patine jusqu'a la 1re case ou un adversaire est a cote de lui : ce contact se joue la (poke / mise en echec, a ses %) ; il
+// garde la rondelle -> on revient ici (meme rang) et il repart ; il la perd -> la rondelle libre pilote. Un essai par adversaire.
+function zoneOutRun(seq, p){
+  var zo=seq._zo;
+  if(!zo){
+    var df=resolveSeqDefStep(seq); if(df==='takeover') return;   // la defense joue son temps d'abord, comme contre un plan
+    S._race=null;
+    var zt=zoneOutTargets(p.team, p), sk=onIceSkaters(p.team);
+    for(var i=0;i<sk.length;i++){ var q=sk[i], t=zt[q.id]; if(q.id===p.id || !t || (t.c===q.c && t.r===q.r)) continue;
+      var qc=q.c, qr=q.r; q.c=t.c; q.r=t.r; addSlide(q.id, qc-t.c, qr-t.r); applyMoveKinematics(q, qc, qr, t.c, t.r); }
+    zo=seq._zo={to:zt[p.id], tried:{}, dfId:(df && df.id) || null};
+    pushLog('<b>'+TEAM_NAME[p.team]+'</b> get out of the zone.');
+  }
+  if(S.puckOwner!==p.id){ seq._zo=null; seqAdvance(seq); return; }
+  var cells=zoneOutCells(p, zo.to), hit=null, stop=-1;
+  for(var k=-1;k<cells.length && !hit;k++){ var cc=(k<0) ? {c:p.c, r:p.r} : cells[k];
+    for(var e=0;e<S.pieces.length;e++){ var o=S.pieces[e];
+      if(o.onIce && o.type==='sk' && o.team!==p.team && !zo.tried[o.id] && cheb(o, cc)<=1){ hit=o; stop=k; break; } } }
+  var leg=hit ? cells.slice(0, stop+1) : cells;
+  if(hit) zo.tried[hit.id]=true;
+  if(leg.length){ var end=leg[leg.length-1]; skateToSpot(p, leg.length>1 ? {c:end.c, r:end.r, path:leg} : end); p._movedThisTurn=true; }
+  S.animating=true; if(leg.length) sfx('skate'); render();
+  setTimeout(function(){
+    S.animating=false; if(seq!==S.currentSeq) return; render();
+    if(hit && hit.onIce && cheb(hit, p)<=1 && S.puckOwner===p.id){ S.planNext={v2seq:seq, same:true}; resolveCheck(hit, hit.id===zo.dfId); return; }   // il repart ensuite (meme rang)
+    if(hit){ resolveSeq(seq); return; }
+    seq._zo=null;
+    setTimeout(function(){ if(seq!==S.currentSeq) return; seqAdvance(seq); }, TEMPO.beat);
+  }, leg.length ? Math.max(TEMPO.slide+TEMPO.settle, skateLeftMs(p.id)) : TEMPO.beat);
+}
 function renderPlanBar(){
   var pb=document.getElementById('planbar'); if(!pb) return;
   renderThumbBar();
   if(!S.planning){ pb.style.display='none'; pb.innerHTML=''; return; }
   var h='<span class="perklbl">'+(S.bonus?'BREAKAWAY ':'PLAN ')+planCount()+'/'+planLimit()+'</span>';   // v438 : echappee = 1 action
-  if(penCanPull(HUMAN_TEAM)) h+='<button class="perkbtn ordC" onclick="pullGoalie(HUMAN_TEAM)">Pull goalie — extra attacker</button>';   // v445 : 6e attaquant pendant la differee
+  if(penCanPull(HUMAN_TEAM)) h+='<button class="perkbtn ordC" onclick="pullGoalie(HUMAN_TEAM)">Pull goalie — extra attacker</button>';
+  if(zoneOutOK()) h+='<button class="perkbtn ordC" onclick="zoneOutGo()" title="All 5 players skate to the neutral zone. It uses the 3 actions.">Get out of the zone</button>';   // v578   // v445 : 6e attaquant pendant la differee
   h+='<button class="perkbtn'+(S.mirror?' ordS':'')+'" onclick="toggleMirror()" title="Wingers and defensemen move as mirror images: all 5 players move in 3 actions">&#9695; Mirror : '+(S.mirror?'ON':'OFF')+'</button>';
   for(var i=0;i<S.atkPlan.length;i++) h+='<span class="planchip">'+(i+1)+'. '+planLabel(S.atkPlan[i])+'</span>';
   if(S.atkPlan.length || freshSel()) h+='<button class="perkbtn" onclick="planUndo()">Undo</button>';   // v407 : annule aussi une selection fraiche
