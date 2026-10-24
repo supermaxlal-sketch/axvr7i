@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v579</title>
+<title>Deck 3D v580</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1314,7 +1314,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v579';
+var GAME_VERSION='v580';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9437,10 +9437,10 @@ function careerCardHealth(p){   // v489 : la fiche : energie, blessure, rouille,
   return h; }
 function careerDraftTag(p){ var u=S.draftUsed[p.team]||{}, e=careerLiveEn(p); return '<span class="dcp-en'+(e<50?' low':'')+'">⚡'+e+'</span>'+(u[p.id]?'<span class="dcp-tired">2nd period — tired</span>':''); }
 function careerPlayerByUid(T, uid){ if(T.goalie.uid===uid) return T.goalie; if(T.goalie2 && T.goalie2.uid===uid) return T.goalie2; for(var i=0;i<T.skaters.length;i++){ if(T.skaters[i].uid===uid) return T.skaters[i]; } return null; }
-function careerSeasonAdd(q, st, gk){ var p=careerPieceP(q); if(!p) return;   // v579 : un joueur de mon match (l'une ou l'autre equipe)
-  if(!gk){ careerAddSk(p, 1, st.g||0, st.a||0); return; }
+function careerSeasonAdd(q, st, gk, po){ var p=careerPieceP(q); if(!p) return;   // v579 : un joueur de mon match (l'une ou l'autre equipe) ; v580 : po -> les series
+  if(!gk){ careerAddSk(p, 1, st.g||0, st.a||0, po); return; }
   var me=S.score[q.team], th=S.score[q.team==='A'?'B':'A'];
-  careerAddGk(p, me>th, me<th && !!(S._endOT || S._endSO), (st.sv||0)+(st.ga||0), st.ga||0); }
+  careerAddGk(p, me>th, me<th && !!(S._endOT || S._endSO), (st.sv||0)+(st.ga||0), st.ga||0, po); }
 function careerProgress(){   // au Continue : l'experience de tes joueurs qui ont joue ; le bilan (3 etoiles des deux equipes)
   var T=CAREER.teams[CAREER.my], used=(S.draftUsed && S.draftUsed.A)||{}, all=[];
   var po=!!(CAREER_MATCH && CAREER_MATCH.po), usedB=(S.draftUsed && S.draftUsed.B)||{};   // v579
@@ -9448,7 +9448,7 @@ function careerProgress(){   // au Continue : l'experience de tes joueurs qui on
   S.pieces.forEach(function(q){ var st=(CAREER_LOG && CAREER_LOG.st[q.id]) || {}, gk=q.type==='g';
     all.push({name:q.name, team:q.team, score:(st.g||0)*5+(st.a||0)*3+(st.sog||0)+(st.hit||0)*2+(st.stl||0)*2+(st.dk||0)*2+(st.sv||0)});
     if(!q.uid || !((q.team==='A' ? used : usedB)[q.id] || gk)) return;
-    if(!po) careerSeasonAdd(q, st, gk);   // v579 : la saison et la carriere, les deux equipes (pas les series)
+    careerSeasonAdd(q, st, gk, po);   // v579 : la saison et la carriere, les deux equipes ; v580 : les series a part
     if(q.team!=='A') return;
     var p=careerPlayerByUid(T, q.uid); if(!p) return;
     p.gp=(p.gp||0)+1;
@@ -9626,45 +9626,46 @@ function careerStandings(c, div){   // points, victoires, difference, buts pour
 // (patineur {gp, g, a} ; gardien {gp, w, l, otl, sa, ga}), p.st = la carriere {gp, g, a} ; saison reguliere seulement
 var SIM_D_GOAL=0.35, SIM_D_AST=0.7, SIM_A1=0.85, SIM_A2=0.65, SIM_SHOTS=28;
 function careerStatRand(){ return Math.random(); }   // a part de careerRand : les suites fixees des autres batteries ne bougent pas
-function careerSs(p, gk){ return p.ss || (p.ss = gk ? {gp:0, w:0, l:0, otl:0, sa:0, ga:0} : {gp:0, g:0, a:0}); }
-function careerSt(p){ return p.st || (p.st = {gp:0, g:0, a:0}); }
-function careerAddSk(p, gp, g, a){ var s=careerSs(p, false), t=careerSt(p); s.gp+=gp; s.g+=g; s.a+=a; t.gp+=gp; t.g+=g; t.a+=a; }
-function careerAddGk(p, won, otl, sa, ga){ var s=careerSs(p, true); careerSt(p).gp++; s.gp++; if(won) s.w++; else if(otl) s.otl++; else s.l++; s.sa+=sa; s.ga+=ga; }
+// v580 (« ca prend une stat serie et une serie carriere ») : po -> p.ps = les series de la saison, p.pc = les series en carriere
+function careerSs(p, gk, po){ var f=po?'ps':'ss'; return p[f] || (p[f] = gk ? {gp:0, w:0, l:0, otl:0, sa:0, ga:0} : {gp:0, g:0, a:0}); }
+function careerSt(p, po){ var f=po?'pc':'st'; return p[f] || (p[f] = {gp:0, g:0, a:0}); }
+function careerAddSk(p, gp, g, a, po){ var s=careerSs(p, false, po), t=careerSt(p, po); s.gp+=gp; s.g+=g; s.a+=a; t.gp+=gp; t.g+=g; t.a+=a; }
+function careerAddGk(p, won, otl, sa, ga, po){ var s=careerSs(p, true, po); careerSt(p, po).gp++; s.gp++; if(won) s.w++; else if(otl) s.otl++; else s.l++; s.sa+=sa; s.ga+=ga; }
 function careerSvPct(s){ return (s && s.sa) ? (s.sa-s.ga)/s.sa : 0; }
 function careerSvTxt(s){ if(!s || !s.sa) return '—'; var r=Math.round(1000*careerSvPct(s)); return r>=1000 ? '1.000' : '.'+String(1000+r).slice(1); }
-var CAREER_STATDIV=3, CAREER_STATK='pts';
-function careerLeaders(c, div, kind){   // les meneurs d'une division (equipe actuelle) : 'pts', 'g' ou 'gk'
-  var out=[]; (c.divs[div]||[]).forEach(function(k){ var T=c.teams[k];
-    (kind==='gk' ? [T.goalie, T.goalie2] : T.skaters).forEach(function(p){ if(p && p.ss && p.ss.gp) out.push({p:p, key:k}); }); });
+var CAREER_STATDIV=3, CAREER_STATK='pts', CAREER_STATPO=false;
+function careerLeaders(c, div, kind, po){   // les meneurs d'une division (equipe actuelle) : 'pts', 'g' ou 'gk' ; po : les series (v580)
+  var f=po?'ps':'ss', out=[]; (c.divs[div]||[]).forEach(function(k){ var T=c.teams[k];
+    (kind==='gk' ? [T.goalie, T.goalie2] : T.skaters).forEach(function(p){ if(p && p[f] && p[f].gp) out.push({p:p, key:k, s:p[f]}); }); });
   function nm(x, y){ return x.p.name<y.p.name ? -1 : (x.p.name>y.p.name ? 1 : 0); }
-  if(kind==='gk') return out.sort(function(x, y){ return (y.p.ss.w-x.p.ss.w) || (careerSvPct(y.p.ss)-careerSvPct(x.p.ss)) || nm(x, y); });
-  function pt(x){ return x.p.ss.g+x.p.ss.a; }
-  out=out.filter(function(x){ return kind==='g' ? x.p.ss.g>0 : pt(x)>0; });
-  return out.sort(function(x, y){ return (kind==='g' ? ((y.p.ss.g-x.p.ss.g) || (pt(y)-pt(x))) : ((pt(y)-pt(x)) || (y.p.ss.g-x.p.ss.g))) || (x.p.ss.gp-y.p.ss.gp) || nm(x, y); });
+  if(kind==='gk') return out.sort(function(x, y){ return (y.s.w-x.s.w) || (careerSvPct(y.s)-careerSvPct(x.s)) || nm(x, y); });
+  function pt(x){ return x.s.g+x.s.a; }
+  out=out.filter(function(x){ return kind==='g' ? x.s.g>0 : pt(x)>0; });
+  return out.sort(function(x, y){ return (kind==='g' ? ((y.s.g-x.s.g) || (pt(y)-pt(x))) : ((pt(y)-pt(x)) || (y.s.g-x.s.g))) || (x.s.gp-y.s.gp) || nm(x, y); });
 }
-function careerStatTab(d, k){ if(d) CAREER_STATDIV=d; if(k) CAREER_STATK=k; careerRender(); }
-function careerCardStats(p, gk){ var s=p.ss||{}, t=p.st||{};   // la fiche : la saison, la carriere
-  return (gk ? 'Season: '+(s.gp||0)+' GP · '+(s.w||0)+' W · '+careerSvTxt(s)+' SV%'
-             : 'Season: '+(s.gp||0)+' GP · '+(s.g||0)+' G · '+(s.a||0)+' A · '+((s.g||0)+(s.a||0))+' PTS')
-    +'<br>Career: '+(t.gp||0)+' GP'+(gk ? '' : ' · '+(t.g||0)+' G · '+(t.a||0)+' A'); }
+function careerStatTab(d, k, po){ if(d) CAREER_STATDIV=d; if(k) CAREER_STATK=k; if(po===true || po===false) CAREER_STATPO=po; careerRender(); }
+function careerCardStats(p, gk){   // la fiche : la saison, les series, la carriere, les series en carriere (v580)
+  function sea(lb, s){ s=s||{}; return lb+': '+(s.gp||0)+' GP · '+(gk ? (s.w||0)+' W · '+careerSvTxt(s)+' SV%' : (s.g||0)+' G · '+(s.a||0)+' A · '+((s.g||0)+(s.a||0))+' PTS'); }
+  function car(lb, t){ t=t||{}; return lb+': '+(t.gp||0)+' GP'+(gk ? '' : ' · '+(t.g||0)+' G · '+(t.a||0)+' A'); }
+  return sea('Season', p.ss)+'<br>'+sea('Playoffs', p.ps)+'<br>'+car('Career', p.st)+'<br>'+car('Career playoffs', p.pc); }
 function careerPickW(list, w){ var tot=0, i; for(i=0;i<list.length;i++) tot+=w(list[i]); var x=careerStatRand()*tot;
   for(i=0;i<list.length;i++){ x-=w(list[i]); if(x<0) return list[i]; } return list[list.length-1]; }
-function careerSimStats(c, r){   // un match simule de saison : buteurs et passeurs selon les cotes, les tirs, la decision des gardiens
+function careerSimStats(c, r, po){   // un match simule : buteurs et passeurs selon les cotes, les tirs, la decision des gardiens ; po : les series (v580)
   var H=c.teams[r.home], A=c.teams[r.away], fh=careerTeamFit(H), fa=careerTeamFit(A), out={goals:[], shots:{}};
   function gw(p){ var t=(p.tir||50)/100; return t*t*(p.pos==='D'?SIM_D_GOAL:1); }
   function aw(p){ var t=(p.passe||50)/100; return t*t*(p.pos==='D'?SIM_D_AST:1); }
   [[r.home, H, r.hs, A, r.as, fh-fa, 'home'], [r.away, A, r.as, H, r.hs, fa-fh, 'away']].forEach(function(x){
     var key=x[0], T=x[1], gf=x[2], O=x[3], ga=x[4], ros=careerMatchRoster(T), sk=T.skaters.filter(function(p){ return ros.indexOf(p.uid)>=0; });
-    sk.forEach(function(p){ careerAddSk(p, 1, 0, 0); });
-    for(var i=0;i<gf && sk.length;i++){ var sc=careerPickW(sk, gw), as=[]; careerAddSk(sc, 0, 1, 0);
+    sk.forEach(function(p){ careerAddSk(p, 1, 0, 0, po); });
+    for(var i=0;i<gf && sk.length;i++){ var sc=careerPickW(sk, gw), as=[]; careerAddSk(sc, 0, 1, 0, po);
       if(careerStatRand()<SIM_A1){ var o1=sk.filter(function(p){ return p!==sc; });
         if(o1.length){ var a1=careerPickW(o1, aw); as.push(a1);
           if(careerStatRand()<SIM_A2){ var o2=o1.filter(function(p){ return p!==a1; }); if(o2.length) as.push(careerPickW(o2, aw)); } } }
-      as.forEach(function(p){ careerAddSk(p, 0, 0, 1); });
+      as.forEach(function(p){ careerAddSk(p, 0, 0, 1, po); });
       out.goals.push({team:key, g:sc.uid, a:as.map(function(p){ return p.uid; })}); }
     var m=SIM_SHOTS*Math.exp(0.02*x[5]), n=0; for(var q=0;q<4;q++) n+=careerPoissonR(m/4);   // 4 tranches : careerPoisson plafonne a 19
     var shots=Math.max(gf+10, n); out.shots[x[6]]=shots;
-    careerAddGk(careerGoalieOf(O), ga>gf, ga<gf && !!r.ot, shots, gf); });
+    careerAddGk(careerGoalieOf(O), ga>gf, ga<gf && !!r.ot, shots, gf, po); });
   return out;
 }
 function careerPoissonR(l){ var L=Math.exp(-l), k=0, p=1; do{ k++; p*=careerStatRand(); }while(p>L && k<60); return k-1; }
@@ -9774,7 +9775,7 @@ function careerPlayoffDay(c, my){
       var home=careerSeriesHome(s), away=home===s.a?s.b:s.a, mine=(s.a===c.my || s.b===c.my);
       var r;
       if(mine && my) r={home:home, away:away, hs:my.hs, as:my.as, ot:!!my.ot};
-      else { careerAiPrep(c.teams[home]); careerAiPrep(c.teams[away]); r=careerSimGame(c, home, away); careerSimEffects(c.teams[home]); careerSimEffects(c.teams[away]); }   // v489
+      else { careerAiPrep(c.teams[home]); careerAiPrep(c.teams[away]); r=careerSimGame(c, home, away); careerSimStats(c, r, true); careerSimEffects(c.teams[home]); careerSimEffects(c.teams[away]); }   // v489 ; v580 : les stats des series
       r.div=d; r.po=true; r.mine=mine; s.games.push(r); c.results.push(r);
       if((r.hs>r.as?home:away)===s.a) s.wa++; else s.wb++;
       if(s.wa>=2) s.winner=s.a; else if(s.wb>=2) s.winner=s.b; });
@@ -9783,9 +9784,9 @@ function careerPlayoffDay(c, my){
   careerDayEnd(c);   // v489
   if(c.playoffs[1].champ && c.playoffs[2].champ && c.playoffs[3].champ) careerEndSeason(c);
 }
-function careerAward(c, d, k){ var x=careerLeaders(c, d, k)[0]; if(!x) return null; var s=x.p.ss;   // v579 : le trophee d'une division
+function careerAward(c, d, k, po){ var x=careerLeaders(c, d, k, po)[0]; if(!x) return null; var s=x.s;   // v579 : le trophee d'une division
   return {name:x.p.name, team:x.key, v:k==='gk' ? s.w : (k==='g' ? s.g : s.g+s.a)}; }
-function careerAwards(c){ var o={}; for(var d=1;d<=3;d++) o[d]={pts:careerAward(c, d, 'pts'), g:careerAward(c, d, 'g'), gk:careerAward(c, d, 'gk')}; return o; }
+function careerAwards(c){ var o={}; for(var d=1;d<=3;d++) o[d]={pts:careerAward(c, d, 'pts'), g:careerAward(c, d, 'g'), gk:careerAward(c, d, 'gk'), ppts:careerAward(c, d, 'pts', true)}; return o; }   // v580 : le meilleur pointeur des series
 function careerEndSeason(c){   // les 2 premiers de D3 et D2 montent, les 2 derniers de D2 et D1 descendent (appliques a la saison suivante)
   var up=[], down=[];
   for(var d=1;d<=3;d++){ var st=careerStandings(c, d); if(d>1) up.push(st[0].key, st[1].key); if(d<3) down.push(st[6].key, st[7].key); }
@@ -10141,7 +10142,7 @@ function careerEsc(t){ return String(t).replace(/[&<>"]/g, function(ch){ return 
 function careerOrd(n){ return n+(n===1?'st':(n===2?'nd':(n===3?'rd':'th'))); }
 function careerSwatch(T){ return '<span class="cswatch" style="background:'+T.colors[0]+';box-shadow:inset -6px 0 0 '+T.colors[1]+'"></span>'; }
 function showCareer(view){ if(view) CAREER_VIEW=view; if(!CAREER && CAREER_VIEW!=='pick' && CAREER_VIEW!=='save') CAREER_VIEW='start'; _hide('mainMenu'); careerRender(); _show('careerOverlay'); }
-function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my); if(v==='stats' && CAREER){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; }   /* v579 */ showCareer(v); }
+function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my); if(v==='stats' && CAREER){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs'); }   /* v579 ; v580 */ showCareer(v); }
 function careerToMenu(){ _hide('careerOverlay'); showMainMenu(); }
 function careerDivTab(d){ CAREER_DIVTAB=d; careerRender(); }
 function careerPick(key, sure){
@@ -10202,13 +10203,14 @@ function careerRender(){
       h+='<tr class="'+(r.key===c.my?'me':'')+(i===3?' cut':'')+'"><td>'+(i+1)+'</td><td>'+careerSwatch(T2)+careerEsc(T2.nick)+mk+'</td><td>'+r.gp+'</td><td>'+r.w+'</td><td>'+r.l+'</td><td>'+r.otl+'</td><td><b>'+r.pts+'</b></td><td>'+(gd>0?'+':'')+gd+'</td></tr>'; });
     h+='</table></div><div class="msub">Top 4: playoffs'+(dd>1?' · ↑ top 2 go up':'')+(dd<3?' · ↓ last 2 go down':'')+'</div><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   } else if(v==='stats'){   // v579 : les meneurs de la division
-    var sd=CAREER_STATDIV, sk=CAREER_STATK, gkv=(sk==='gk'), SL=careerLeaders(c, sd, sk).slice(0, gkv ? 5 : 10);
+    var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gkv=(sk==='gk'), SL=careerLeaders(c, sd, sk, spo).slice(0, gkv ? 5 : 10);
     h+='<div class="mtitle">Stats</div><div class="crow">'+[1,2,3].map(function(x){ return '<button class="mbtn sm'+(x===sd?' on':'')+'" data-sdiv="'+x+'" onclick="careerStatTab('+x+', null)">D'+x+'</button>'; }).join('')+'</div>';
     h+='<div class="crow">'+[['pts','Points'],['g','Goals'],['gk','Goalies']].map(function(x){ return '<button class="mbtn sm'+(x[0]===sk?' on':'')+'" data-sk="'+x[0]+'" onclick="careerStatTab(null, \''+x[0]+'\')">'+x[1]+'</button>'; }).join('')+'</div>';
-    h+='<div class="msub">'+DIV_NAME[sd]+' · season '+c.season+' · regular season</div>';
-    if(!SL.length) h+='<div class="msub">No games played yet.</div>';
+    h+='<div class="crow">'+[[0,'Season'],[1,'Playoffs']].map(function(x){ return '<button class="mbtn sm'+(!!x[0]===spo?' on':'')+'" data-spo="'+x[0]+'" onclick="careerStatTab(null, null, '+(x[0]?'true':'false')+')">'+x[1]+'</button>'; }).join('')+'</div>';   // v580
+    h+='<div class="msub">'+DIV_NAME[sd]+' · season '+c.season+' · '+(spo?'playoffs':'regular season')+'</div>';
+    if(!SL.length) h+='<div class="msub">'+(spo?'No playoff games yet.':'No games played yet.')+'</div>';
     else { h+='<div class="ctab cst"><table><tr><th>#</th><th>'+(gkv?'Goalie':'Player')+'</th><th>Team</th><th>GP</th>'+(gkv?'<th>W</th><th>SV%</th>':'<th>G</th><th>A</th><th>PTS</th>')+'</tr>';
-      SL.forEach(function(x, i){ var s=x.p.ss, T5=c.teams[x.key], pt=s.g+s.a;
+      SL.forEach(function(x, i){ var s=x.s, T5=c.teams[x.key], pt=s.g+s.a;
         h+='<tr class="'+(x.key===c.my?'me':'')+'"><td>'+(i+1)+'</td><td>'+careerEsc(x.p.name)+'</td><td>'+careerSwatch(T5)+careerEsc(T5.nick)+'</td><td>'+s.gp+'</td>'
           +(gkv ? '<td><b>'+s.w+'</b></td><td>'+careerSvTxt(s)+'</td>' : '<td>'+(sk==='g'?'<b>'+s.g+'</b>':s.g)+'</td><td>'+s.a+'</td><td>'+(sk==='pts'?'<b>'+pt+'</b>':pt)+'</td>')+'</tr>'; });
       h+='</table></div>'; }
@@ -10297,7 +10299,7 @@ function careerRender(){
     h+='<div class="msub">Up: '+Hs.up.map(function(k){ return careerEsc(c.teams[k].nick); }).join(', ')+' · Down: '+Hs.down.map(function(k){ return careerEsc(c.teams[k].nick); }).join(', ')+'</div>';
     if(Hs.awards){ [Hs.myDiv].concat([1,2,3].filter(function(x){ return x!==Hs.myDiv; })).forEach(function(d){ var Aw=Hs.awards[d]||{};   // v579 : les trophees
       h+='<div class="msub"><b>Division '+d+'</b></div>';
-      [['pts','Most points','PTS'],['g','Most goals','G'],['gk','Best goalie','W']].forEach(function(t){ var x=Aw[t[0]];
+      [['pts','Most points','PTS'],['g','Most goals','G'],['gk','Best goalie','W'],['ppts','Playoff points','PTS']].forEach(function(t){ var x=Aw[t[0]];
         h+='<div class="msub">'+t[1]+': '+(x ? (x.team===c.my?'<b>':'')+careerEsc(x.name)+' ('+careerEsc(c.teams[x.team].nick)+') — '+x.v+' '+t[2]+(x.team===c.my?'</b>':'') : '—')+'</div>'; }); }); }
     h+='<button class="mbtn play" onclick="careerNextSeason()">▶ Start season '+(Hs.season+1)+'</button><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   }
@@ -10332,18 +10334,28 @@ function careerPack(c){   // pour le compte : sans les valeurs par defaut des jo
     if(p.ss && !Object.keys(p.ss).some(function(x){ return p.ss[x]; })) delete p.ss;   // v579
     if(p.st) p.st=[p.st.gp, p.st.g, p.st.a];   // v579 : les stats en listes (tous les joueurs en ont maintenant)
     if(p.ss) p.ss=(p.ss.sa!=null) ? [p.ss.gp, p.ss.w, p.ss.l, p.ss.otl, p.ss.sa, p.ss.ga] : [p.ss.gp, p.ss.g, p.ss.a];
+    ['ps', 'pc'].forEach(function(f){ var o=p[f]; if(!o) return;   // v580 : les series, pareil
+      if(!Object.keys(o).some(function(x){ return o[x]; })) delete p[f]; else p[f]=(o.sa!=null) ? [o.gp, o.w, o.l, o.otl, o.sa, o.ga] : [o.gp, o.g, o.a]; });
     if(p.capF) Object.keys(p.capF).forEach(function(x){ p.capF[x]=Math.round(p.capF[x]*100)/100; });
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(v && !Array.isArray(v) && Object.keys(v).join()===CAREER_PK.join()) p[f]=CAREER_PK.map(function(x){ return v[x]; }); }); }); });   // v517 : 18 joueurs par equipe -> plafonds, fourchettes, experience en listes (meme ordre)
+  if(o.results) o.results=o.results.map(careerResPack);   // v580 : les resultats en listes (la copie restait trop pres de la limite)
   return o;
 }
 var CAREER_PK=['tir', 'passe', 'vitesse', 'physique', 'defense', 'maniement'];   // v517 : l'ordre des listes de la copie du compte
+var CAREER_RK=['home', 'away', 'hs', 'as', 'ot', 'div', 'day', 'mine', 'po', 'so', 'dr', 'dz'];   // v580 : l'ordre des listes de resultats (absent = null)
+function careerResPack(r){ var ks=Object.keys(r);   // un champ inconnu ou null : le resultat reste un objet
+  if(!ks.every(function(k){ return CAREER_RK.indexOf(k)>=0 && r[k]!==null; })) return r;
+  var a=CAREER_RK.map(function(k){ return (k in r) ? r[k] : null; }); while(a.length && a[a.length-1]===null) a.pop(); return a; }
+function careerResUnpack(a){ if(!Array.isArray(a)) return a; var r={}; CAREER_RK.forEach(function(k, i){ if(i<a.length && a[i]!==null) r[k]=a[i]; }); return r; }
 function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
+  if(o && Array.isArray(o.results)) o.results=o.results.map(careerResUnpack);   // v580
   Object.keys((o && o.teams)||{}).forEach(function(k){ var T=o.teams[k]; (T.skaters||[]).concat(T.goalie?[T.goalie]:[], T.goalie2?[T.goalie2]:[]).forEach(function(p){
     for(var f in CAREER_PDEF){ if(!(f in p)) p[f]=CAREER_PDEF[f]; }
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; CAREER_PK.forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
     if(Array.isArray(p.st)) p.st={gp:p.st[0], g:p.st[1], a:p.st[2]};   // v579 : les listes redeviennent des objets
     if(Array.isArray(p.ss)) p.ss=(p.ss.length===6) ? {gp:p.ss[0], w:p.ss[1], l:p.ss[2], otl:p.ss[3], sa:p.ss[4], ga:p.ss[5]} : {gp:p.ss[0], g:p.ss[1], a:p.ss[2]};
+    ['ps', 'pc'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)) p[f]=(v.length===6) ? {gp:v[0], w:v[1], l:v[2], otl:v[3], sa:v[4], ga:v[5]} : {gp:v[0], g:v[1], a:v[2]}; });   // v580
     if(!p.st) p.st={gp:0, g:0, a:0}; }); if(!T.arena) T.arena=arenaMake(T); else { if(T.arena.shape==null) T.arena.shape=arenaMake(T).shape; if(!T.arena.banners) T.arena.banners=arenaMake(T).banners; } });   // v544 : l'histoire des bannieres   // v542 : une vieille carriere recoit les recettes d'arena ; v543 : la forme de l'embleme
   return o;
 }
@@ -10379,8 +10391,8 @@ function careerNewSeason(c){   // les nouvelles divisions, un nouveau calendrier
   if(c.next){ c.next.up.forEach(function(k){ c.teams[k].div--; }); c.next.down.forEach(function(k){ c.teams[k].div++; }); c.next=null; }
   c.divs={1:[],2:[],3:[]}; Object.keys(c.teams).forEach(function(k){ c.divs[c.teams[k].div].push(k); });
   c.season++; careerNewSchedules(c);
-  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl){ pl.mor=0; delete pl.ss; } }); });   // v556 : une nouvelle saison, un moral neuf ; v579 : les stats de la saison repartent a zero
-  (c.fa||[]).forEach(function(pl){ delete pl.ss; });   // v579 : les agents libres aussi
+  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl){ pl.mor=0; delete pl.ss; delete pl.ps; } }); });   // v556 : une nouvelle saison, un moral neuf ; v579 : les stats de la saison repartent a zero
+  (c.fa||[]).forEach(function(pl){ delete pl.ss; delete pl.ps; });   // v579 : les agents libres aussi ; v580 : les series aussi
 }
 /* ===== v451 : TUTORIEL (spec docs/superpowers/specs/2026-10-02-tutoriel-design.md) =====
    Lecons jouables : des etapes guidees (seuls les gestes surlignes repondent ; les tirages favorisent le joueur), puis
