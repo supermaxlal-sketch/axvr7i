@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v578</title>
+<title>Deck 3D v579</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -337,7 +337,7 @@
 .ctab{overflow-x:auto;margin-top:8px;} .ctab table{width:100%;border-collapse:collapse;font-size:11px;color:#dce8f5;}
 .ctab th{color:#9fb6cd;font-weight:700;text-align:left;padding:3px 4px;border-bottom:1px solid #26435f;}
 .ctab td{padding:3px 4px;border-bottom:1px solid #18293b;white-space:nowrap;} .ctab tr.me td{background:rgba(31,138,138,.28);}
-.ctab tr.cut td{border-bottom:2px solid #ffd23e;} .cbar{display:inline-block;width:46px;height:6px;background:#18293b;border-radius:3px;vertical-align:middle;overflow:hidden;} .cbar i{display:block;height:100%;background:#1f8a8a;}
+.ctab tr.cut td{border-bottom:2px solid #ffd23e;} .ctab.cst th,.ctab.cst td{padding:3px 2px;} .cbar{display:inline-block;width:46px;height:6px;background:#18293b;border-radius:3px;vertical-align:middle;overflow:hidden;} .cbar i{display:block;height:100%;background:#1f8a8a;}
 .cbadge{color:#ffd23e;} .cplay{cursor:pointer;} .crec .cbar{width:90px;}   /* v484 : progression */
 .cen.low i{background:#e0533a;} .cinjt{color:#ff8a7a;font-size:11px;} .cst{color:#9fb6cd;font-size:11px;} .crest.on,.cgk.on{background:#2c6e9e;} .dcp-en{font-size:10px;margin-left:6px;color:#9fe0a8;} .dcp-en.low{color:#ff8a7a;} .dcp-tired{display:block;font-size:10px;color:#ffb36b;}   /* v489 : energie et blessures */
 #careerPaste{background:#0a1521;color:#cfe3f7;border:1px solid #34557a;border-radius:8px;}
@@ -1314,7 +1314,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v578';
+var GAME_VERSION='v579';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9299,21 +9299,25 @@ function careerGameOverButtons(){ var cc=document.getElementById('btnCareerConti
   if(cc) cc.style.display=CAREER_MATCH?'':'none'; if(ng) ng.style.display=CAREER_MATCH?'none':''; }
 var CAREER_LOG=null;   // compteur du match de carriere : id du pion -> actions ; last = la derniere passe recue (aide)
 function careerTrackReset(){ CAREER_LOG={st:{}, last:null, cost:{}, pe:{}, inj:{}}; }   // v489 : energie depensee, depart de periode, blessures
-function careerStatOf(id){ if(!CAREER_LOG || !id) return null; return CAREER_LOG.st[id] || (CAREER_LOG.st[id]={sog:0, g:0, a:0, pc:0, dk:0, dkf:0, hit:0, bat:0, stl:0, cells:0, brk:0, sv:0, svc:0, hr:0}); }
+function careerStatOf(id){ if(!CAREER_LOG || !id) return null; return CAREER_LOG.st[id] || (CAREER_LOG.st[id]={sog:0, g:0, a:0, pc:0, dk:0, dkf:0, hit:0, bat:0, stl:0, cells:0, brk:0, sv:0, svc:0, hr:0, ga:0}); }
 function careerTrack(e, d){   // les actions du match de carriere
   if(!CAREER_MATCH || !CAREER_LOG || !d || d.so) return; var s;   // v536 : la fusillade ne compte pas
   if(e==='shot'){ var sh=byId(d.id);
     if(d.res==='block'){ var bk=byId(d.by); if(bk && sh && bk.team!==sh.team && (s=careerStatOf(d.by))) s.stl++; if(bk && bk.type==='sk') careerContact(d.by, 'blk', sh); }
     else if(d.res!=='wide' && (s=careerStatOf(d.id))){ s.sog++;
-      if(d.res==='goal'){ s.g++; var L=CAREER_LOG.last; if(L && L.to===d.id && L.from!==d.id && sh && L.team===sh.team && (s=careerStatOf(L.from))) s.a++; }
+      if(d.res==='goal'){ s.g++; var L=CAREER_LOG.last;
+        if(L && L.to===d.id && L.from!==d.id && sh && L.team===sh.team){ if((s=careerStatOf(L.from))) s.a++;
+          if(L.prev && L.prev!==d.id && L.prev!==L.from && (s=careerStatOf(L.prev))) s.a++; }   /* v579 : la 2e passe */
+        if(d.g && (s=careerStatOf(d.g))) s.ga++; }   /* v579 : le but contre le gardien (pas un filet desert) */
       else if(d.g && (s=careerStatOf(d.g))){ s.sv++; if(d.res==='save' || d.res==='catch') s.svc++; } }
     if(d.defl && d.defl!==d.id){ var _dp=byId(d.defl); if(_dp && _dp.type==='sk') careerContact(d.defl, 'defl', sh); }   // v516 : la rondelle deviee au visage
     CAREER_LOG.last=null; }
   else if(e==='deke'){ if((s=careerStatOf(d.id))){ if(d.ok) s.dk++; else s.dkf++; } }
   else if(e==='hit'){ if(d.ok && (s=careerStatOf(d.id))){ if(d.body) s.hit++; else s.stl++; }
+    if(d.ok) CAREER_LOG.last=null;   // v579 : la rondelle perdue coupe la chaine des passes
     if(d.ok && d.body){ careerCost(d.id, CAREER_EN.hitG); careerCost(d.on, CAREER_EN.hitR); if((s=careerStatOf(d.on))) s.hr++; careerHitInjury(d); } }   // v489 : la fatigue des contacts ; v516 : la blessure seulement d'une mise en echec dangereuse
   else if(e==='skate'){ if(d.pts && (s=careerStatOf(d.id))){ var _c0=s.cells; for(var i=1;i<d.pts.length;i++) s.cells+=Math.max(Math.abs(d.pts[i][0]-d.pts[i-1][0]), Math.abs(d.pts[i][1]-d.pts[i-1][1])); careerCost(d.id, (s.cells-_c0)/CAREER_EN.cells); } }
-  else if(e==='passok'){ if((s=careerStatOf(d.id))) s.pc++; var pp=byId(d.id); CAREER_LOG.last={from:d.id, to:d.to, team:pp?pp.team:null}; }
+  else if(e==='passok'){ if((s=careerStatOf(d.id))) s.pc++; var pp=byId(d.id), L0=CAREER_LOG.last; CAREER_LOG.last={from:d.id, to:d.to, team:pp?pp.team:null, prev:(L0 && pp && L0.to===d.id && L0.team===pp.team) ? L0.from : null}; }   // v579 : la passe d'avant (2e passe)
   else if(e==='steal'){ if((s=careerStatOf(d.id))) s.stl++; CAREER_LOG.last=null; }
   else if(e==='battle'){ if((s=careerStatOf(d.id))) s.bat++; careerCost(d.id, CAREER_EN.bat); if(d.lose){ careerCost(d.lose, CAREER_EN.bat); } }   // v516 : une bataille ne blesse plus
   else if(e==='breakaway'){ if((s=careerStatOf(d.id))) s.brk++; }
@@ -9433,14 +9437,21 @@ function careerCardHealth(p){   // v489 : la fiche : energie, blessure, rouille,
   return h; }
 function careerDraftTag(p){ var u=S.draftUsed[p.team]||{}, e=careerLiveEn(p); return '<span class="dcp-en'+(e<50?' low':'')+'">⚡'+e+'</span>'+(u[p.id]?'<span class="dcp-tired">2nd period — tired</span>':''); }
 function careerPlayerByUid(T, uid){ if(T.goalie.uid===uid) return T.goalie; if(T.goalie2 && T.goalie2.uid===uid) return T.goalie2; for(var i=0;i<T.skaters.length;i++){ if(T.skaters[i].uid===uid) return T.skaters[i]; } return null; }
+function careerSeasonAdd(q, st, gk){ var p=careerPieceP(q); if(!p) return;   // v579 : un joueur de mon match (l'une ou l'autre equipe)
+  if(!gk){ careerAddSk(p, 1, st.g||0, st.a||0); return; }
+  var me=S.score[q.team], th=S.score[q.team==='A'?'B':'A'];
+  careerAddGk(p, me>th, me<th && !!(S._endOT || S._endSO), (st.sv||0)+(st.ga||0), st.ga||0); }
 function careerProgress(){   // au Continue : l'experience de tes joueurs qui ont joue ; le bilan (3 etoiles des deux equipes)
   var T=CAREER.teams[CAREER.my], used=(S.draftUsed && S.draftUsed.A)||{}, all=[];
+  var po=!!(CAREER_MATCH && CAREER_MATCH.po), usedB=(S.draftUsed && S.draftUsed.B)||{};   // v579
   var rep={score:[S.score.A, S.score.B], ot:!!S._endOT, so:!!S._endSO, opp:CAREER_MATCH.opp, rows:[], stars:[]};
   S.pieces.forEach(function(q){ var st=(CAREER_LOG && CAREER_LOG.st[q.id]) || {}, gk=q.type==='g';
     all.push({name:q.name, team:q.team, score:(st.g||0)*5+(st.a||0)*3+(st.sog||0)+(st.hit||0)*2+(st.stl||0)*2+(st.dk||0)*2+(st.sv||0)});
-    if(q.team!=='A' || !q.uid || !(used[q.id] || gk)) return;
+    if(!q.uid || !((q.team==='A' ? used : usedB)[q.id] || gk)) return;
+    if(!po) careerSeasonAdd(q, st, gk);   // v579 : la saison et la carriere, les deux equipes (pas les series)
+    if(q.team!=='A') return;
     var p=careerPlayerByUid(T, q.uid); if(!p) return;
-    p.gp=(p.gp||0)+1; p.st.gp++; p.st.g+=(st.g||0); p.st.a+=(st.a||0);
+    p.gp=(p.gp||0)+1;
     var r=careerApplyXp(p, st, gk);
     rep.rows.push({uid:p.uid, name:p.name, pos:gk?'G':p.pos, st:st, gain:r.gain, up:r.up, lvl:r.lvl, lvlUp:r.lvl>r.lvlFrom, perkPick:r.perkPick}); });
   rep.stars=all.sort(function(a, b){ return b.score-a.score; }).slice(0, 3).map(function(x){ return {name:x.name, team:x.team}; });
@@ -9610,6 +9621,53 @@ function careerStandings(c, div){   // points, victoires, difference, buts pour
     var W=g.hs>g.as?H:A, L=g.hs>g.as?A:H; W.w++; W.pts+=2; if(g.ot){ L.otl++; L.pts+=1; } else L.l++; });
   return Object.keys(row).map(function(k){ return row[k]; }).sort(function(x,y){ return (y.pts-x.pts)||(y.w-x.w)||((y.gf-y.ga)-(x.gf-x.ga))||(y.gf-x.gf)||(x.key<y.key?-1:1); });
 }
+// v579 (le concepteur : « les statistiques pour les joueurs aussi, le classement, comme dans la Ligue nationale, le meilleur
+// buteur, le meilleur point » ; spec docs/superpowers/specs/2026-10-24-stats-des-joueurs-design.md) : p.ss = la saison
+// (patineur {gp, g, a} ; gardien {gp, w, l, otl, sa, ga}), p.st = la carriere {gp, g, a} ; saison reguliere seulement
+var SIM_D_GOAL=0.35, SIM_D_AST=0.7, SIM_A1=0.85, SIM_A2=0.65, SIM_SHOTS=28;
+function careerStatRand(){ return Math.random(); }   // a part de careerRand : les suites fixees des autres batteries ne bougent pas
+function careerSs(p, gk){ return p.ss || (p.ss = gk ? {gp:0, w:0, l:0, otl:0, sa:0, ga:0} : {gp:0, g:0, a:0}); }
+function careerSt(p){ return p.st || (p.st = {gp:0, g:0, a:0}); }
+function careerAddSk(p, gp, g, a){ var s=careerSs(p, false), t=careerSt(p); s.gp+=gp; s.g+=g; s.a+=a; t.gp+=gp; t.g+=g; t.a+=a; }
+function careerAddGk(p, won, otl, sa, ga){ var s=careerSs(p, true); careerSt(p).gp++; s.gp++; if(won) s.w++; else if(otl) s.otl++; else s.l++; s.sa+=sa; s.ga+=ga; }
+function careerSvPct(s){ return (s && s.sa) ? (s.sa-s.ga)/s.sa : 0; }
+function careerSvTxt(s){ if(!s || !s.sa) return '—'; var r=Math.round(1000*careerSvPct(s)); return r>=1000 ? '1.000' : '.'+String(1000+r).slice(1); }
+var CAREER_STATDIV=3, CAREER_STATK='pts';
+function careerLeaders(c, div, kind){   // les meneurs d'une division (equipe actuelle) : 'pts', 'g' ou 'gk'
+  var out=[]; (c.divs[div]||[]).forEach(function(k){ var T=c.teams[k];
+    (kind==='gk' ? [T.goalie, T.goalie2] : T.skaters).forEach(function(p){ if(p && p.ss && p.ss.gp) out.push({p:p, key:k}); }); });
+  function nm(x, y){ return x.p.name<y.p.name ? -1 : (x.p.name>y.p.name ? 1 : 0); }
+  if(kind==='gk') return out.sort(function(x, y){ return (y.p.ss.w-x.p.ss.w) || (careerSvPct(y.p.ss)-careerSvPct(x.p.ss)) || nm(x, y); });
+  function pt(x){ return x.p.ss.g+x.p.ss.a; }
+  out=out.filter(function(x){ return kind==='g' ? x.p.ss.g>0 : pt(x)>0; });
+  return out.sort(function(x, y){ return (kind==='g' ? ((y.p.ss.g-x.p.ss.g) || (pt(y)-pt(x))) : ((pt(y)-pt(x)) || (y.p.ss.g-x.p.ss.g))) || (x.p.ss.gp-y.p.ss.gp) || nm(x, y); });
+}
+function careerStatTab(d, k){ if(d) CAREER_STATDIV=d; if(k) CAREER_STATK=k; careerRender(); }
+function careerCardStats(p, gk){ var s=p.ss||{}, t=p.st||{};   // la fiche : la saison, la carriere
+  return (gk ? 'Season: '+(s.gp||0)+' GP · '+(s.w||0)+' W · '+careerSvTxt(s)+' SV%'
+             : 'Season: '+(s.gp||0)+' GP · '+(s.g||0)+' G · '+(s.a||0)+' A · '+((s.g||0)+(s.a||0))+' PTS')
+    +'<br>Career: '+(t.gp||0)+' GP'+(gk ? '' : ' · '+(t.g||0)+' G · '+(t.a||0)+' A'); }
+function careerPickW(list, w){ var tot=0, i; for(i=0;i<list.length;i++) tot+=w(list[i]); var x=careerStatRand()*tot;
+  for(i=0;i<list.length;i++){ x-=w(list[i]); if(x<0) return list[i]; } return list[list.length-1]; }
+function careerSimStats(c, r){   // un match simule de saison : buteurs et passeurs selon les cotes, les tirs, la decision des gardiens
+  var H=c.teams[r.home], A=c.teams[r.away], fh=careerTeamFit(H), fa=careerTeamFit(A), out={goals:[], shots:{}};
+  function gw(p){ var t=(p.tir||50)/100; return t*t*(p.pos==='D'?SIM_D_GOAL:1); }
+  function aw(p){ var t=(p.passe||50)/100; return t*t*(p.pos==='D'?SIM_D_AST:1); }
+  [[r.home, H, r.hs, A, r.as, fh-fa, 'home'], [r.away, A, r.as, H, r.hs, fa-fh, 'away']].forEach(function(x){
+    var key=x[0], T=x[1], gf=x[2], O=x[3], ga=x[4], ros=careerMatchRoster(T), sk=T.skaters.filter(function(p){ return ros.indexOf(p.uid)>=0; });
+    sk.forEach(function(p){ careerAddSk(p, 1, 0, 0); });
+    for(var i=0;i<gf && sk.length;i++){ var sc=careerPickW(sk, gw), as=[]; careerAddSk(sc, 0, 1, 0);
+      if(careerStatRand()<SIM_A1){ var o1=sk.filter(function(p){ return p!==sc; });
+        if(o1.length){ var a1=careerPickW(o1, aw); as.push(a1);
+          if(careerStatRand()<SIM_A2){ var o2=o1.filter(function(p){ return p!==a1; }); if(o2.length) as.push(careerPickW(o2, aw)); } } }
+      as.forEach(function(p){ careerAddSk(p, 0, 0, 1); });
+      out.goals.push({team:key, g:sc.uid, a:as.map(function(p){ return p.uid; })}); }
+    var m=SIM_SHOTS*Math.exp(0.02*x[5]), n=0; for(var q=0;q<4;q++) n+=careerPoissonR(m/4);   // 4 tranches : careerPoisson plafonne a 19
+    var shots=Math.max(gf+10, n); out.shots[x[6]]=shots;
+    careerAddGk(careerGoalieOf(O), ga>gf, ga<gf && !!r.ot, shots, gf); });
+  return out;
+}
+function careerPoissonR(l){ var L=Math.exp(-l), k=0, p=1; do{ k++; p*=careerStatRand(); }while(p>L && k<60); return k-1; }
 function careerSeries(a, b){ return {a:a, b:b, wa:0, wb:0, games:[], winner:null}; }
 function careerSeriesHome(s){ return (s.games.length%2===0)?s.a:s.b; }   // le mieux classe recoit les matchs 1 et 3
 function careerActiveSeries(P){ if(P.champ) return []; if(P.final) return P.final.winner?[]:[P.final]; return P.semis.filter(function(x){ return !x.winner; }); }
@@ -9695,7 +9753,7 @@ function careerPlayDay(c, my){   // le jour : ton resultat (my = {hs, as, ot} vu
     for(var d=1;d<=3;d++){ (c.schedule[d][c.day]||[]).forEach(function(g){
       var mine=(g[0]===c.my || g[1]===c.my), r;
       if(mine && my){ r={home:g[0], away:g[1], hs:my.hs, as:my.as, ot:!!my.ot, so:!!my.so}; if(my.dr){ r.dr=1; if(my.dz) r.dz=my.dz; } }   // v558
-      else { careerAiPrep(c.teams[g[0]]); careerAiPrep(c.teams[g[1]]); r=careerSimGame(c, g[0], g[1]); careerSimEffects(c.teams[g[0]]); careerSimEffects(c.teams[g[1]]); }   // v489
+      else { careerAiPrep(c.teams[g[0]]); careerAiPrep(c.teams[g[1]]); r=careerSimGame(c, g[0], g[1]); careerSimStats(c, r); careerSimEffects(c.teams[g[0]]); careerSimEffects(c.teams[g[1]]); }   // v489 ; v579 : les stats (avant les blessures du match)
       r.div=d; r.day=c.day; r.mine=mine; c.results.push(r); }); }
     careerDayEnd(c);   // v489 : decompte et recuperation
     c.day++;
@@ -9725,11 +9783,14 @@ function careerPlayoffDay(c, my){
   careerDayEnd(c);   // v489
   if(c.playoffs[1].champ && c.playoffs[2].champ && c.playoffs[3].champ) careerEndSeason(c);
 }
+function careerAward(c, d, k){ var x=careerLeaders(c, d, k)[0]; if(!x) return null; var s=x.p.ss;   // v579 : le trophee d'une division
+  return {name:x.p.name, team:x.key, v:k==='gk' ? s.w : (k==='g' ? s.g : s.g+s.a)}; }
+function careerAwards(c){ var o={}; for(var d=1;d<=3;d++) o[d]={pts:careerAward(c, d, 'pts'), g:careerAward(c, d, 'g'), gk:careerAward(c, d, 'gk')}; return o; }
 function careerEndSeason(c){   // les 2 premiers de D3 et D2 montent, les 2 derniers de D2 et D1 descendent (appliques a la saison suivante)
   var up=[], down=[];
   for(var d=1;d<=3;d++){ var st=careerStandings(c, d); if(d>1) up.push(st[0].key, st[1].key); if(d<3) down.push(st[6].key, st[7].key); }
   var md=careerDivOf(c, c.my), rk=careerStandings(c, md).map(function(r){ return r.key; }).indexOf(c.my)+1;
-  c.history.push({season:c.season, champs:{1:c.playoffs[1].champ, 2:c.playoffs[2].champ, 3:c.playoffs[3].champ}, up:up, down:down, myDiv:md, myRank:rk});
+  c.history.push({season:c.season, champs:{1:c.playoffs[1].champ, 2:c.playoffs[2].champ, 3:c.playoffs[3].champ}, up:up, down:down, myDiv:md, myRank:rk, awards:careerAwards(c)});   // v579 : les trophees
   c.next={up:up, down:down}; c.phase='done';
 }
 // ---- v484 : PROGRESSION (spec docs/superpowers/specs/2026-10-08-carriere-2-progression-design.md) ----
@@ -10080,7 +10141,7 @@ function careerEsc(t){ return String(t).replace(/[&<>"]/g, function(ch){ return 
 function careerOrd(n){ return n+(n===1?'st':(n===2?'nd':(n===3?'rd':'th'))); }
 function careerSwatch(T){ return '<span class="cswatch" style="background:'+T.colors[0]+';box-shadow:inset -6px 0 0 '+T.colors[1]+'"></span>'; }
 function showCareer(view){ if(view) CAREER_VIEW=view; if(!CAREER && CAREER_VIEW!=='pick' && CAREER_VIEW!=='save') CAREER_VIEW='start'; _hide('mainMenu'); careerRender(); _show('careerOverlay'); }
-function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my); showCareer(v); }
+function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my); if(v==='stats' && CAREER){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; }   /* v579 */ showCareer(v); }
 function careerToMenu(){ _hide('careerOverlay'); showMainMenu(); }
 function careerDivTab(d){ CAREER_DIVTAB=d; careerRender(); }
 function careerPick(key, sure){
@@ -10131,7 +10192,7 @@ function careerRender(){
         h+='<div class="cnext">'+(P.final===sr?'Final':'Semi-final')+', game '+(sr.games.length+1)+' — vs <b>'+careerEsc(c.teams[op2].full)+'</b> (series '+mw+'–'+ow+')</div><button class="mbtn play" id="careerPlay" onclick="careerPlayClick()">'+careerPlayLbl()+'</button>'; }
       else h+='<div class="cnext">Playoffs: your team is out. The others play on.</div><button class="mbtn play" id="careerSim" onclick="careerSimDay()">⏩ Simulate the playoffs</button>'; }
     else if(c.phase==='done') h+='<button class="mbtn play" onclick="careerGo(\'season\')">🏆 Season summary</button>';
-    h+='<div class="crow"><button class="mbtn sm" onclick="careerGo(\'standings\')">Standings</button><button class="mbtn sm" onclick="careerGo(\'schedule\')">Schedule</button><button class="mbtn sm" onclick="careerGo(\'roster\')">Roster</button><button class="mbtn sm" id="careerFA" onclick="careerGo(\'fa\')">Free agents</button><button class="mbtn sm" onclick="careerGo(\'save\')">Save file</button></div>';
+    h+='<div class="crow"><button class="mbtn sm" onclick="careerGo(\'standings\')">Standings</button><button class="mbtn sm" onclick="careerGo(\'stats\')">Stats</button><button class="mbtn sm" onclick="careerGo(\'schedule\')">Schedule</button><button class="mbtn sm" onclick="careerGo(\'roster\')">Roster</button><button class="mbtn sm" id="careerFA" onclick="careerGo(\'fa\')">Free agents</button><button class="mbtn sm" onclick="careerGo(\'save\')">Save file</button></div>';
     h+='<button class="mbtn" onclick="careerToMenu()">← Main menu</button>';
   } else if(v==='standings'){
     var dd=CAREER_DIVTAB, rows=careerStandings(c, dd);
@@ -10140,6 +10201,18 @@ function careerRender(){
     rows.forEach(function(r, i){ var T2=c.teams[r.key], mk=(dd>1 && i<2)?' ↑':((dd<3 && i>5)?' ↓':''), gd=r.gf-r.ga;
       h+='<tr class="'+(r.key===c.my?'me':'')+(i===3?' cut':'')+'"><td>'+(i+1)+'</td><td>'+careerSwatch(T2)+careerEsc(T2.nick)+mk+'</td><td>'+r.gp+'</td><td>'+r.w+'</td><td>'+r.l+'</td><td>'+r.otl+'</td><td><b>'+r.pts+'</b></td><td>'+(gd>0?'+':'')+gd+'</td></tr>'; });
     h+='</table></div><div class="msub">Top 4: playoffs'+(dd>1?' · ↑ top 2 go up':'')+(dd<3?' · ↓ last 2 go down':'')+'</div><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
+  } else if(v==='stats'){   // v579 : les meneurs de la division
+    var sd=CAREER_STATDIV, sk=CAREER_STATK, gkv=(sk==='gk'), SL=careerLeaders(c, sd, sk).slice(0, gkv ? 5 : 10);
+    h+='<div class="mtitle">Stats</div><div class="crow">'+[1,2,3].map(function(x){ return '<button class="mbtn sm'+(x===sd?' on':'')+'" data-sdiv="'+x+'" onclick="careerStatTab('+x+', null)">D'+x+'</button>'; }).join('')+'</div>';
+    h+='<div class="crow">'+[['pts','Points'],['g','Goals'],['gk','Goalies']].map(function(x){ return '<button class="mbtn sm'+(x[0]===sk?' on':'')+'" data-sk="'+x[0]+'" onclick="careerStatTab(null, \''+x[0]+'\')">'+x[1]+'</button>'; }).join('')+'</div>';
+    h+='<div class="msub">'+DIV_NAME[sd]+' · season '+c.season+' · regular season</div>';
+    if(!SL.length) h+='<div class="msub">No games played yet.</div>';
+    else { h+='<div class="ctab cst"><table><tr><th>#</th><th>'+(gkv?'Goalie':'Player')+'</th><th>Team</th><th>GP</th>'+(gkv?'<th>W</th><th>SV%</th>':'<th>G</th><th>A</th><th>PTS</th>')+'</tr>';
+      SL.forEach(function(x, i){ var s=x.p.ss, T5=c.teams[x.key], pt=s.g+s.a;
+        h+='<tr class="'+(x.key===c.my?'me':'')+'"><td>'+(i+1)+'</td><td>'+careerEsc(x.p.name)+'</td><td>'+careerSwatch(T5)+careerEsc(T5.nick)+'</td><td>'+s.gp+'</td>'
+          +(gkv ? '<td><b>'+s.w+'</b></td><td>'+careerSvTxt(s)+'</td>' : '<td>'+(sk==='g'?'<b>'+s.g+'</b>':s.g)+'</td><td>'+s.a+'</td><td>'+(sk==='pts'?'<b>'+pt+'</b>':pt)+'</td>')+'</tr>'; });
+      h+='</table></div>'; }
+    h+='<button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   } else if(v==='schedule'){
     var d2=careerDivOf(c, c.my);
     h+='<div class="mtitle">Schedule</div><div class="msub">'+DIV_NAME[d2]+' · season '+c.season+'</div><div class="ctab"><table><tr><th>Rd</th><th></th><th>Opponent</th><th>Result</th></tr>';
@@ -10203,7 +10276,7 @@ function careerRender(){
     h+='<div class="mtitle">'+careerEsc(P4.name)+'</div><div class="msub">'+(gk?'Goalie':(P4.pos==='D'?'Defense':'Forward'))+' · age '+P4.age+(gk?'':' · '+careerEsc((ARCH_INFO[P4.archetype]||{}).n||P4.archetype))+'</div>';
     h+='<div class="crec">Level '+P4.lvl+' <span class="cbar"><i style="width:'+Math.min(100, Math.round(100*P4.txp/need))+'%"></i></span> '+Math.round(P4.txp)+'/'+need+' XP</div>';
     if(!gk) h+='<div class="msub">Perks: '+[P4.perk, P4.perk2].filter(Boolean).map(function(k){ return careerEsc((PERK_INFO[k]||{}).n||k); }).join(', ')+'</div>';
-    h+='<div class="msub">Season: '+P4.st.gp+' GP · '+P4.st.g+' G · '+P4.st.a+' A</div>';
+    h+='<div class="msub">'+careerCardStats(P4, P4===T4.goalie || P4===T4.goalie2)+'</div>';   // v579 : la saison et la carriere
     h+=careerCardHealth(P4);   // v489
     if(P4.pts>0) h+='<div class="cmsg">'+P4.pts+' point'+(P4.pts>1?'s':'')+' to place: tap +1.</div>';
     h+='<div class="ctab"><table><tr><th></th><th>Now</th><th>Potential</th><th>Next +1</th><th></th></tr>';
@@ -10222,6 +10295,10 @@ function careerRender(){
     if(Hs.champs[Hs.myDiv]===c.my) h+='<div class="cmsg">🏆 Your team won the Division '+Hs.myDiv+' title!</div>';
     h+='<div class="cmsg">'+careerEsc(my.nick)+': '+careerOrd(Hs.myRank)+' in Division '+Hs.myDiv+'. <b>'+mv+'</b></div>';
     h+='<div class="msub">Up: '+Hs.up.map(function(k){ return careerEsc(c.teams[k].nick); }).join(', ')+' · Down: '+Hs.down.map(function(k){ return careerEsc(c.teams[k].nick); }).join(', ')+'</div>';
+    if(Hs.awards){ [Hs.myDiv].concat([1,2,3].filter(function(x){ return x!==Hs.myDiv; })).forEach(function(d){ var Aw=Hs.awards[d]||{};   // v579 : les trophees
+      h+='<div class="msub"><b>Division '+d+'</b></div>';
+      [['pts','Most points','PTS'],['g','Most goals','G'],['gk','Best goalie','W']].forEach(function(t){ var x=Aw[t[0]];
+        h+='<div class="msub">'+t[1]+': '+(x ? (x.team===c.my?'<b>':'')+careerEsc(x.name)+' ('+careerEsc(c.teams[x.team].nick)+') — '+x.v+' '+t[2]+(x.team===c.my?'</b>':'') : '—')+'</div>'; }); }); }
     h+='<button class="mbtn play" onclick="careerNextSeason()">▶ Start season '+(Hs.season+1)+'</button><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   }
   el.innerHTML=h;
@@ -10252,6 +10329,9 @@ function careerPack(c){   // pour le compte : sans les valeurs par defaut des jo
     for(var f in CAREER_PDEF){ if(p[f]===CAREER_PDEF[f]) delete p[f]; }
     if(p.xp && Object.keys(p.xp).every(function(x){ return !p.xp[x]; })) delete p.xp;
     if(p.st && !p.st.gp && !p.st.g && !p.st.a) delete p.st;
+    if(p.ss && !Object.keys(p.ss).some(function(x){ return p.ss[x]; })) delete p.ss;   // v579
+    if(p.st) p.st=[p.st.gp, p.st.g, p.st.a];   // v579 : les stats en listes (tous les joueurs en ont maintenant)
+    if(p.ss) p.ss=(p.ss.sa!=null) ? [p.ss.gp, p.ss.w, p.ss.l, p.ss.otl, p.ss.sa, p.ss.ga] : [p.ss.gp, p.ss.g, p.ss.a];
     if(p.capF) Object.keys(p.capF).forEach(function(x){ p.capF[x]=Math.round(p.capF[x]*100)/100; });
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(v && !Array.isArray(v) && Object.keys(v).join()===CAREER_PK.join()) p[f]=CAREER_PK.map(function(x){ return v[x]; }); }); }); });   // v517 : 18 joueurs par equipe -> plafonds, fourchettes, experience en listes (meme ordre)
   return o;
@@ -10262,6 +10342,8 @@ function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
     for(var f in CAREER_PDEF){ if(!(f in p)) p[f]=CAREER_PDEF[f]; }
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; CAREER_PK.forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
+    if(Array.isArray(p.st)) p.st={gp:p.st[0], g:p.st[1], a:p.st[2]};   // v579 : les listes redeviennent des objets
+    if(Array.isArray(p.ss)) p.ss=(p.ss.length===6) ? {gp:p.ss[0], w:p.ss[1], l:p.ss[2], otl:p.ss[3], sa:p.ss[4], ga:p.ss[5]} : {gp:p.ss[0], g:p.ss[1], a:p.ss[2]};
     if(!p.st) p.st={gp:0, g:0, a:0}; }); if(!T.arena) T.arena=arenaMake(T); else { if(T.arena.shape==null) T.arena.shape=arenaMake(T).shape; if(!T.arena.banners) T.arena.banners=arenaMake(T).banners; } });   // v544 : l'histoire des bannieres   // v542 : une vieille carriere recoit les recettes d'arena ; v543 : la forme de l'embleme
   return o;
 }
@@ -10297,7 +10379,8 @@ function careerNewSeason(c){   // les nouvelles divisions, un nouveau calendrier
   if(c.next){ c.next.up.forEach(function(k){ c.teams[k].div--; }); c.next.down.forEach(function(k){ c.teams[k].div++; }); c.next=null; }
   c.divs={1:[],2:[],3:[]}; Object.keys(c.teams).forEach(function(k){ c.divs[c.teams[k].div].push(k); });
   c.season++; careerNewSchedules(c);
-  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl) pl.mor=0; }); });   // v556 : une nouvelle saison, un moral neuf
+  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl){ pl.mor=0; delete pl.ss; } }); });   // v556 : une nouvelle saison, un moral neuf ; v579 : les stats de la saison repartent a zero
+  (c.fa||[]).forEach(function(pl){ delete pl.ss; });   // v579 : les agents libres aussi
 }
 /* ===== v451 : TUTORIEL (spec docs/superpowers/specs/2026-10-02-tutoriel-design.md) =====
    Lecons jouables : des etapes guidees (seuls les gestes surlignes repondent ; les tirages favorisent le joueur), puis
