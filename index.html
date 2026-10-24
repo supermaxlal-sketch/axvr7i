@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v576</title>
+<title>Deck 3D v577</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1313,7 +1313,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v576';
+var GAME_VERSION='v577';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6867,7 +6867,9 @@ function flashGoalLight(side){ var el=document.getElementById(side==='left'?'glL
 // de -100 (B) a +100 (A), neutre au debut ; un but 40, une mise en echec reussie 15, un gros arret (tir a 25 % et plus) 15 ;
 // retour 5 par tour. L'equipe qui l'a : jusqu'a +5 points (passes, pokes, mises en echec) et x1,05 (tirs), proportionnel.
 var MOM_GOAL=40, MOM_HIT=15, MOM_SAVE=15, MOM_SAVE_P=0.25, MOM_DECAY=5, MOM_BONUS=0.05;
-function momAdd(team, pts){ if(S.so || !team) return; S.momentum=Math.max(-100, Math.min(100, (S.momentum||0) + (team==='A' ? pts : -pts))); stNoteAll(); }   // v559 : une equipe ecrasee panique
+function momAdd(team, pts){ if(S.so || !team) return; var d=(team==='A' ? pts : -pts); S.momentum=Math.max(-100, Math.min(100, (S.momentum||0) + d));
+  if(d) for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce && q.type==='sk' && (q.team==='A' ? d : -d)<0) stMoodSet(q, -1); }   // v577 : son equipe perd du momentum -> ecrasee : stresse
+  stNoteAll(); }   // v559 : une equipe ecrasee panique
 function momK(team){ var m=(S && S.momentum) || 0; return Math.max(0, team==='A' ? m : -m)/100; }   // 0..1 : la part de la jauge de cette equipe
 function momDecay(){ stTick();   /* v559 : les etats avec une duree */ var m=S.momentum||0; S.momentum = m>0 ? Math.max(0, m-MOM_DECAY) : Math.min(0, m+MOM_DECAY);
   if(S.mor) for(var k in S.mor){ var v=S.mor[k]; S.mor[k] = v>0 ? Math.max(0, v-MOR_DECAY) : Math.min(0, v+MOR_DECAY); } }   // v555 : le moral personnel aussi, plus lentement
@@ -6882,7 +6884,7 @@ function paintMomentum(){ var m=S.momentum||0, L=teamLooks();
 // son equipe ; se faire enlever la rondelle -8 / -2 ; but +20 ; mise en echec reussie +10 ; gros arret +10. Retour 1 par tour.
 // Effet : jusqu'a +/-5 points sur ses passes, pokes, mises en echec ; tirs x0,95 .. x1,05. Une fleche sur sa carte.
 var MOR_ACT=8, MOR_TEAM=2, MOR_GOAL=20, MOR_HIT=10, MOR_SAVE=10, MOR_DECAY=1, MOR_BONUS=0.05;
-function morAdd(p, pts, teamPts){ if(!p || !p.id || S.so) return; if(!S.mor) S.mor={}; S.mor[p.id]=Math.max(-100, Math.min(100, (S.mor[p.id]||0)+pts)); stNote(p); if(teamPts) momAdd(p.team, teamPts); }   // v559 : stNote
+function morAdd(p, pts, teamPts){ if(!p || !p.id || S.so) return; if(!S.mor) S.mor={}; S.mor[p.id]=Math.max(-100, Math.min(100, (S.mor[p.id]||0)+pts)); stMoodSet(p, pts); stNote(p); if(teamPts) momAdd(p.team, teamPts); }   // v559 : stNote
 function morK(p){ return (p && S && S.mor && S.mor[p.id]) ? S.mor[p.id]/100 : 0; }
 function morPass(p, ok){ if(ok) stGood(p); else stErr(p); morAdd(p, ok ? MOR_ACT : -MOR_ACT, ok ? MOR_TEAM : -MOR_TEAM); }   // v559 : une passe ratee est une erreur
 function morTag(p){ var v=(S && S.mor && p) ? (S.mor[p.id]||0) : 0; if(Math.abs(v)<10) return '';
@@ -6906,9 +6908,9 @@ function morTrack(e, d){   // depuis matchEv : les tirs, les feintes, les contac
 // avant ; sinon l'etat que dicte son moral (en confiance / panique). Les deux equipes ; pas les gardiens ; pas dans les lecons.
 var TEMPS=['steady', 'hothead', 'tough', 'fragile', 'streaky', 'leader'];
 var TEMP_NAME={steady:'Steady', hothead:'Hothead', tough:'Tough', fragile:'Fragile', streaky:'Streaky', leader:'Leader'};
-var ST_NAME={stun:'Stunned', angry:'Angry', conf:'Confident', panic:'Panicked'}, ST_ICON={stun:'💫', angry:'😠', conf:'🔥', panic:'😰'};
-var ST_LOG={stun:'is stunned', angry:'is angry', conf:'is confident', panic:'panics'};
-var ST_STUN=2, ST_ANGRY=3, ST_CONF=40, ST_PANIC=-40, ST_EDGE=25, ST_CRUSH=-50;   // tours ; seuils de moral ; Fragile / Streaky : +-25 ; equipe ecrasee
+var ST_NAME={stun:'Stunned', angry:'Angry', conf:'Confident', panic:'Stressed'}, ST_ICON={stun:'💫', angry:'😠', conf:'🔥', panic:'😰'};
+var ST_LOG={stun:'is stunned', angry:'is angry', conf:'is confident', panic:'is stressed'};   // v577 : « stress au lieu de panic »
+var ST_TURNS=3, ST_CONF=40, ST_PANIC=-40, ST_EDGE=25, ST_CRUSH=-50;   // v577 : chaque signe dure 3 tours ; seuils de moral ; Fragile / Streaky : +-25 ; equipe ecrasee
 var ST_PASS=0.08, ST_HAND=0.08, ST_HIT=0.10, ST_CONF_PTS=0.05, ST_SHOT=0.08, ST_PEN=1.5;   // les petits effets
 function tempRoll(p, key){   // le temperament tire selon le profil (cle = toujours le meme tirage pour le meme joueur)
   var w={steady:40, hothead:12, tough:12, fragile:12, streaky:12, leader:12};
@@ -6924,15 +6926,22 @@ function tempOf(p){ if(!p || p.type!=='sk') return null; if(p.temp) return p.tem
   if(CAREER && CAREER_MATCH && p.uid){ var T=CAREER.teams[p.team==='A' ? CAREER_MATCH.my : CAREER_MATCH.opp], pl=T && careerPlayerByUid(T, p.uid); if(pl){ p.temp=careerTemp(pl); return p.temp; } }
   p.temp=tempRoll(p, p.name||p.id); return p.temp; }
 function stLeaderOn(p){ for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q!==p && q.team===p.team && q.type==='sk' && q.onIce && tempOf(q)==='leader' && !penInBox(q.id)) return true; } return false; }
+// v577 (le concepteur : « tous les signes : 3 tours ») : un signe a toujours une duree (S.st) ; le moral (stMood) ne fait que les
+// declencher -- une bonne (mauvaise) action qui laisse son moral au-dela du seuil : en confiance (stresse) 3 tours, relances par
+// une autre ; son equipe ecrasee qui perd encore du momentum : stresse. Sonne / fache gardent leur signe (ils remplacent tout).
 function stState(p){ if(!p || p.type!=='sk' || !S || S.tut || S.so) return null;
-  var t=S.st && S.st[p.id]; if(t && t.n>0) return t.k;
+  var t=S.st && S.st[p.id]; return (t && t.n>0) ? t.k : null; }
+function stMood(p){ if(!stOk(p)) return null;   // ce que dit son moral (et son equipe) : 'conf', 'panic' ou rien
   var tp=tempOf(p), v=(S.mor && S.mor[p.id])||0, edge=(tp==='fragile' || tp==='streaky'), own=(p.team==='A' ? 1 : -1)*(S.momentum||0);
   var calm=(tp==='hothead' || tp==='tough' || tp==='leader') || stLeaderOn(p);
   if(!calm && (v<=(edge ? -ST_EDGE : ST_PANIC) || own<=ST_CRUSH)) return 'panic';
   if(v>=(tp==='streaky' ? ST_EDGE : ST_CONF)) return 'conf';
   return null; }
 function stOk(p){ return !!p && p.type==='sk' && !!S && !S.tut && !S.so; }
-function stSet(p, k){ if(!stOk(p)) return; var tp=tempOf(p); (S.st=S.st||{})[p.id]={k:k, n:k==='stun' ? (tp==='tough' ? 1 : (tp==='fragile' ? 3 : ST_STUN)) : ST_ANGRY}; stNote(p); }
+function stSet(p, k){ if(!stOk(p)) return; (S.st=S.st||{})[p.id]={k:k, n:ST_TURNS}; stNote(p); }   // v577 : 3 tours pour tous
+function stMoodSet(p, sign){ if(!stOk(p) || !sign) return; var m=stMood(p); if(!m || (sign>0) !== (m==='conf')) return;   // v577 : apres un changement de moral (sign : son sens)
+  var t=S.st && S.st[p.id]; if(t && t.n>0 && (t.k==='stun' || t.k==='angry')) return;   // sonne / fache gardent leur signe
+  (S.st=S.st||{})[p.id]={k:m, n:ST_TURNS}; }
 function stErr(p){ if(!stOk(p)) return; S.err=S.err||{}; var c=(S.err[p.id]||0)+1; S.err[p.id]=c; if(c>=(tempOf(p)==='hothead' ? 1 : 2)){ S.err[p.id]=0; stSet(p, 'angry'); } }   // passe ratee, rondelle perdue, tir a cote
 function stGood(p){ if(!stOk(p)) return; if(S.err) S.err[p.id]=0; var t=S.st && S.st[p.id]; if(t && t.k==='angry'){ delete S.st[p.id]; stNote(p); } }   // une bonne action : le compte a 0, la colere tombe
 function stTick(){ if(S.st) for(var id in S.st){ S.st[id].n--; if(S.st[id].n<=0) delete S.st[id]; } stNoteAll(); }   // un tour de plus
@@ -8708,6 +8717,8 @@ function hj3dSlides(sl){   // glissements de ce render (S.slides : decalage depa
   }
   return out;
 }
+var HJ3D_ROLES=['C','LW','RW','LD','RD'];   // v577 : l'ordre de S.lineup (C, AG, AD, DG, DD)
+function hj3dRole(q){ var L=S.lineup && S.lineup[HUMAN_TEAM]; if(q.team!==HUMAN_TEAM || q.type!=='sk' || !L) return ''; var i=L.indexOf(q.id); return i>=0 ? HJ3D_ROLES[i] : ''; }
 function hj3dSnapshot(slides){
   piecesLooks();   // v529 : chaque joueur a sa recette
   var grid=document.getElementById('grid'), cells=[], ghosts=[], pawnCls={};
@@ -8720,7 +8731,7 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    players.push({id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', mom:q.mom||0}); }   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
+    players.push({id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', mom:q.mom||0, role:hj3dRole(q)}); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
   if(focus==null && S.faceoff && S.faceoff.dotC!=null) focus=S.faceoff.dotC;   // v477 : pendant une mise au jeu, la camera 3D va au point de mise au jeu
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
@@ -10850,7 +10861,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":322276,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":328900,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
