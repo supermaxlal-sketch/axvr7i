@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v582</title>
+<title>Deck 3D v583</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1314,7 +1314,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v582';
+var GAME_VERSION='v583';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3544,10 +3544,33 @@ function puckPath(x0,y0,dx,dy,power){
 // endroit (aucun effet sur le jeu). s = avancement de la lecture (0..1) -> avancement du trajet.
 var PUCK_TAIL=0.25;
 function puckTail(s){ var f=PUCK_TAIL, t=Math.max(0, Math.min(1, s))*(1+f), a=1-f; if(t<=a) return t; var k=(t-a)/(2*f); return a+f*(1-(1-k)*(1-k)); }
+// v583 (le concepteur, apres v581 : « est-ce que le probleme de rebond est regle ? ca fait plusieurs fois que je t'en parle ») :
+// la simulation avance a pas de temps egaux sur une duree fixe (450 + 4 par pas) et la glace freine fort -- le debut d'un tir rate
+// passait a 80-170 m/s a l'ecran (3 images), puis la rondelle revenait lentement : « elle rebondit avant la bande ». Choix du
+// concepteur : jamais plus de PUCK_VMAX a l'ecran. Les pas trop rapides sont allonges, puis le trajet est re-echantillonne a pas de
+// temps egaux (la 2D et la 3D le jouent tel quel), chaque choc etant un point exact. Le trajet et l'arret ne changent pas.
+var PUCK_VMAX=30;   // m/s reelles (1 case = 2 m)
+function puckMs(n){ return Math.min(1500, 450+n*4); }   // la duree d'avant (temps moteur ; / ANIM_RATE = ms reelles), n pas
+function puckRetime(pts, nOut){   // -> {pts, ms, same}
+  var N=pts.length-1, base=puckMs(N), i; if(N<1) return {pts:pts, ms:base, same:true};
+  var b=base/N, lo=2000*ANIM_RATE/(PUCK_VMAX*0.94), tau=[0], fast=false;   // lo : temps moteur minimal pour une case (6 % de marge : chocs exacts et points arrondis font varier un pas)
+  for(i=1;i<=N;i++){ var d=Math.max(b, Math.hypot(pts[i].c-pts[i-1].c, pts[i].r-pts[i-1].r)*lo); if(d>b+1e-9) fast=true; tau.push(tau[i-1]+d); }
+  if(!fast) return {pts:pts, ms:base, same:true};
+  var T=tau[N], marks=[0]; for(i=1;i<N;i++) if(pts[i].b) marks.push(i); marks.push(N);
+  var h=T/Math.max(2, nOut||N), out=[{c:pts[0].c, r:pts[0].r, b:!!pts[0].b}], j=1;
+  for(var m=1;m<marks.length;m++){ var ia=marks[m-1], ib=marks[m], ta=tau[ia], tb=tau[ib], k=Math.max(1, Math.round(tb/h)-Math.round(ta/h));
+    for(var st=1;st<=k;st++){ if(st===k){ out.push({c:pts[ib].c, r:pts[ib].r, b:!!pts[ib].b}); continue; }   // le choc : exact
+      var tt=ta+(tb-ta)*st/k; while(j<N && tau[j]<tt) j++;
+      var f=(tt-tau[j-1])/Math.max(1e-9, tau[j]-tau[j-1]); out.push({c:pts[j-1].c+(pts[j].c-pts[j-1].c)*f, r:pts[j-1].r+(pts[j].r-pts[j-1].r)*f, b:false}); } }
+  return {pts:out, ms:Math.min(3500, T), same:false};
+}
 function flyPuckPath(pts, onDone, noEv){   // v441 : la rondelle suit la simulation image par image (vitesse reelle), clang a chaque contact ; v495 : noEv (le poteau envoie le sien)
-  if(pts && pts.length>=2 && !noEv) matchEv('puck', {pts:matchPtsU(pts), ms:Math.min(1500, 450+(pts.length-1)*4), tu:1});   // v447 ; v521 : pas de temps egaux (tu), la 3D ajoute la meme fin en douceur
+  var _rt=(pts && pts.length>=2) ? puckRetime(pts) : null;   // v583 : jamais plus de PUCK_VMAX a l'ecran
+  if(pts && pts.length>=2 && !noEv){ var _r3=_rt.same ? null : puckRetime(pts, 40);
+    matchEv('puck', {pts:_r3 ? matchPtsU(_r3.pts, 100) : matchPtsU(pts), ms:_rt.ms, tu:1}); }   // v447 ; v521 : pas de temps egaux (tu), la 3D ajoute la meme fin en douceur
+  if(_rt) pts=_rt.pts;
   var fp=document.getElementById('flypuck'); if(!fp || !pts || pts.length<2){ if(onDone) onDone(); return; }
-  var N=pts.length-1, T=Math.min(1500, 450+N*4)/ANIM_RATE*(1+PUCK_TAIL), t0=Date.now(), k=0;   // v463 : ANIM_RATE ; v521 : + la fin en douceur
+  var N=pts.length-1, T=_rt.ms/ANIM_RATE*(1+PUCK_TAIL), t0=Date.now(), k=0;   // v463 : ANIM_RATE ; v521 : + la fin en douceur ; v583 : la duree re-calculee
   fp.style.display='block'; fp.style.transition='none';
   (function tick(){
     var u=Math.min(1, (Date.now()-t0)/T), idx=Math.min(N, Math.round(puckTail(u)*N));   // v521 : elle ralentit jusqu'a l'arret
