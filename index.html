@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v580</title>
+<title>Deck 3D v581</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1314,7 +1314,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v580';
+var GAME_VERSION='v581';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -5116,7 +5116,7 @@ function defOrderPctsRaw(){   // % des ordres defensifs du defenseur selectionne
   var car=S.puckOwner?byId(S.puckOwner):null;
   var cell=dc.pendingMove?{c:dc.pendingMove.toC, r:dc.pendingMove.toR}:{c:d.c, r:d.r};
   var dPos=Object.assign({}, d, {c:cell.c, r:cell.r});
-  return { pen: car ? Math.round(100*penRisk(dPos, car, cheb(d, cell))) : 0,   // v445 : risque de penalite (dans le dos / elan >= 3)
+  return { pen: car ? Math.round(100*penRiskShown(dPos, car, cheb(d, cell))) : 0,   // v445 : risque de penalite (dans le dos / elan >= 3)
            check: car?pctFromThr(checkOdds(dPos,car)):null, poke: car?pctFromThr(pokeOdds(dPos,car)):null,
            sblock: Math.round(sblockOdds(dPos)*100), block: car?pctFromThr(blockPassThr(dPos,car)):null,
            _fo: !!(car && S.foPress && S.foPress.id===car.id && S.foPress.oppId===d.id) };
@@ -6031,8 +6031,8 @@ function bankCut(d, p, pct){
   pushLog('<b>'+d.name+'</b> cuts off the bank pass from '+p.name+' ('+pct+'%).');
   S.animating=false; gainPuck(d.team);
 }
-function bankMissFly(b, to, cb){   // ratee : la rondelle repart de la bande de travers (30 a 65 deg), vraie physique
-  var a=(Math.random()<0.5?-1:1)*(0.5+Math.random()*0.65), v=rotVec(to.c-b.c, to.r-b.r, a), sim=puckPath(b.c, b.r, v.x, v.y, boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(b,to), 3, 8));
+function bankMissFly(b, to, cb){   // ratee : la rondelle repart de la bande presque a l angle du miroir (v581 : 10 a 20 deg pres, avant 30 a 65), vraie physique
+  var a=(Math.random()<0.5?-1:1)*(10+Math.random()*10)*Math.PI/180, v=rotVec(to.c-b.c, to.r-b.r, a), sim=puckPath(b.c, b.r, v.x, v.y, boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(b,to), 3, 8));
   flyPuckPath(sim.pts, function(){ placeLooseNear(sim.rest.c, sim.rest.r); S.puckOwner=null; sfx('drop'); cb(); });
 }
 function bankMiss(p, team, b, to, pct){
@@ -6290,9 +6290,9 @@ function bodyCheckOutcome(checker, C, cc, cr, run){
 // son chasseur) peut etre sifflee. DIFFEREE : sifflet quand l equipe fautive touche la rondelle (ou arret de jeu) ; un
 // but de la victime l annule. Banc PEN_SECS du chrono de periode, mise au jeu dans la zone de l equipe penalisee ; but
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
-var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_MAX=2;   // v497 : accrochage (choix du concepteur, 30 %)
+var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_P_ROUGH=0.10, PEN_MAX=2;   /* v581 : rudesse (fache, mise en echec propre) */   // v497 : accrochage (choix du concepteur, 30 %)
 // v563 (le concepteur : « penalites plus longues, fini trop rapide » ; choix : 36 s, environ 6 jeux) : PEN_SECS 18 -> 36
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking'};
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing'};
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
@@ -6300,9 +6300,10 @@ function penHunter(id){ var o=S.defOrders||[]; for(var i=0;i<o.length;i++) if(o[
 function penDeliberate(p){ return !!p && (!!hasOrder(p.id,'check') || penHunter(p.id)); }
 function penFoul(checker, carrier, run){ return Math.sign(checker.c-carrier.c)===-dir(carrier.team) ? 'behind' : ((run||0)>=3 ? 'charge' : null); }   // dans le dos : meme regle que le -50 %
 function penRisk(checker, carrier, run){ var f=penFoul(checker, carrier, run); return f==='behind' ? PEN_P_BEHIND : (f==='charge' ? PEN_P_CHARGE : 0); }
+function penRiskShown(checker, carrier, run){ var r=penRisk(checker, carrier, run); return stState(checker)==='angry' ? (r ? r*ST_PEN : PEN_P_ROUGH) : r; }   // v581 : fache -> faute x1,5, sinon rudesse 10 %
 function penTry(p, prob, foul){   // l arbitre leve le bras
   if(p && prob) prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined »
-  if(p && prob && stState(p)==='angry') prob*=ST_PEN;   // v559 : fache, x1,5
+  if(p && prob && foul!=='rough' && stState(p)==='angry') prob*=ST_PEN;   // v559 : fache, x1,5 (v581 : pas la rudesse)
   if(!p || !foul || !prob || S.gameEnded || !(Math.random()<prob)) return false;
   if(penCount(p.team)>=PEN_MAX) return false;   // deja 2 punis : pas de 3e
   penState().delayed.push({team:p.team, id:p.id, foul:foul});
@@ -6438,8 +6439,10 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   var _blowby=blowsBy(C, checker);   // DEBORDEMENT : un porteur lance qui passe un defenseur mal place le deborde -> check auto-rate
   var _feintBeat=!!(S.feintBeaten && S.feintBeaten[checker.id]);   // battu par une feinte cette sequence -> check auto-rate
   var success=(_blowby||_feintBeat) ? false : tutLuck(pr, checker.team===HUMAN_TEAM);   /* v451 : etape guidee */ /* v420 : tirage au pourcentage */ var cName=checker.name, carName=C.name, cc=C.c, cr=C.r; S.animating=true; clearSel();
-  if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))) penTry(checker, penRisk(checker, C, _run), penFoul(checker, C, _run));   // v445 : penalite (mise en echec VOULUE seulement)
-  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run});   // v447
+  var _pen=false;
+  if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))){ var _pf=penFoul(checker, C, _run);   // v445 : penalite (mise en echec VOULUE seulement)
+    _pen=_pf ? penTry(checker, penRisk(checker, C, _run), _pf) : (stState(checker)==='angry' && penTry(checker, PEN_P_ROUGH, 'rough')); }   // v581 : fache, meme propre -> rudesse 10 %
+  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen});   // v447   // v581 : pen
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
   if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.knock>=2?' with a full head of steam — '+carName+' is knocked flying!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
@@ -6985,8 +6988,8 @@ function morTrack(e, d){   // depuis matchEv : les tirs, les feintes, les contac
   else if(e==='hit'){ var ck=byId(d.id), cv=byId(d.on);
     if(d.body){ if(d.ok) morAdd(ck, MOR_HIT, 0); }
     else morAdd(ck, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM);
-    if(d.ok){ stGood(ck); if(cv) stErr(cv); if(cv && d.body) stSet(cv, 'stun'); }   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
-    if(d.ok && cv) morAdd(cv, -MOR_ACT, -MOR_TEAM); }
+    if(d.ok){ stGood(ck); if(cv && !d.pen) stErr(cv); if(cv && d.body && !d.pen) stSet(cv, 'stun'); }   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
+    if(d.ok && cv && !d.pen) morAdd(cv, -MOR_ACT, -MOR_TEAM); }   // v581 : la victime d une faute sifflee : rien (la penalite suffit)
 }
 // v559 (le moral et le momentum, morceau 4 : les etats des joueurs ; choix du concepteur : sonne, fache, en confiance, panique ;
 // des seuils, « mais chaque joueur est different : un gros gars ne va pas paniquer mais risque de se facher » ; un temperament a
@@ -11042,7 +11045,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":328900,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":330692,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
