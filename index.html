@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v584</title>
+<title>Deck 3D v585</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1314,7 +1314,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v584';
+var GAME_VERSION='v585';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1919,9 +1919,13 @@ var ARCH_INFO = {
 // CARTE EN JEU (avec photo) — ouverte via le bouton "Card" quand un joueur est selectionne.
 function _attrTier(v){ return v>=75?'hi':(v>=55?'mid':'lo'); }
 function _bigBar(lbl,v){ return '<div class="dcard-bar pcbar"><i class="bl">'+lbl+'</i><i class="trk"><i class="fil t-'+_attrTier(v)+'" style="width:'+Math.max(5,Math.min(100,v))+'%"></i></i><i class="bv">'+v+'</i></div>'; }
+var GK_BUTTERFLY=0.75;   // v585 (B1, choix du concepteur) : ~3 gardiens sur 4 papillon ; le style est fixe par son nom (rien dans la sauvegarde)
+function gkStyle(p){ var s=String((p&&p.name)||''), h=5381; for(var i=0;i<s.length;i++) h=((h*33)^s.charCodeAt(i))>>>0; return (h%1000)/1000<GK_BUTTERFLY?'butterfly':'standup'; }   /* v585 : seulement les gestes 3D, aucun % */
+function gkStyleLabel(p){ return gkStyle(p)==='butterfly'?'Butterfly':'Stand-up'; }
 function playerCardBig(p){
   var img=(p.type==='g'?SPRITES_G:SPRITES)[p.team+spriteKeyHand(p)];
   var ai=ARCH_INFO[p.archetype]||{n:(p.archetype||''),e:''};
+  if(p.type==='g') ai={n:gkStyleLabel(p), e:(ARCH_INFO.goalie||{}).e||''};   // v585 : le style du gardien sur sa carte
   var hand=(p.hand==='G'?'L':'R'), pos=(p.type==='g'?'G':(p.pos||'F'));
   var ovr=(p.type==='g') ? Math.round(((p.arret100||0)+(p.couverture100||0))/2) : overall(p);
   var bars=(p.type==='g')
@@ -8865,7 +8869,9 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    players.push({id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', mom:q.mom||0, role:hj3dRole(q)}); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
+    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', mom:q.mom||0, role:hj3dRole(q)};
+    if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */
+    players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
   if(focus==null && S.faceoff && S.faceoff.dotC!=null) focus=S.faceoff.dotC;   // v477 : pendant une mise au jeu, la camera 3D va au point de mise au jeu
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
@@ -10339,7 +10345,7 @@ function careerRender(){
     h+='</table></div>'+careerCoachLine(R)+careerInjHtml(R, ro)+'<div class="msub">Tap a player to see his card.</div><button class="mbtn play" onclick="careerGo(CAREER.phase===\'done\'?\'season\':\'hub\')">▶ Continue</button>';
   } else if(v==='player'){
     var T4=c.teams[c.my], P4=careerPlayerByUid(T4, CAREER_PUID), gk=(P4===T4.goalie), need=careerLevelCost(P4.lvl);
-    h+='<div class="mtitle">'+careerEsc(P4.name)+'</div><div class="msub">'+(gk?'Goalie':(P4.pos==='D'?'Defense':'Forward'))+' · age '+P4.age+(gk?'':' · '+careerEsc((ARCH_INFO[P4.archetype]||{}).n||P4.archetype))+'</div>';
+    h+='<div class="mtitle">'+careerEsc(P4.name)+'</div><div class="msub">'+((gk || P4===T4.goalie2)?'Goalie · '+gkStyleLabel(P4):(P4.pos==='D'?'Defense':'Forward'))+' · age '+P4.age+(gk?'':' · '+careerEsc((ARCH_INFO[P4.archetype]||{}).n||P4.archetype))+'</div>';
     h+='<div class="crec">Level '+P4.lvl+' <span class="cbar"><i style="width:'+Math.min(100, Math.round(100*P4.txp/need))+'%"></i></span> '+Math.round(P4.txp)+'/'+need+' XP</div>';
     if(!gk) h+='<div class="msub">Perks: '+[P4.perk, P4.perk2].filter(Boolean).map(function(k){ return careerEsc((PERK_INFO[k]||{}).n||k); }).join(', ')+'</div>';
     h+='<div class="msub">'+careerCardStats(P4, P4===T4.goalie || P4===T4.goalie2)+'</div>';   // v579 : la saison et la carriere
@@ -11106,7 +11112,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":342148,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":357316,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
