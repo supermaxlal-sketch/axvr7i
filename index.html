@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v591</title>
+<title>Deck 3D v592</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -119,6 +119,11 @@
   @keyframes fxbig{0%{transform:translate(-50%,-50%) scale(0);opacity:1;}55%{opacity:.9;}100%{transform:translate(-50%,-50%) scale(2.3);opacity:0;}}
   .checkfx.go .fxburst{animation:fxb .6s ease-out forwards;}
   .checkfx.go .fxtxt{animation:fxt .72s ease-out forwards;}
+  .annfloat{position:absolute;transform:translate(-50%,-100%);z-index:10;pointer-events:none;text-align:center;white-space:nowrap;animation:annup 1500ms ease-out forwards;font-weight:900;color:#fff;text-shadow:0 0 3px #000,0 1px 2px #000;}   /* v592 : l'annonce LEVEL UP (2D) */
+  .annfloat b{display:block;font-size:17px;color:#ffcc33;letter-spacing:.04em;}
+  .annfloat i{display:block;font-style:normal;font-size:13px;}
+  .annfloat.lvl i{color:#ffe28a;}
+  @keyframes annup{0%{opacity:0;transform:translate(-50%,-60%) scale(.6);}15%{opacity:1;transform:translate(-50%,-110%) scale(1.1);}75%{opacity:1;}100%{opacity:0;transform:translate(-50%,-170%) scale(1);}}
   @keyframes fxb{0%{transform:translate(-50%,-50%) scale(0);opacity:1;}70%{opacity:.85;}100%{transform:translate(-50%,-50%) scale(1.7);opacity:0;}}
   @keyframes fxt{0%{transform:translate(-50%,-160%) scale(0);opacity:0;}22%{transform:translate(-50%,-185%) scale(1.15);opacity:1;}72%{opacity:1;}100%{transform:translate(-50%,-225%) scale(1);opacity:0;}}
   .checkfx.whiff .fxburst{background:radial-gradient(circle,rgba(150,225,255,.7),rgba(110,150,210,.3) 55%,transparent 72%);}
@@ -1319,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v591';
+var GAME_VERSION='v592';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8954,7 +8959,8 @@ function replayFeed(team){
   var end=gi; while(end+1<R.length && R[end+1].t-R[gi].t<=RP_TAIL) end++;
   var out=[], tt=0, prev=null, shotT=-1, busy=0, lastKey=null;
   for(j=start;j<=end;j++){ var e=R[j]; if(e.k!=='snap' && e.k!=='ev') continue;   // ni camera ni visee : la reprise a la sienne
-    var d=JSON.parse(e.j); if(e.k==='snap'){ d=rpSnap(d); var key=rpKey(d); if(key===lastKey) continue; lastKey=key; }   // v582 : une photo qui ne change rien
+    var d=JSON.parse(e.j); if(e.k==='ev' && (d.e==='lvlup' || d.e==='statup')) continue;   // v592 : l'annonce ne se rejoue pas
+    if(e.k==='snap'){ d=rpSnap(d); var key=rpKey(d); if(key===lastKey) continue; lastKey=key; }   // v582 : une photo qui ne change rien
     if(prev!=null) tt+=Math.min(e.t-prev, Math.max(RP_BEAT, busy-tt)); prev=e.t;   // v582 : sans temps mort
     busy=Math.max(busy, tt+rpBusy(e.k, d));
     if(e.k==='ev' && d.e==='shot' && j<=gi) shotT=tt;
@@ -9408,7 +9414,7 @@ function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversai
 function careerGameOverButtons(){ var cc=document.getElementById('btnCareerContinue'), ng=document.getElementById('btnNewGame');
   if(cc) cc.style.display=CAREER_MATCH?'':'none'; if(ng) ng.style.display=CAREER_MATCH?'none':''; }
 var CAREER_LOG=null;   // compteur du match de carriere : id du pion -> actions ; last = la derniere passe recue (aide)
-function careerTrackReset(){ CAREER_LOG={st:{}, last:null, cost:{}, pe:{}, inj:{}}; }   // v489 : energie depensee, depart de periode, blessures
+function careerTrackReset(){ CAREER_LOG={st:{}, last:null, cost:{}, pe:{}, inj:{}, ann:{}}; ANN_Q=[]; }   // v489 : energie depensee, depart de periode, blessures ; v592 : ann = deja annonce
 function careerStatOf(id){ if(!CAREER_LOG || !id) return null; return CAREER_LOG.st[id] || (CAREER_LOG.st[id]={sog:0, g:0, a:0, pc:0, dk:0, dkf:0, hit:0, bat:0, stl:0, cells:0, brk:0, sv:0, svc:0, hr:0, ga:0}); }
 function careerTrack(e, d){   // les actions du match de carriere
   if(!CAREER_MATCH || !CAREER_LOG || !d || d.so) return; var s;   // v536 : la fusillade ne compte pas
@@ -9431,6 +9437,37 @@ function careerTrack(e, d){   // les actions du match de carriere
   else if(e==='steal'){ if((s=careerStatOf(d.id))) s.stl++; CAREER_LOG.last=null; }
   else if(e==='battle'){ if((s=careerStatOf(d.id))) s.bat++; careerCost(d.id, CAREER_EN.bat); if(d.lose){ careerCost(d.lose, CAREER_EN.bat); } }   // v516 : une bataille ne blesse plus
   else if(e==='breakaway'){ if((s=careerStatOf(d.id))) s.brk++; }
+  careerAnnounce();   // v592 : un +1 ou un niveau franchi (apercu) -> l'annonce
+}
+// v592 (spec 2026-10-26-bureau-du-coach-design, partie 1 ; le concepteur : « une animation durant le match pour dire qu'il monte ») :
+// l'apercu de careerXpCalc pour MES joueurs ; un niveau ou une nouvelle valeur de stat s'annonce une fois (CAREER_LOG.ann) ;
+// niveau + stat ensemble = une annonce ; rien n'est applique avant la fin (careerProgress).
+function careerAnnounce(){
+  if(!CAREER_MATCH || !CAREER_LOG) return; var A=CAREER_LOG.ann||(CAREER_LOG.ann={});
+  for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i], st=CAREER_LOG.st[q.id]; if(q.team!=='A' || !st) continue;
+    var p=careerPieceP(q); if(!p) continue;
+    var c=careerXpCalc(p, st, q.type==='g'), m=A[q.id]||(A[q.id]={lvl:p.lvl, up:{}}), stats=[];
+    for(var k in c.up){ var v=c.up[k][1]; if(v>(m.up[k]||p[k])){ m.up[k]=v; stats.push({k:CAREER_ABBR[k]||k, v:v}); } }
+    var lv=c.lvl>m.lvl; if(lv) m.lvl=c.lvl;
+    if(lv){ var f=stats.shift(), d={e:'lvlup', id:q.id, lvl:c.lvl}; if(f){ d.k=f.k; d.v=f.v; } careerAnnSend(d); }
+    stats.forEach(function(s){ careerAnnSend({e:'statup', id:q.id, k:s.k, v:s.v}); }); }
+}
+var ANN_Q=[], ANN_BUSY=false;   // 2D : une annonce a la fois
+function careerAnnSend(d){
+  if(hj3dActive()){ hj3dSend('ev', d); return; }   // la 3D les met a la file et les joue apres l'action
+  ANN_Q.push(d); if(!ANN_BUSY) careerAnnNext();
+}
+function careerAnnNext(){   // 2D : le texte flotte au-dessus du pion (or : niveau ; blanc : stat), 2 s / 1,5 s
+  var d=ANN_Q.shift(); if(!d){ ANN_BUSY=false; return; } ANN_BUSY=true;
+  var q=byId(d.id), bw=document.querySelector('.boardwrap'), at=q ? screenOfCell(q.c, q.r) : null, ms=d.e==='lvlup' ? 2000 : 1500;
+  if(bw && q){ var el=document.createElement('div');
+    el.className='annfloat'+(d.e==='lvlup' ? ' lvl' : '');
+    el.innerHTML=d.e==='lvlup' ? '<b>LEVEL UP!</b><i>'+(d.k ? '▲ '+d.k+' '+d.v : '▲ LVL '+d.lvl)+'</i>' : '<i>▲ '+d.k+' '+d.v+'</i>';
+    if(at){ el.style.left=at.x+'px'; el.style.top=at.y+'px'; }   // screenOfCell : deja relatif a .boardwrap (2D a plat ou verticale)
+    else { el.style.left=((q.c+0.5)/COLS*100)+'%'; el.style.top=((q.r+0.5)/ROWS*100)+'%'; }   // sans mise en page (comme checkFx)
+    el.style.animationDuration=ms+'ms';
+    bw.appendChild(el); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, ms); }
+  setTimeout(careerAnnNext, ms);
 }
 // v517 : L'ALIGNEMENT DE 18 (le concepteur) -- 16 habilles : 9 avants et 6 defenseurs (3 periodes de 5), puis le meilleur des
 // autres ; les plus frais (tranches d'energie), puis les meilleurs ; jamais un blesse. Les autres sont dans les gradins (p.rest).
@@ -10179,16 +10216,23 @@ function careerPerkChoices(p){   // 3 atouts adaptes au profil, jamais celui qu'
   while(fit.length<3 && rest.length) fit.push(rest.splice(Math.floor(careerRand()*rest.length), 1)[0]);
   return fit.slice(0, 3);
 }
-function careerApplyXp(p, st, goalie){   // les actions d'un match -> experience par categorie, +1, niveaux, points ; renvoie le detail
-  var mul=careerAgeMul(p.age), out={gain:{}, up:{}, lvlFrom:p.lvl, lvl:p.lvl, perkPick:false}, tot=0;
+function careerXpCalc(p, st, goalie){   // v592 : le calcul pur (sans toucher au joueur, sans hasard) -- la fin du match ET l'apercu de l'annonce
+  var mul=careerAgeMul(p.age), q={cap:p.cap}, out={gain:{}, up:{}, val:{}, xp:{}, lvlFrom:p.lvl, lvl:p.lvl, txp:p.txp}, tot=0;
   (goalie?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ var tab=CAREER_XP[k], g=0; for(var a in tab) g+=(st[a]||0)*tab[a];
-    g=Math.round(g*mul*10)/10; if(!g) return; out.gain[k]=g; tot+=g; var from=p[k];
-    if(p[k]>=p.cap[k]){ p.xp[k]=0; return; }
-    p.xp[k]+=g; while(p[k]<p.cap[k] && p.xp[k]>=careerXpCost(p, k)){ p.xp[k]-=careerXpCost(p, k); p[k]++; }
-    if(p[k]>=p.cap[k]) p.xp[k]=0;
-    if(p[k]>from) out.up[k]=[from, p[k]]; });
-  p.txp+=tot;
-  while(p.txp>=careerLevelCost(p.lvl)){ p.txp-=careerLevelCost(p.lvl); p.lvl++; p.pts++;
+    g=Math.round(g*mul*10)/10; if(!g) return; out.gain[k]=g; tot+=g; var from=p[k], x=p.xp[k];
+    if(p[k]>=p.cap[k]){ out.val[k]=p[k]; out.xp[k]=0; return; }
+    x+=g; q[k]=p[k]; while(q[k]<p.cap[k] && x>=careerXpCost(q, k)){ x-=careerXpCost(q, k); q[k]++; }
+    if(q[k]>=p.cap[k]) x=0;
+    out.val[k]=q[k]; out.xp[k]=x; if(q[k]>from) out.up[k]=[from, q[k]]; });
+  var txp=p.txp+tot, lvl=p.lvl;
+  while(txp>=careerLevelCost(lvl)){ txp-=careerLevelCost(lvl); lvl++; }
+  out.txp=txp; out.lvl=lvl; return out;
+}
+function careerApplyXp(p, st, goalie){   // les actions d'un match -> experience par categorie, +1, niveaux, points ; renvoie le detail
+  var c=careerXpCalc(p, st, goalie), out={gain:c.gain, up:c.up, lvlFrom:p.lvl, lvl:p.lvl, perkPick:false};
+  for(var k in c.val){ p[k]=c.val[k]; p.xp[k]=c.xp[k]; }
+  p.txp=c.txp;
+  while(p.lvl<c.lvl){ p.lvl++; p.pts++;
     if(p.lvl===5 && !goalie && !p.perk2 && !p.perkPick){ p.perkPick=careerPerkChoices(p); out.perkPick=true; } }
   out.lvl=p.lvl; return out;
 }
@@ -11152,7 +11196,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":424880,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":434272,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
