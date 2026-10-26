@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v589</title>
+<title>Deck 3D v590</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -347,6 +347,7 @@
 .setrow{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
 .setrow label{flex:1;font-size:13px;color:#cfe0ef;font-weight:700;min-width:120px;}
 .setrow input[type=range]{flex:1;min-width:120px;}
+#setVer.warn{color:#ff6b6b;}   /* v590 : la 3D n'est pas de la meme version (rouge : le jaune normal de .setv est trop proche de l'orange) */
 .setv{font-size:13px;font-weight:900;color:var(--gold,#e8b84b);min-width:34px;text-align:right;}
 .camprevwrap{border:1px solid #26435f;border-radius:8px;overflow:hidden;background:#060e18;margin-bottom:6px;}
 #camPrev{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;}
@@ -1071,6 +1072,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="setrow"><label>📱 Phone view (vertical rink)</label><button class="mbtn sm" id="setVRink">—</button></div>
 <div class="setrow" id="setView3dRow" style="display:none"><label>🧊 Rink view</label><button class="mbtn sm" id="setView3d">—</button></div>
 <div class="setrow"><label>🎥 Cinematic camera (3D)</label><button class="mbtn sm" id="setCine">—</button></div>
+<div class="setrow"><label>🏷️ Version</label><span class="setv" id="setVer"></span></div>
 <button class="mbtn" id="setCam">🎥 Camera angles</button>
 <button class="mbtn" id="setBack">← Back to menu</button></div></div>
 
@@ -1317,7 +1319,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v589';
+var GAME_VERSION='v590';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9027,6 +9029,7 @@ var hj3d={
     var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
     var t=magnetPick(c, r, fc, fr, px/(HJ3D.k||1)); onCell(t.c, t.r); return true; },
   drag:function(phase, c, r){ return hj3dDrag(phase, c, r); },
+  ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
   cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); return true; },   // v494 : la camera 3D (les bulles se placent sur la 3D)
   aim:function(t){   // v479 : toucher une cible du filet 3D = toucher le bouton 2D du meme coin
@@ -9167,6 +9170,10 @@ function syncSettings(){
   document.getElementById('setVRink').textContent=VRINK_ON?'On':'Off';
   document.getElementById('setView3dRow').style.display=window.hj3dAvailable?'':'none';   // v476 : seulement dans la page 3D
   document.getElementById('setView3d').textContent=VIEW3D_ON?'3D':'2D';
+  // v590 (le concepteur : « Oui » -- voir si son telephone charge bien la derniere 3D) : la version du jeu ; dans la page 3D,
+  // celle que Godot a envoyee au demarrage (hj3d.ver) ; une 3D d'avant v590 n'envoie rien (« old build »)
+  var _ve=document.getElementById('setVer'), _v3=!window.hj3dAvailable ? null : (HJ3D.ver ? '3D '+HJ3D.ver : (HJ3D.cb ? '3D: old build' : '3D: not loaded'));
+  _ve.textContent='Game '+GAME_VERSION+(_v3 ? ' · '+_v3 : ''); _ve.classList.toggle('warn', !!(_v3 && HJ3D.cb && HJ3D.ver!==GAME_VERSION));
   syncTipsBtn();   // v456
 }
 var _setFromPause=false;   // v466 : Settings ouvert depuis la pause -> le retour ramene a la pause
@@ -11145,7 +11152,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":422724,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":423168,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
