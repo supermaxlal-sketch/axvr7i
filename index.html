@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v588</title>
+<title>Deck 3D v589</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -285,6 +285,8 @@
 .dslot{flex:1;min-width:54px;text-align:center;border:2px solid #2b4a6b;border-radius:7px;padding:5px 4px;cursor:pointer;background:#0e1e30;}
 .dslot.active{border-color:#ffd23e;box-shadow:0 0 0 2px rgba(255,210,62,.35);}
 .dslot.filled{background:#13355a;}
+.dslot.locked{cursor:default;border-style:dashed;opacity:.6;}   /* v589 : le poste du puni */
+.dslot.locked .dslot-p{color:#ffb36b;}
 .dslot .dslot-r{font-size:10px;font-weight:900;color:#9fc3ea;}
 .dslot .dslot-p{font-size:10px;color:#fff;margin-top:2px;min-height:12px;}
 .dconfirm{display:block;width:100%;background:#1f8a8a;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer;margin-top:4px;}
@@ -1315,7 +1317,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v588';
+var GAME_VERSION='v589';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3513,7 +3515,11 @@ function ironOut(team, sim){   // par-dessus la vitre : arret de jeu, mise au je
   showWhistle(function(){ S.animating=false; startFaceoffRPS(dc, dr, false); }, '🥅', 'OUT OF PLAY', 'Off the iron and over the glass — faceoff in the zone');
 }
 // v441 : rebond du gardien -- vers l'avant (vers la glace), 25-75 deg sur le cote, force PUCK_POW.rebound
-function goalieReboundPath(gteam, gc, gr){ var out=dir(gteam), a=(Math.random()<0.5?-1:1)*(0.45+Math.random()*0.85);
+// v589 (le concepteur : « tous les rebonds de toute la game etaient tous mauvais » ; choix « Rebond du cote frappe ») : il part du
+// cote ou le tir a frappe le gardien -- celui que la 3D montre (replay.gd _on_shot : TL/BL d'un tireur A -> petites rangees, TR/BR
+// -> grandes ; l'inverse pour B) ; le 5 trous : au hasard. Angle et force inchanges
+function reboundSide(team, t){ var s=(t==='TL'||t==='BL') ? -1 : ((t==='TR'||t==='BR') ? 1 : 0); return team==='B' ? -s : s; }
+function goalieReboundPath(gteam, gc, gr, team, t){ var out=dir(gteam), a=(reboundSide(team, t)||(Math.random()<0.5?-1:1))*(0.45+Math.random()*0.85);
   return puckPath(gc+out*0.6, gr, out*Math.cos(a), Math.sin(a), PUCK_POW.rebound); }
 // v566 (le concepteur : « rebound sur un mur invisible pres du but » -- un tir rate partait en biais fixe, parfois vers le coin a
 // 10 m du filet ; choix : il passe pres du poteau et va sur la bande derriere le filet, comme un vrai) : il vise a cote du poteau
@@ -5105,14 +5111,18 @@ function cutDuel(seq, p){
 }
 function hasOrder(id,kind){ if(!S.defOrders) return null; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id && o.order===kind && !o.used) return o; } return null; }
 function activeOrderClass(id){ if(!S.defOrders) return ''; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id&&!o.used) return o.order==='check'?' ordc':(o.order==='poke'?' ordp':(o.order==='sblock'?' ords':' ordb')); } return ''; }
+// v589 (le concepteur : « couper sur le trajet ») : ou le defenseur atteint la ligne de la passe (u : 0 = le passeur, 1 = le receveur)
+function passCutU(pc, pr, tc, tr, d){ var dx=tc-pc, dy=tr-pr, L2=dx*dx+dy*dy; return L2 ? ((d.c-pc)*dx+(d.r-pr)*dy)/L2 : 1; }
+function passCutPoint(pc, pr, tc, tr, d){ var u=Math.max(0.12, Math.min(1, passCutU(pc, pr, tc, tr, d))); return {c:pc+(tc-pc)*u, r:pr+(tr-pr)*u}; }
 function blockOrderCheck(p,t){
   if(!S.defOrders || !S.defOrders.length) return null;
   for(var j=0;j<S.defOrders.length;j++){
     var o=S.defOrders[j]; if(o.order!=='block'||o.used) continue;
     var d=byId(o.defId); if(!d||!d.onIce||d.team===p.team) continue;
     var reach=(hasPerk(d,'intercepteur'))?2:1;
+    if(passCutU(p.c, p.r, t.c, t.r, d)<=0) continue;   // v589 (le concepteur, export v587 P2 0:29) : a cote ou derriere le passeur, il ne bloque pas -- la passe part devant
     var covered=false, steps=Math.max(1,Math.max(Math.abs(t.c-p.c),Math.abs(t.r-p.r))*2);
-    for(var k=0;k<=steps;k++){ var tt=k/steps; var xx=p.c+(t.c-p.c)*tt, yy=p.r+(t.r-p.r)*tt;
+    for(var k=0;k<=steps;k++){ var tt=k/steps; if(tt<=0.12) continue;   /* v589 : le couloir devant le passeur, comme laneThreat */ var xx=p.c+(t.c-p.c)*tt, yy=p.r+(t.r-p.r)*tt;
       if(Math.max(Math.abs(xx-d.c),Math.abs(yy-d.r))<=reach+0.15){ covered=true; break; } }
     if(!covered) continue;
     o.used=true; render();
@@ -5874,7 +5884,11 @@ function doPass(p,targetId){
   S.animating=true; S.puckOwner=null; S.puckLoose=null; clearSel(); render();
   if(pressed){ checkFx('whiff', prc, prr); }
   if(intc && intc.intercepted){
-    var dn=intc.def.name, ic=intc.def.c, ir=intc.def.r, did=intc.def.id, dteam=intc.def.team;
+    // v589 (le concepteur, export v587 P2 0:16 ; choix « Couper sur le trajet ») : la rondelle suit la ligne de la passe et elle est
+    // coupee la ou il atteint le couloir ; il s'y etire (sa case, si elle est libre) -- avant : elle partait vers sa case, de travers
+    var _cut=passCutPoint(pc, pr, tc, tr, intc.def), _cc={c:Math.round(_cut.c), r:Math.round(_cut.r)};
+    if((_cc.c!==intc.def.c || _cc.r!==intc.def.r) && !pieceAt(_cc.c, _cc.r)) skateToSpot(intc.def, _cc);
+    var dn=intc.def.name, ic=_cut.c, ir=_cut.r, did=intc.def.id, dteam=intc.def.team;
     if(intc.crowd>=2 && Math.random()<0.45){   // trafic dense : la rondelle est DEVIEE plus loin -> rondelle libre (melee) au lieu d'une interception propre
       // v441 : VRAIE PHYSIQUE -- la rondelle repart du baton du defenseur, de biais (30-65 deg), avec 45 % de la force de la passe
       var _dfv=rotVec(tc-pc, tr-pr, (Math.random()<0.5?-1:1)*(0.5+Math.random()*0.65)), _dfs=puckPath(ic, ir, _dfv.x, _dfv.y, 0.45*boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(p,t), 3, 8)), _dl=_dfs.rest;
@@ -6345,6 +6359,13 @@ var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interfer
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
+function penBoxedIds(team){ var P=S.pen, seen={}, a=[]; if(!P) return a; for(var i=0;i<P.box.length;i++){ var b=P.box[i]; if(b.team===team && !seen[b.id]){ seen[b.id]=1; a.push(b.id); } } return a; }   // v589 : les punis (double penalite = un seul joueur)
+// v589 (le concepteur : « 2:37 penalite moi mais 5 joueurs sur la glace » ; choix « Comme la LNH ») : un puni au debut d'une
+// periode -> son equipe joue a 4 : l'ailier droit est « In the box » dans la composition (l'IA aussi) ; deux -> les deux ailiers
+function penLockedSlots(team){ var k=penBoxedIds(team).length; return k>=2 ? ['AG','AD'] : (k===1 ? ['AD'] : []); }
+function penLineupBack(p){ var lu=S.lineup && S.lineup[p.team]; if(!lu || !lu.length || lu.indexOf(p.id)>=0) return true;   // v589 : de retour, il reprend le poste laisse vide pour lui
+  var k=lu.indexOf(null); if(k<0) return false;   // aucun poste vide : il reste au banc (jamais un 6e joueur)
+  lu[k]=p.id; p.role=LINEUP_ROLES[k]; if(S.draftUsed && S.draftUsed[p.team]) S.draftUsed[p.team][p.id]=true; return true; }
 function penHunter(id){ var o=S.defOrders||[]; for(var i=0;i<o.length;i++) if(o[i].hunt && o[i].defId===id) return true; return false; }
 function penDeliberate(p){ return !!p && (!!hasOrder(p.id,'check') || penHunter(p.id)); }
 function penFoul(checker, carrier, run){ return Math.sign(checker.c-carrier.c)===-dir(carrier.team) ? 'behind' : ((run||0)>=3 ? 'charge' : null); }   // dans le dos : meme regle que le -50 %
@@ -6382,16 +6403,19 @@ function penStop(team){   // l equipe fautive touche la rondelle : arret de jeu,
     if(S.injQ && S.injQ.length && !S.gameEnded){ S._injDot=dot; careerInjuryWhistle(); return; }
     startFaceoffRPS(dot.c, dot.r, false); }, '\u26D4', 'PENALTY', TEAM_NAME[pt]+' penalty — faceoff in their zone');
   return true; }
-function penClockDown(dt){ var P=S.pen; if(!P || !(dt>0)) return; for(var i=0;i<P.box.length;i++) P.box[i].left-=dt; }   // le banc suit le chrono de periode
+function penClockDown(dt){ var P=S.pen; if(!P || !(dt>0)) return; var rem={};   // le banc suit le chrono de periode
+  for(var i=0;i<P.box.length;i++){ var b=P.box[i], r=(b.id in rem) ? rem[b.id] : dt; if(r<=0 || b.left<=0) continue;
+    var t=Math.min(r, b.left); b.left-=t; rem[b.id]=r-t; } }   // v589 : double penalite -- une a la fois, la 2e court des que la 1re finit
 function penBack(b, why){ var P=penState(), i=P.box.indexOf(b); if(i>=0) P.box.splice(i,1); var p=byId(b.id);
-  if(p && !p.onIce){ var sp=clearDot(CTR_C_CELL, 0, p.id); p.c=sp.c; p.r=sp.r; p.onIce=true; p.mom=0; p.speed=0; p.vel=null; p.route=null; p.facing={dc:dir(p.team), dr:0}; }   // sur la ligne rouge, cote banc
+  if(penInBox(b.id)){ pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> stays in the box: next penalty.'); matchRec('pen', {ev:'next', team:b.team, id:b.id}); renderPen(); return; }   // v589 : double penalite, l'une apres l'autre
+  if(p && !p.onIce && penLineupBack(p)){ var sp=clearDot(CTR_C_CELL, 0, p.id); p.c=sp.c; p.r=sp.r; p.onIce=true; p.mom=0; p.speed=0; p.vel=null; p.route=null; p.facing={dc:dir(p.team), dr:0}; }   // sur la ligne rouge, cote banc
   pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> is back from the box.'); matchRec('pen', {ev:'back', team:b.team, id:b.id}); renderPen(); }
 function penRelease(){ var P=S.pen; if(!P) return; var done=P.box.filter(function(b){ return b.left<=0; }); for(var i=0;i<done.length;i++) penBack(done[i]); }
 function penOnGoal(team){   // but : la differee contre l equipe qui encaisse est annulee ; en avantage numerique, le plus ancien puni revient
   var P=S.pen; if(!P) return; var opp=team==='A'?'B':'A', kept=[];
   for(var i=0;i<P.delayed.length;i++){ var d=P.delayed[i]; if(d.team===opp){ var p=byId(d.id); pushLog('Goal on the delayed penalty — the call on '+(p?p.name:'?')+' is wiped out.'); matchRec('pen', {ev:'cancel', team:d.team, id:d.id, foul:d.foul}); hj3dSend('ev', {e:'pen', ev:'cancel', team:d.team, id:d.id}); }   /* v562 : il baisse le bras */ else kept.push(d); }
   P.delayed=kept;
-  var mine=0, theirs=[]; for(var j=0;j<P.box.length;j++){ if(P.box[j].team===team) mine++; else theirs.push(P.box[j]); }
+  var mine=penBoxedIds(team).length, theirs=[], seen={}; for(var j=0;j<P.box.length;j++){ var bj=P.box[j]; if(bj.team!==team && !seen[bj.id]){ seen[bj.id]=1; theirs.push(bj); } }   // v589 : une par joueur, celle qui court
   if(theirs.length>mine){ theirs.sort(function(a,b){ return a.left-b.left; }); penBack(theirs[0], 'Power-play goal — '); }
   penRestoreGoalies(); renderPen(); }
 // 6e ATTAQUANT : pendant une differee contre l adversaire, l equipe qui a la rondelle retire son gardien
@@ -6410,9 +6434,9 @@ function penRestoreGoalies(){ var P=S.pen; if(!P) return; for(var t in P.pulled)
     if(x){ x.onIce=false; if(S.puckOwner===x.id) S.puckOwner=null; } if(g){ g.onIce=true; g.c=ownGoalCol(t); g.r=CTR_R; }
     pushLog(TEAM_NAME[t]+': the goalie is back in the net.'); } P.pulled={}; }
 function renderPen(){ var P=S.pen; ['A','B'].forEach(function(t){ var el=document.getElementById('pen'+t); if(!el) return; var out=[];
-    if(P){ var mine=0, th=0;
-      for(var i=0;i<P.box.length;i++){ var b=P.box[i]; if(b.team!==t){ th++; continue; } mine++; var p=byId(b.id); out.push((p?p.label:'?')+' '+fmtClock(Math.max(0,Math.ceil(b.left)))); }
-      if(th>mine) out.unshift('PP'); if(penDelayedOn(t)) out.push('DELAYED'); if(P.pulled[t]) out.push('EMPTY NET'); }
+    if(P){ var mine=penBoxedIds(t), th=penBoxedIds(t==='A'?'B':'A').length;
+      mine.forEach(function(id){ var p=byId(id), left=0; P.box.forEach(function(b){ if(b.id===id) left+=Math.max(0,b.left); }); out.push((p?p.label:'?')+' '+fmtClock(Math.ceil(left))); });   // v589 : un puni, son temps total (double penalite)
+      if(th>mine.length) out.unshift('PP'); if(penDelayedOn(t)) out.push('DELAYED'); if(P.pulled[t]) out.push('EMPTY NET'); }
     el.textContent=out.join(' '); }); }
 function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forcePoke = poke check assure (rondelle exposee sur le revers)
   if(typeof S!=='undefined'&&S)S._cineAction='hit';   // indice camera (lecture seule)
@@ -6918,7 +6942,7 @@ function onShotTarget(t){
       S.animating=false; render(); celebrate(team,shName); return; }
     else if(res==='catch'){ sfx('save'); S.puckOwner=gid; document.getElementById('outcome').innerHTML='SAVE — '+gName+' gloves it clean!'; pushLog('<b>'+gName+'</b> read the shot ('+gShort+') — clean glove, the '+TEAM_NAME[gteam]+' break out.'); render(); gainPuck(gteam); }
     else if(res==='save'){ sfx('save'); S.puckOwner=gid; S.puckLoose=null; document.getElementById('outcome').innerHTML='Save by '+gName+' — he controls it.'; pushLog('<b>'+gName+'</b> stops the shot from '+shName+' and smothers the puck — '+relTxt+'.'); render(); gainPuck(gteam); }
-    else { sfx('save'); var _rb2=goalieReboundPath(gteam, gc, gr); S.animating=true; document.getElementById('outcome').innerHTML='Rebound!'; pushLog('Rebound off '+gName+' — '+relTxt+'.');
+    else { sfx('save'); var _rb2=goalieReboundPath(gteam, gc, gr, team, t); S.animating=true; document.getElementById('outcome').innerHTML='Rebound!'; pushLog('Rebound off '+gName+' — '+relTxt+'.');
       flyPuckPath(_rb2.pts, function(){ S.animating=false; placeLooseNear(_rb2.rest.c,_rb2.rest.r); render(); looseBall(gteam); }); }   // v441 : vraie physique
   });
 }
@@ -7527,7 +7551,7 @@ function ambStop(){ if(!AMB) return; var a=AMB; AMB=null; if(a.timer) clearInter
   try{ var t=AC?AC.currentTime:0; a.g.gain.cancelScheduledValues(t); a.g.gain.setValueAtTime(Math.max(0.0002,a.g.gain.value||0.01),t); a.g.gain.exponentialRampToValueAtTime(0.0001,t+0.6); }catch(e){}
   setTimeout(function(){ try{ a.src.stop(); }catch(e){} }, 700); }
 function teamSkaters(team){ var a=[]; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk'&&q.team===team) a.push(q); } return a; }
-function availFor(team){ var u=S.draftUsed[team]||{}, ok=teamSkaters(team).filter(function(p){ return !p.vacant && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[p.id]); }), av=ok.filter(function(p){ return !u[p.id]; });
+function availFor(team){ var u=S.draftUsed[team]||{}, ok=teamSkaters(team).filter(function(p){ return !p.vacant && !penInBox(p.id) && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[p.id]); }), av=ok.filter(function(p){ return !u[p.id]; });
   if(CAREER_MATCH) [['F', 3], ['D', 2]].forEach(function(x){ if(av.filter(function(p){ return p.pos===x[0]; }).length>=x[1]) return;   // v489 : il manque des joueurs frais -> ceux qui ont joue (2e periode, fatigues)
     ok.forEach(function(p){ if(p.pos===x[0] && u[p.id]) av.push(p); }); });
   return av; }
@@ -7536,14 +7560,15 @@ function aiDraft(team){
   var av=availFor(team);
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(draftFreshFirst(team, function(a,b){return (b.off+b.pass)-(a.off+a.pass);}));
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(team, function(a,b){return b.def-a.def;}));
-  var pick=fwd.slice(0,3).concat(def.slice(0,2)).map(function(p){return p.id;});
-  for(var i=0;i<pick.length;i++){ S.draftUsed[team][pick[i]]=true; }
+  var lk=penLockedSlots(team), f=fwd.slice(0,3-lk.length), d=def.slice(0,2), fi=0, di=0;
+  var pick=LINEUP_ROLES.map(function(r){ if(lk.indexOf(r)>=0) return null; var q=(r==='DG'||r==='DD') ? d[di++] : f[fi++]; return q ? q.id : null; });   // v589 : null = le poste du puni (a 4, comme la LNH)
+  for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[team][pick[i]]=true; }
   return pick;
 }
 var LINEUP_ROLES=['C','AG','AD','DG','DD'];   // ordre du lineup : Centre, Ailier Gauche, Ailier Droit, Def Gauche, Def Droit
 function deployLineup(){
   var on={};
-  ['A','B'].forEach(function(tm){ var lu=S.lineup[tm]||[]; for(var k=0;k<lu.length;k++){ on[lu[k]]=1; var q=byId(lu[k]); if(q) q.role=LINEUP_ROLES[k]||null; } });
+  ['A','B'].forEach(function(tm){ var lu=S.lineup[tm]||[]; for(var k=0;k<lu.length;k++){ if(!lu[k]) continue;   /* v589 : le poste du puni */ on[lu[k]]=1; var q=byId(lu[k]); if(q) q.role=LINEUP_ROLES[k]||null; } });
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk'){ q.onIce=!!on[q.id] && !penInBox(q.id) && !q.vacant && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[q.id]); } }   // v445 : un puni reste au banc ; v489 : un blesse aussi
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
@@ -7589,13 +7614,14 @@ function foDropWait(fo, go){
 var DRAFT_FSLOTS=['C','AG','AD'], DRAFT_DSLOTS=['DG','DD'], DRAFT_SLOTLBL={C:'Center',AG:'Left W',AD:'Right W',DG:'Left D',DD:'Right D'};
 function draftSlotsForType(pos){ return pos==='D' ? DRAFT_DSLOTS : DRAFT_FSLOTS; }
 function draftRoleOf(id){ for(var r in S.draftRoles){ if(S.draftRoles[r]===id) return r; } return null; }
+function draftIsLocked(r){ return penLockedSlots(HUMAN_TEAM).indexOf(r)>=0; }   // v589 : « In the box »
 function openDraft(dotC,dotR){
   S.draftCtx={dotC:dotC,dotR:dotR}; S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; S.draftActiveSlot=null;
   document.getElementById('draftTitle').textContent='Period '+S.period+' — your lineup';
   renderDraftCards();
   document.getElementById('draftOverlay').classList.add('show'); tipTrigger('draft'); tipFlush();   // v456
 }
-function draftSlotTap(role){
+function draftSlotTap(role){ if(draftIsLocked(role)) return;
   if(S.draftRoles[role]){ S.draftRoles[role]=null; S.draftActiveSlot=role; }   // taper un poste rempli le vide
   else { S.draftActiveSlot=(S.draftActiveSlot===role?null:role); }
   renderDraftCards();
@@ -7603,7 +7629,7 @@ function draftSlotTap(role){
 function draftAssign(id){
   var p=byId(id); if(!p) return;
   var cur=draftRoleOf(id); if(cur){ S.draftRoles[cur]=null; renderDraftCards(); return; }   // deja place : le retirer
-  var slots=draftSlotsForType(p.pos);
+  var slots=draftSlotsForType(p.pos).filter(function(r){ return !draftIsLocked(r); });
   var target=(S.draftActiveSlot && slots.indexOf(S.draftActiveSlot)>=0 && !S.draftRoles[S.draftActiveSlot]) ? S.draftActiveSlot : null;
   if(!target){ for(var i=0;i<slots.length;i++){ if(!S.draftRoles[slots[i]]){ target=slots[i]; break; } } }
   if(!target) return;   // tous les postes de ce type sont pris
@@ -7615,16 +7641,17 @@ function autoFillDraft(){
   var av=availFor(HUMAN_TEAM);
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(draftFreshFirst(HUMAN_TEAM, function(a,b){return overall(b)-overall(a);}));
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(HUMAN_TEAM, function(a,b){return overall(b)-overall(a);}));
-  var pick=fwd.slice(0,3).concat(def.slice(0,2)).map(function(p){return p.id;});
-  if(pick.length<5) return;
-  S.draftRoles={C:pick[0], AG:pick[1], AD:pick[2], DG:pick[3], DD:pick[4]}; S.draftActiveSlot=null;
+  var fs=DRAFT_FSLOTS.filter(function(r){ return !draftIsLocked(r); }), ds=DRAFT_DSLOTS.filter(function(r){ return !draftIsLocked(r); });   // v589 : les postes libres seulement
+  if(fwd.length<fs.length || def.length<ds.length) return;
+  S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; fs.forEach(function(r, i){ S.draftRoles[r]=fwd[i].id; }); ds.forEach(function(r, i){ S.draftRoles[r]=def[i].id; }); S.draftActiveSlot=null;
   renderDraftCards();
 }
 function renderDraftCards(){
   var order=['C','AG','AD','DG','DD'];
   document.getElementById('draftSlots').innerHTML = order.map(function(r){
     var id=S.draftRoles[r], nm=id?byId(id).name:'—';
-    return '<div class="dslot'+(S.draftActiveSlot===r?' active':'')+(id?' filled':'')+'" data-slot="'+r+'"><div class="dslot-r">'+DRAFT_SLOTLBL[r]+'</div><div class="dslot-p">'+nm+'</div></div>';
+    var lk=draftIsLocked(r); if(lk){ id=null; nm='In the box'; }   // v589 : le poste du puni
+    return '<div class="dslot'+(lk?' locked':'')+(S.draftActiveSlot===r?' active':'')+(id?' filled':'')+'" data-slot="'+r+'"><div class="dslot-r">'+DRAFT_SLOTLBL[r]+'</div><div class="dslot-p">'+nm+'</div></div>';
   }).join('');
   var sEl=document.getElementById('draftSlots'), scs=sEl.querySelectorAll('.dslot');
   for(var s=0;s<scs.length;s++){ (function(c){ c.onclick=function(){ draftSlotTap(c.getAttribute('data-slot')); }; })(scs[s]); }
@@ -7651,14 +7678,14 @@ function renderDraftCards(){
   fEl.innerHTML=fwd.map(card).join(''); dEl.innerHTML=def.map(card).join('');
   function wire(el){ var cs=el.querySelectorAll('.dcardp'); for(var i=0;i<cs.length;i++){ (function(c){ c.onclick=function(){ draftAssign(c.getAttribute('data-pid')); }; })(cs[i]); } }
   wire(fEl); wire(dEl);
-  var full=order.every(function(r){ return !!S.draftRoles[r]; });
+  var full=order.every(function(r){ return draftIsLocked(r) || !!S.draftRoles[r]; });
   document.getElementById('draftConfirm').disabled=!full;
 }
 function confirmDraft(){
   var order=['C','AG','AD','DG','DD'];
-  if(!order.every(function(r){ return !!S.draftRoles[r]; })) return;
-  var pick=order.map(function(r){ return S.draftRoles[r]; });
-  S.lineup[HUMAN_TEAM]=pick; for(var i=0;i<pick.length;i++){ S.draftUsed[HUMAN_TEAM][pick[i]]=true; }
+  if(!order.every(function(r){ return draftIsLocked(r) || !!S.draftRoles[r]; })) return;
+  var pick=order.map(function(r){ return draftIsLocked(r) ? null : S.draftRoles[r]; });   // v589 : null = le poste du puni
+  S.lineup[HUMAN_TEAM]=pick; for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[HUMAN_TEAM][pick[i]]=true; }
   var other=HUMAN_TEAM==='A'?'B':'A'; S.lineup[other]=aiDraft(other);
   S.lineupPeriod=S.period; S.needDraft=false; deployLineup();
   document.getElementById('draftOverlay').classList.remove('show');
@@ -9471,7 +9498,7 @@ function careerReplace(q, done){   // le coach choisit un joueur du banc (l'IA :
   var team=q.team, c=careerBench(team, q.pos, q.id); if(!c.length) c=careerBench(team, null, q.id);
   function put(r){ var lu=(S.lineup[team]||[]).slice(), k=lu.indexOf(q.id);
     if(r){ if(k>=0) lu[k]=r.id; else lu.push(r.id); r.onIce=true; r.role=q.role; var sp=clearDot(q.c, q.r, r.id); r.c=sp.c; r.r=sp.r; }
-    else if(k>=0) lu.splice(k, 1);   // personne : on joue a 4
+    else if(k>=0) lu[k]=null;   // personne : on joue a 4 (v589 : le poste reste vide -- un puni de retour le prend)
     S.lineup[team]=lu; careerOnIce(); render(); done(); }
   if(!c.length){ put(null); return; }
   if(team!==HUMAN_TEAM){ c.sort(function(a, b){ return careerLiveEn(b)-careerLiveEn(a); }); put(c[0]); return; }
