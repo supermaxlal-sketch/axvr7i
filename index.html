@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v594</title>
+<title>Deck 3D v595</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v594';
+var GAME_VERSION='v595';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1846,10 +1846,12 @@ function resolveSeq(seq){
 
 var PLAN_N=3, PLAN_SECS=20;   // v490 : 20 s pour faire tes choix (avant 15 s ; demande du concepteur)
 var PLAN_CLOCK_COST=6;   // v440 : secondes de chrono de periode par plan joue (la reflexion ne compte plus) -- reglable ; v463 : 4 -> 6 (parties ~15 min)
-function chargePlanClock(){ if(S.tut) return;   /* v451 : lecon */ var _c0=S.clock||0; S.clock=Math.max(0, _c0-PLAN_CLOCK_COST); if(S.clock<1) S.clock=0; penClockDown(_c0-S.clock); paintClock(); }
+var CLOCK_LIVE_SECS=30;   // v595 (son choix « Temps reel a la fin ») : les 30 dernieres secondes, le chrono coule PENDANT l'action et montre les millisecondes ; a 0:00.000, plus d'action
+function clockLive(){ return !S.tut && !S.so && S.clock<=CLOCK_LIVE_SECS && !S._shotFly; }   // le tir en vol : son issue compte au moment du lancer (jamais un but a 0:00.000)
+function chargePlanClock(){ if(S.tut) return;   /* v451 : lecon */ var _c0=S.clock||0; S.clock=Math.max(Math.min(_c0, CLOCK_LIVE_SECS), _c0-PLAN_CLOCK_COST);   /* v595 : jamais sous 30 s d'un coup (avant : 6 s d'un coup, et sous 1 s remis a 0 -> le dernier plan jouait a 0:00) */ penClockDown(_c0-S.clock); paintClock(); }
 // v442 : la periode est finie quand le TABLEAU affiche 0:00 (il arrondit vers le bas : moins d'1 s = 0:00). Le jeu en
 // cours se termine (un but au buzzer compte), mais plus aucune possession ne commence : ni echange, ni mise au jeu, ni plan.
-function periodClockOut(){ return !S.gameEnded && S.clock<1; }
+function periodClockOut(){ return !S.gameEnded && S.clock<=0; }   // v595 : 0:00.000 (avant : sous 1 s)
 // v463 (decision du concepteur : parties ~15 min) : les animations vont ANIM_RATE fois plus vite. Tous les delais du jeu
 // (setTimeout, voir l'enveloppe du tutoriel) sont divises par ANIM_RATE, et les durees CSS qui leur sont liees aussi
 // (glissements, courbes, vols et glisse de la rondelle). realMs(ms) garde une duree reelle (scene de tir, but).
@@ -6936,7 +6938,8 @@ function onShotTarget(t){
   var spec={noScene:_noScene, gc:gc, gr:gr, sid:sh.id, sc:sh.c, sr:sh.r, nc:goalCol(team), target:t, guess:guess, rel:rel, pct:pct, rollPct:Math.round(rl*100), res:res, quick:_ot, ctx:_scrTag+(_ot?((_otd?'ONE-TIMER tipped — ':'ONE-TIMER — ')+targetLabel(t)):'Aim '+targetLabel(t))+' — '+pct+'% · '+shName};
   countShotOnGoal(team);   // v438 : tir cadre (but, arret, rebond)
   matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null, near:_near});   /* v584 : near */   // v447 ; v495 : iron (poteau et dedans)
-  animateShot2(spec, function(){
+  S._shotFly=true;   // v595 : le chrono attend le tir (son issue compte au lancer)
+  animateShot2(spec, function(){ S._shotFly=false;
     if(res!=='goal' && prob>=MOM_SAVE_P) momAdd(gteam, MOM_SAVE);   // v554 : un gros arret fait basculer le momentum
     if(res==='goal'){ S.score[team]++; document.getElementById('outcome').innerHTML='GOAL by '+shName+' !';
       // v404 : un but peut entrer meme si le gardien avait bien lu le tir -> le texte le dit (plus « Goalie READ your shot »)
@@ -7198,7 +7201,7 @@ var HUMAN_TEAM='A';
 var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay','tunnelOverlay'];   // v510 : le couloir   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
 function clockPaused(){
   if(S.paused) return true;
-  if(S.gameEnded||S.needDraft||S.animating||S.faceoff) return true;
+  if(S.gameEnded||S.needDraft||(S.animating && !clockLive())||S.faceoff) return true;   // v595 : sous 30 s, le chrono coule pendant l'action
   for(var i=0;i<OV_IDS.length;i++){ var e=document.getElementById(OV_IDS[i]); if(e&&e.classList.contains('show')) return true; }
   return false;
 }
@@ -7214,15 +7217,17 @@ function togglePause(){
 }
 function lateGame(){ return S.clock<=LATE_SECS; }
 function fmtClock(sec){ var m=Math.floor(sec/60), r=Math.floor(sec%60); return m+':'+(r<10?'0':'')+r; }
+function fmtClockShown(sec){ if(sec>=CLOCK_LIVE_SECS || S.so) return fmtClock(sec);   // v595 : les millisecondes dans les 30 dernieres secondes
+  var ms=Math.max(0, Math.round(sec*1000)), r=Math.floor(ms/1000), f=ms%1000; return '0:'+(r<10?'0':'')+r+'.'+(f<10?'00':(f<100?'0':''))+f; }
 function paintClock(){
   var pe=document.getElementById('per');
-  if(pe){ pe.textContent=tutPractice()?'':fmtClock(S.clock);   // v482 : pratique -- pas d'horloge
+  if(pe){ pe.textContent=tutPractice()?'':fmtClockShown(S.clock);   // v482 : pratique -- pas d'horloge
     pe.className='per'+(lateGame()?' late':'')+(S.overtime?' ot':''); }
   var pd=document.getElementById('jper');
   if(pd){ pd.textContent = tutPractice() ? 'PRACTICE' : (S.so ? 'SHOOTOUT' : (S.overtime ? 'OVERTIME' : ('PERIOD '+S.period)));
     pd.className='jper'+(S.overtime?' ot':''); }
   var lc=document.getElementById('lsClk');
-  if(lc){ lc.textContent=tutPractice() ? 'PRACTICE' : (S.so ? 'SO' : ((S.overtime?'OT':('P'+S.period))+' '+fmtClock(S.clock)));
+  if(lc){ lc.textContent=tutPractice() ? 'PRACTICE' : (S.so ? 'SO' : ((S.overtime?'OT':('P'+S.period))+' '+fmtClockShown(S.clock)));
     lc.className='lsclk'+(lateGame()?' late':'')+(S.overtime?' ot':''); }
   var la=document.getElementById('lsAct');
   if(la){ var ae2=document.getElementById('actClk'); la.textContent=ae2?ae2.textContent:''; la.className='lspill'+(ae2&&/hot/.test(ae2.className)?' hot':''); }
@@ -7307,7 +7312,7 @@ function clockTick(){
       }
       paintClock();
       if(gkTimerOn() && S.planClock<=0){ S.planClock=null; confirmDefCommit('time'); return; }   // v501 : 'time' -> « Time up »
-      if(S.clock<1){ endPeriod(); return; }   // v442 : 0:00 au tableau
+      if(S.clock<=0){ endPeriod(); return; }   // v442 : 0:00 au tableau ; v595 : 0:00.000
     } else paintClock();
     return;
   }
@@ -7325,7 +7330,7 @@ function clockTick(){
         if(_gk && ghostOwner()===_gk.id){ S.planning=false; S.atkPlan=[]; S.ghost={}; renderPlanBar(); gkFreeze(_gk); return; }
         resolvePlan(); return;
       }
-      if(S.clock<1){ endPeriod(); return; }   // v442 : 0:00 au tableau
+      if(S.clock<=0){ endPeriod(); return; }   // v442 : 0:00 au tableau ; v595 : 0:00.000
     } else paintClock();
     return;
   }
@@ -7340,7 +7345,8 @@ function clockTick(){
     return;
   }
   if(clockPaused()){ paintClock(); return; }
-  var _c1=S.clock; S.clock=Math.max(0, S.clock-0.1); penClockDown(_c1-S.clock);   // v445 : le banc suit le chrono
+  var _c1=S.clock; S.clock=Math.max(0, Math.round((S.clock-0.1)*1000)/1000); penClockDown(_c1-S.clock);   // v595 : arrondi a la milliseconde (0:00.000 pile)
+  if(S.clock<=0 && _c1>0 && S.currentSeq && !S.currentSeq.dead){ killSeq(S.currentSeq); pushLog('<b>The buzzer sounds.</b> The period is over.'); }   // v595 : a 0:00.000, plus d'action   // v445 : le banc suit le chrono
   var _gk=goalieHolding();
   if(_gk){   // v498 : ton gardien aussi (v496 l'avait enleve contre l'IA)
     if(S.gkClock===null){ S.gkClock=GK_SECS; S.gkBeep=0; }
@@ -7350,7 +7356,7 @@ function clockTick(){
     if(S.gkClock<=0){ paintClock(); gkFreeze(_gk); return; }
   } else { S.gkClock=null; S.gkBeep=0; }
   paintClock();
-  if(S.clock<1 && !(S.currentSeq && !S.currentSeq.dead)){ endPeriod(); }   // v442 : 0:00 au tableau ; le jeu en cours se termine d'abord
+  if(S.clock<=0 && !(S.currentSeq && !S.currentSeq.dead)){ endPeriod(); }   // v595 : 0:00.000 (avant : sous 1 s)   // v442 : 0:00 au tableau ; le jeu en cours se termine d'abord
 }
 setInterval(clockTick, 100);
 // --- filet de securite : detecte un blocage et relance le jeu ---
@@ -11120,7 +11126,7 @@ function matchSave(kind, args){
   if(S.gameEnded && kind!=='over') return;
   try{ localStorage.setItem(MSAVE_KEY, JSON.stringify({v:1, ver:GAME_VERSION, t:Date.now(), kind:kind, args:args||[], S:S,
       career:CAREER_MATCH ? {m:CAREER_MATCH, log:CAREER_LOG} : null,
-      label:{per:S.overtime ? 'OT' : ('P'+S.period), clk:fmtClock(S.clock), a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B}})); }catch(e){}
+      label:{per:S.overtime ? 'OT' : ('P'+S.period), clk:fmtClockShown(S.clock), a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B}})); }catch(e){}
 }
 function matchSaveClear(){ try{ localStorage.removeItem(MSAVE_KEY); }catch(e){} }
 function matchSaveRead(){   // la sauvegarde, ou null (illisible -> effacee)
