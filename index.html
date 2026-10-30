@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v592</title>
+<title>Deck 3D v593</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1209,7 +1209,7 @@ function advanceStrategy(){ if(!S.activeStrat) return 'complete';
     var dteam=contester.team, cc=car.c, cr=car.r;
     pushLog('<b>Poke check</b>: '+contester.name+' knocks the puck off '+car.name+' during the play.');
     document.getElementById('outcome').innerHTML='Poke check! '+contester.name+' strips the puck.';
-    S.puckOwner=null; placeLooseToward(cc,cr,contester.c,contester.r); S.activeStrat=null; render();
+    S.puckOwner=null; placeLooseToward(cc,cr,contester.c,contester.r); looseOffside(dteam, cc); S.activeStrat=null; render();
     setTimeout(function(){ looseBall(dteam, dteam); }, TEMPO.settle);
     return 'contact';
   }
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v592';
+var GAME_VERSION='v593';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2823,6 +2823,8 @@ function canShootFrom(p){
   return inOffZone(p.team, c) && (p.team==='A' ? c<=NET_A : c>=NET_B) && facesShotGoal(p);
 }
 function inOffZone(team,c){ return team==='A' ? c>=BLUE_A : c<=BLUE_B; }
+function looseOffside(team, fromC){   // v593 : un poke / une mise en echec de l'attaquant fait entrer la rondelle libre dans SA zone avec un des siens deja dedans -> hors-jeu differe (comme un degagement ; son match v592 : Dumont poke de 10,4 a 9,4, 3 coequipiers dans la zone, rien de siffle)
+  if(S.puckLoose && !inOffZone(team, fromC) && inOffZone(team, S.puckLoose.c) && teammateInOffZone(team, '')) S.puckLoose.offside=team; }
 function teammateInOffZone(team,exceptId){ for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce&&q.type==='sk'&&q.team===team&&q.id!==exceptId&&inOffZone(team,q.c)) return true; } return false; }
 function offsideDot(team,atRow){ return {c: team==='A'?BLUE_A-2:BLUE_B+2,   /* v394 : point decolle de la bleue (1 case dedans, comme le 3D) */ r: atRow<=CTR_R?CTR_R-3:CTR_R+3}; }   // mise au jeu de hors-jeu : au point neutre JUSTE en dedans de la ligne bleue attaquee, du cote du jeu (rangees CTR_R±3, sur les points dessines)
 function doFaceoffNeutral(col,row){ pushLog('⛔ Offside called.'); startFaceoffRPS(col,row,false); }
@@ -6525,8 +6527,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen});   // v447   // v581 : pen
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
-  if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.knock>=2?' with a full head of steam — '+carName+' is knocked flying!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
-    else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
+  if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run); looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.knock>=2?' with a full head of steam — '+carName+' is knocked flying!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
+    else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); looseOffside(checker.team, cc); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
   else if(_blowby){ if(C.team===HUMAN_TEAM) tipTrigger('blowby');   /* v460 */ bonusTrigger(C, 'speed'); /* v438 : echappee */ document.getElementById('outcome').innerHTML=carName+' blows by '+cName+'!'; pushLog('<b>'+carName+'</b> blows by '+cName+dpos(checker)+' with speed — beaten flat.'); }
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
   else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (carName+' shields the puck.'); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.')); }
@@ -6662,7 +6664,7 @@ function doPoke(p,carId){
       render(); gainPuck(pteam); return;
     }
     if(ok){
-      S.puckOwner=null; S._looseLoser=car.id; placeLooseToward(cc,cr,p.c,p.r);   /* le porteur poke ne re-attrape pas par adjacence */
+      S.puckOwner=null; S._looseLoser=car.id; placeLooseToward(cc,cr,p.c,p.r); looseOffside(p.team, cc);   /* le porteur poke ne re-attrape pas par adjacence */
       document.getElementById('outcome').innerHTML='Poke check — the puck comes loose!';
       pushLog('<b>Poke check</b>: '+pn+dpos(p)+' knocks the puck off '+cn+dpos(car)+dcell(S.puckLoose.c,S.puckLoose.r)+' — loose puck.');
       render(); looseBall(pteam); return;
