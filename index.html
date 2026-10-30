@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v595</title>
+<title>Deck 3D v596</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v595';
+var GAME_VERSION='v596';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7345,7 +7345,7 @@ function clockTick(){
     return;
   }
   if(clockPaused()){ paintClock(); return; }
-  var _c1=S.clock; S.clock=Math.max(0, Math.round((S.clock-0.1)*1000)/1000); penClockDown(_c1-S.clock);   // v595 : arrondi a la milliseconde (0:00.000 pile)
+  var _c1=S.clock; if(S.animating){ S.clock=Math.max(0, Math.round((S.clock-0.1)*1000)/1000); penClockDown(_c1-S.clock); }   // v595 : arrondi a la milliseconde (0:00.000 pile) ; v596 (ses notes) : seulement PENDANT une action -- avant, il coulait aussi sans action (apres un degagement)
   if(S.clock<=0 && _c1>0 && S.currentSeq && !S.currentSeq.dead){ killSeq(S.currentSeq); pushLog('<b>The buzzer sounds.</b> The period is over.'); }   // v595 : a 0:00.000, plus d'action   // v445 : le banc suit le chrono
   var _gk=goalieHolding();
   if(_gk){   // v498 : ton gardien aussi (v496 l'avait enleve contre l'IA)
@@ -11199,7 +11199,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":434272,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":434496,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
