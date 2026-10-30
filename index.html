@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v597</title>
+<title>Deck 3D v598</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v597';
+var GAME_VERSION='v598';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6965,6 +6965,7 @@ function goalieDive(guess){
   gk.style.animation='none';
   gk.classList.add(cls);
 }
+var REB3D_MS=600;   // v598 (ses notes : « il y a une pause au rebond ») : en 3D, le trajet du rebond part 600 ms apres le depart du tir
 function animateShot2(spec, onDone){
   S.animating=true;
   if(spec.noScene){   // v401 : one-timer joue SUR LA GLACE -- pas d'ecran de tir ; le resultat s'affiche sur la glace (bulle)
@@ -7002,7 +7003,8 @@ function animateShot2(spec, onDone){
     else if(spec.res==='catch'){ flash.className='sflash save on'; sres.className='sresult save'; sres.textContent='CAUGHT!'; }
     else if(spec.res==='save'){ flash.className='sflash save on'; sres.className='sresult save'; sres.textContent='SAVE!'; }
     else { sres.className='sresult rebound'; sres.textContent='REBOUND!'; }
-    setTimeout(function(){ ov.classList.remove('show'); onDone(); }, realMs(rd?300:(spec.quick?950:1300)));
+    var _rb3=(spec.res==='rebound' && hj3dActive());   // v598 : en 3D, le rebond part REB3D_MS apres le depart (la 3D l'enchaine apres son tir ; avant : pause ~1 s)
+    setTimeout(function(){ ov.classList.remove('show'); onDone(); }, realMs(_rb3 ? Math.max(0, REB3D_MS-(rd?80:560)) : (rd?300:(spec.quick?950:1300))));
   }
   function dropRoll(){ paintRoll(spec.rollPct, true); setTimeout(flyPuck, realMs(rd?100:(spec.quick?200:380))); }
   var n=0, total=rd?1:(spec.quick?5:12);
