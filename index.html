@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v593</title>
+<title>Deck 3D v594</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v593';
+var GAME_VERSION='v594';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4169,12 +4169,7 @@ function puckBattle(pair, L, onDone){
       if(round<BATTLE_ROUNDS){ setTimeout(clash, 190); return; }
       // fin de bataille
       var champ = (wins.A>wins.B) ? A : B;
-      // v471 : les deux se SEPARENT -- le perdant est repousse d'une case, a l'oppose de la rondelle (s'il y a la place)
-      var loser=(champ===A)?B:A, ldx=Math.sign(loser.c-L.c), ldy=Math.sign(loser.r-L.r);
-      if(!ldx && !ldy){ ldx=Math.sign(loser.c-champ.c)||-dir(champ.team); ldy=Math.sign(loser.r-champ.r); }
-      var ltx=loser.c+ldx, lty=loser.r+ldy;
-      if(ltx>=0 && ltx<COLS && lty>=0 && lty<ROWS && onIce(ltx,lty) && !pieceAt(ltx,lty) && !(ltx===L.c && lty===L.r)){
-        var _lc=loser.c, _lr=loser.r; loser.c=ltx; loser.r=lty; addSlide(loser.id, _lc-ltx, _lr-lty); pushLog('<b>'+loser.name+'</b> is knocked off the puck.'); }
+      // v593 (son choix B ; ses matchs v592 : « le joueur recule ») : le perdant RESTE SUR PLACE -- plus le recul d'une case de la v471
       // v500 : S.animating reste vrai jusqu'a la ramasse -- le chrono attend, la periode ne finit pas entre le dernier choc
       // et la ramasse (avant : a 0:00, la periode changeait, puis la rondelle allait a un joueur hors de la glace)
       pushLog('<b>'+champ.name+'</b> wins the battle '+Math.max(wins.A,wins.B)+'-'+Math.min(wins.A,wins.B)+' and comes up with the puck !');
