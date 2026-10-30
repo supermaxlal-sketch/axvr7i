@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v596</title>
+<title>Deck 3D v597</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v596';
+var GAME_VERSION='v597';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3291,11 +3291,13 @@ function spend(){
   var _gp=resolveGlide();   // v379 : temps de glisse -- les pieces non commandees derivent sur leur elan apres chaque geste
   if(glidePickupTakeover(_gp)) return;   // v382 : une glisse a ramasse la rondelle libre -> possession
   if(S.gestes<=0){ if(S.puckOwner){ endExchange(); } else { passTurn(); } return; } clearSel(); render(); }
+function gkBehindLine(gk, c){ var cc=(c===undefined)?gk.c:c; return gk.team==='A' ? cc<NET_B : cc>NET_A; }   // v597 (ses notes) : derriere SA ligne de but (A defend NET_B) -- il ne peut pas y geler la rondelle
 function coverTargets(p){
   // le gardien peut couvrir directement SEULEMENT si aucun adversaire ne conteste.
   // Sil y a un adversaire dans le coup, ca doit passer par la course (looseContest).
   if(!p || p.type!=='g' || !S.puckLoose || S.puckOwner) return null;
   if(Math.max(Math.abs(S.puckLoose.c-p.c), Math.abs(S.puckLoose.r-p.r))>1) return null;
+  if(gkBehindLine(p, S.puckLoose.c)) return null;   // v597 : derriere le but, pas de « couvrir »
   if(looseContest()) return null;   // un adversaire est assez proche : course obligatoire
   return {c:S.puckLoose.c, r:S.puckLoose.r};
 }
@@ -3303,6 +3305,7 @@ function goalieCover(gk){
   if(!gk || !S.puckLoose) return;
   var L=S.puckLoose;
   S.puckOwner=gk.id; S.puckLoose=null;
+  if(gkBehindLine(gk, L.c)){ pushLog('<b>'+gk.name+'</b> picks up the puck behind the net — he cannot freeze it there.'); render(); return; }   // v597 : il la prend, il doit la jouer
   S.gkSide=(L.r<CTR_R)?'T':((L.r>CTR_R)?'B':null);
   checkFx('save', L.c, L.r);
   document.getElementById('outcome').innerHTML='<b>'+gk.name+' smothers the rebound!</b>';
@@ -4111,7 +4114,7 @@ function takeLooseSolo(L, onDone){
   setTimeout(function(){
     S.animating=false;
     if(S.puckOwner || !S.puckLoose){ render(); return; }
-    if(p.type==='g'){
+    if(p.type==='g' && !gkBehindLine(p, L.c)){   // v597 : derriere le but, il la ramasse comme un patineur (sans la geler)
       pushLog('<b>'+p.name+'</b> covers the loose puck — whistle.');
       S.puckLoose=null; S.gkSide=(L.r<CTR_R)?'T':((L.r>CTR_R)?'B':null);
       sfx('save'); render(); gkFreeze(p); return;
@@ -7272,6 +7275,7 @@ function goalieHolding(){
 }
 function gkFreeze(gk){
   if(S._gkCover) return;
+  if(gk && gkBehindLine(gk)){ S.gkClock=null; S.gkBeep=0; return; }   // v597 : derriere son but, il ne peut pas la geler
   if(S.gameEnded) return;
   if(S.animating){ setTimeout(function(){ gkFreeze(gk); }, 260); return; }   // on attend, on nabandonne pas
   S._gkCover=true; setTimeout(function(){ S._gkCover=false; }, 1400);
@@ -7327,7 +7331,7 @@ function clockTick(){
       if(gkTimerOn() && S.planClock<=0){
         S.planClock=null;
         var _gk=goalieHolding();
-        if(_gk && ghostOwner()===_gk.id){ S.planning=false; S.atkPlan=[]; S.ghost={}; renderPlanBar(); gkFreeze(_gk); return; }
+        if(_gk && ghostOwner()===_gk.id && !gkBehindLine(_gk)){ S.planning=false; S.atkPlan=[]; S.ghost={}; renderPlanBar(); gkFreeze(_gk); return; }
         resolvePlan(); return;
       }
       if(S.clock<=0){ endPeriod(); return; }   // v442 : 0:00 au tableau ; v595 : 0:00.000
