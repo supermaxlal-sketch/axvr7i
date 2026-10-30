@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v599</title>
+<title>Deck 3D v600</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -290,8 +290,8 @@
 .dslot{flex:1;min-width:54px;text-align:center;border:2px solid #2b4a6b;border-radius:7px;padding:5px 4px;cursor:pointer;background:#0e1e30;}
 .dslot.active{border-color:#ffd23e;box-shadow:0 0 0 2px rgba(255,210,62,.35);}
 .dslot.filled{background:#13355a;}
-.dslot.locked{cursor:default;border-style:dashed;opacity:.6;}   /* v589 : le poste du puni */
-.dslot.locked .dslot-p{color:#ffb36b;}
+.dslot.wait{border-style:dashed;}   /* v600 : le poste qui attend la fin de la penalite */
+.dslot .dslot-w{font-size:9px;font-weight:800;color:#ffb36b;}
 .dslot .dslot-r{font-size:10px;font-weight:900;color:#9fc3ea;}
 .dslot .dslot-p{font-size:10px;color:#fff;margin-top:2px;min-height:12px;}
 .dconfirm{display:block;width:100%;background:#1f8a8a;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer;margin-top:4px;}
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v599';
+var GAME_VERSION='v600';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6370,8 +6370,16 @@ function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
 function penBoxedIds(team){ var P=S.pen, seen={}, a=[]; if(!P) return a; for(var i=0;i<P.box.length;i++){ var b=P.box[i]; if(b.team===team && !seen[b.id]){ seen[b.id]=1; a.push(b.id); } } return a; }   // v589 : les punis (double penalite = un seul joueur)
 // v589 (le concepteur : « 2:37 penalite moi mais 5 joueurs sur la glace » ; choix « Comme la LNH ») : un puni au debut d'une
-// periode -> son equipe joue a 4 : l'ailier droit est « In the box » dans la composition (l'IA aussi) ; deux -> les deux ailiers
-function penLockedSlots(team){ var k=penBoxedIds(team).length; return k>=2 ? ['AG','AD'] : (k===1 ? ['AD'] : []); }
+// periode -> son equipe joue a 4. v600 (le concepteur : « je choisis 5 joueurs pour la periode quand meme. Quand le gars sort de
+// penalite, celui que tu as choisi saute sur la glace ») : on compose 5 joueurs ; l'ailier droit attend au banc (« After the
+// penalty ») et saute sur la glace a la fin de la penalite, le puni va au banc. Deux punis : AD puis AG. L'IA aussi.
+function penWaitSlots(team){ var k=penBoxedIds(team).length; return k>=2 ? ['AD','AG'] : (k===1 ? ['AD'] : []); }   // dans l'ordre ou ils sautent sur la glace
+function penWaiting(id){ var w=S.pen && S.pen.wait; return !!w && ['A','B'].some(function(t){ return (w[t]||[]).some(function(x){ return x.id===id; }); }); }
+function penSubOn(team, boxed){ var w=S.pen && S.pen.wait && S.pen.wait[team]; if(!w) return null; var k=-1;   // v600 : l'ailier qui attendait CE puni saute sur la glace
+  for(var i=0;i<w.length;i++) if(w[i].by===boxed){ k=i; break; } if(k<0) return null; var q=byId(w.splice(k,1)[0].id);
+  if(!q || q.onIce || penInBox(q.id) || q.vacant) return null;
+  var sp=clearDot(CTR_C_CELL, 0, q.id); q.c=sp.c; q.r=sp.r; q.onIce=true; q.mom=0; q.speed=0; q.vel=null; q.route=null; q.facing={dc:dir(q.team), dr:0};   // sur la ligne rouge, cote banc
+  return q; }
 function penLineupBack(p){ var lu=S.lineup && S.lineup[p.team]; if(!lu || !lu.length || lu.indexOf(p.id)>=0) return true;   // v589 : de retour, il reprend le poste laisse vide pour lui
   var k=lu.indexOf(null); if(k<0) return false;   // aucun poste vide : il reste au banc (jamais un 6e joueur)
   lu[k]=p.id; p.role=LINEUP_ROLES[k]; if(S.draftUsed && S.draftUsed[p.team]) S.draftUsed[p.team][p.id]=true; return true; }
@@ -6417,8 +6425,9 @@ function penClockDown(dt){ var P=S.pen; if(!P || !(dt>0)) return; var rem={};   
     var t=Math.min(r, b.left); b.left-=t; rem[b.id]=r-t; } }   // v589 : double penalite -- une a la fois, la 2e court des que la 1re finit
 function penBack(b, why){ var P=penState(), i=P.box.indexOf(b); if(i>=0) P.box.splice(i,1); var p=byId(b.id);
   if(penInBox(b.id)){ pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> stays in the box: next penalty.'); matchRec('pen', {ev:'next', team:b.team, id:b.id}); renderPen(); return; }   // v589 : double penalite, l'une apres l'autre
-  if(p && !p.onIce && penLineupBack(p)){ var sp=clearDot(CTR_C_CELL, 0, p.id); p.c=sp.c; p.r=sp.r; p.onIce=true; p.mom=0; p.speed=0; p.vel=null; p.route=null; p.facing={dc:dir(p.team), dr:0}; }   // sur la ligne rouge, cote banc
-  pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> is back from the box.'); matchRec('pen', {ev:'back', team:b.team, id:b.id}); renderPen(); }
+  var sub=(p && !p.onIce) ? penSubOn(b.team, b.id) : null;   // v600 : celui qui l'attendait saute sur la glace, le puni va au banc
+  if(!sub && p && !p.onIce && penLineupBack(p)){ var sp=clearDot(CTR_C_CELL, 0, p.id); p.c=sp.c; p.r=sp.r; p.onIce=true; p.mom=0; p.speed=0; p.vel=null; p.route=null; p.facing={dc:dir(p.team), dr:0}; }   // sur la ligne rouge, cote banc
+  pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> is back from the box'+(sub?' and goes to the bench — <b>'+sub.name+'</b> jumps on the ice.':'.')); matchRec('pen', {ev:'back', team:b.team, id:b.id}); renderPen(); }
 function penRelease(){ var P=S.pen; if(!P) return; var done=P.box.filter(function(b){ return b.left<=0; }); for(var i=0;i<done.length;i++) penBack(done[i]); }
 function penOnGoal(team){   // but : la differee contre l equipe qui encaisse est annulee ; en avantage numerique, le plus ancien puni revient
   var P=S.pen; if(!P) return; var opp=team==='A'?'B':'A', kept=[];
@@ -6430,7 +6439,7 @@ function penOnGoal(team){   // but : la differee contre l equipe qui encaisse es
 // 6e ATTAQUANT : pendant une differee contre l adversaire, l equipe qui a la rondelle retire son gardien
 function goalieOf(team){ return byId(team==='A'?'A_TH':'B_DM'); }
 function penExtraPick(team){ var best=null, bs=-1; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i];
-    if(q.team!==team || q.type!=='sk' || q.onIce || penInBox(q.id) || q.pos==='D') continue; var sc=(q.tir||0)+(q.passe||0); if(sc>bs){ bs=sc; best=q; } } return best; }
+    if(q.team!==team || q.type!=='sk' || q.onIce || penInBox(q.id) || penWaiting(q.id) || q.pos==='D') continue;   /* v600 : pas celui qui attend la fin de la penalite */ var sc=(q.tir||0)+(q.passe||0); if(sc>bs){ bs=sc; best=q; } } return best; }
 function penCanPull(team){ var P=S.pen; if(!P || P.pulled[team] || !penDelayedOn(team==='A'?'B':'A')) return false;
   var ow=S.puckOwner?byId(S.puckOwner):null; if(!ow || ow.team!==team || ow.type==='g') return false;
   var g=goalieOf(team); return !!(g && g.onIce!==false && penExtraPick(team)); }
@@ -7576,15 +7585,17 @@ function aiDraft(team){
   var av=availFor(team);
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(draftFreshFirst(team, function(a,b){return (b.off+b.pass)-(a.off+a.pass);}));
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(team, function(a,b){return b.def-a.def;}));
-  var lk=penLockedSlots(team), f=fwd.slice(0,3-lk.length), d=def.slice(0,2), fi=0, di=0;
-  var pick=LINEUP_ROLES.map(function(r){ if(lk.indexOf(r)>=0) return null; var q=(r==='DG'||r==='DD') ? d[di++] : f[fi++]; return q ? q.id : null; });   // v589 : null = le poste du puni (a 4, comme la LNH)
+  var f=fwd.slice(0,3), d=def.slice(0,2), fi=0, di=0;
+  var pick=LINEUP_ROLES.map(function(r){ var q=(r==='DG'||r==='DD') ? d[di++] : f[fi++]; return q ? q.id : null; });   // v600 : 5 joueurs, meme avec un puni (deployLineup garde l'ailier au banc)
   for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[team][pick[i]]=true; }
   return pick;
 }
 var LINEUP_ROLES=['C','AG','AD','DG','DD'];   // ordre du lineup : Centre, Ailier Gauche, Ailier Droit, Def Gauche, Def Droit
 function deployLineup(){
   var on={};
-  ['A','B'].forEach(function(tm){ var lu=S.lineup[tm]||[]; for(var k=0;k<lu.length;k++){ if(!lu[k]) continue;   /* v589 : le poste du puni */ on[lu[k]]=1; var q=byId(lu[k]); if(q) q.role=LINEUP_ROLES[k]||null; } });
+  if(S.pen) S.pen.wait={A:[], B:[]};
+  ['A','B'].forEach(function(tm){ var lu=S.lineup[tm]||[], wt=penWaitSlots(tm), bx=penBoxedIds(tm); for(var k=0;k<lu.length;k++){ if(!lu[k]) continue; var q=byId(lu[k]); if(q) q.role=LINEUP_ROLES[k]||null; if(wt.indexOf(LINEUP_ROLES[k])<0) on[lu[k]]=1; }
+    wt.forEach(function(r, i){ var id=lu[LINEUP_ROLES.indexOf(r)]; if(id && S.pen) S.pen.wait[tm].push({id:id, by:bx[i]}); }); });   // v600 : l'ailier (AD, puis AG) attend au banc la fin de la penalite de son puni
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk'){ q.onIce=!!on[q.id] && !penInBox(q.id) && !q.vacant && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[q.id]); } }   // v445 : un puni reste au banc ; v489 : un blesse aussi
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
@@ -7630,14 +7641,14 @@ function foDropWait(fo, go){
 var DRAFT_FSLOTS=['C','AG','AD'], DRAFT_DSLOTS=['DG','DD'], DRAFT_SLOTLBL={C:'Center',AG:'Left W',AD:'Right W',DG:'Left D',DD:'Right D'};
 function draftSlotsForType(pos){ return pos==='D' ? DRAFT_DSLOTS : DRAFT_FSLOTS; }
 function draftRoleOf(id){ for(var r in S.draftRoles){ if(S.draftRoles[r]===id) return r; } return null; }
-function draftIsLocked(r){ return penLockedSlots(HUMAN_TEAM).indexOf(r)>=0; }   // v589 : « In the box »
+function draftWaits(r){ return penWaitSlots(HUMAN_TEAM).indexOf(r)>=0; }   // v600 : « After the penalty »
 function openDraft(dotC,dotR){
   S.draftCtx={dotC:dotC,dotR:dotR}; S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; S.draftActiveSlot=null;
   document.getElementById('draftTitle').textContent='Period '+S.period+' — your lineup';
   renderDraftCards();
   document.getElementById('draftOverlay').classList.add('show'); tipTrigger('draft'); tipFlush();   // v456
 }
-function draftSlotTap(role){ if(draftIsLocked(role)) return;
+function draftSlotTap(role){
   if(S.draftRoles[role]){ S.draftRoles[role]=null; S.draftActiveSlot=role; }   // taper un poste rempli le vide
   else { S.draftActiveSlot=(S.draftActiveSlot===role?null:role); }
   renderDraftCards();
@@ -7645,7 +7656,7 @@ function draftSlotTap(role){ if(draftIsLocked(role)) return;
 function draftAssign(id){
   var p=byId(id); if(!p) return;
   var cur=draftRoleOf(id); if(cur){ S.draftRoles[cur]=null; renderDraftCards(); return; }   // deja place : le retirer
-  var slots=draftSlotsForType(p.pos).filter(function(r){ return !draftIsLocked(r); });
+  var slots=draftSlotsForType(p.pos);
   var target=(S.draftActiveSlot && slots.indexOf(S.draftActiveSlot)>=0 && !S.draftRoles[S.draftActiveSlot]) ? S.draftActiveSlot : null;
   if(!target){ for(var i=0;i<slots.length;i++){ if(!S.draftRoles[slots[i]]){ target=slots[i]; break; } } }
   if(!target) return;   // tous les postes de ce type sont pris
@@ -7657,7 +7668,7 @@ function autoFillDraft(){
   var av=availFor(HUMAN_TEAM);
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(draftFreshFirst(HUMAN_TEAM, function(a,b){return overall(b)-overall(a);}));
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(HUMAN_TEAM, function(a,b){return overall(b)-overall(a);}));
-  var fs=DRAFT_FSLOTS.filter(function(r){ return !draftIsLocked(r); }), ds=DRAFT_DSLOTS.filter(function(r){ return !draftIsLocked(r); });   // v589 : les postes libres seulement
+  var fs=DRAFT_FSLOTS, ds=DRAFT_DSLOTS;
   if(fwd.length<fs.length || def.length<ds.length) return;
   S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; fs.forEach(function(r, i){ S.draftRoles[r]=fwd[i].id; }); ds.forEach(function(r, i){ S.draftRoles[r]=def[i].id; }); S.draftActiveSlot=null;
   renderDraftCards();
@@ -7666,8 +7677,8 @@ function renderDraftCards(){
   var order=['C','AG','AD','DG','DD'];
   document.getElementById('draftSlots').innerHTML = order.map(function(r){
     var id=S.draftRoles[r], nm=id?byId(id).name:'—';
-    var lk=draftIsLocked(r); if(lk){ id=null; nm='In the box'; }   // v589 : le poste du puni
-    return '<div class="dslot'+(lk?' locked':'')+(S.draftActiveSlot===r?' active':'')+(id?' filled':'')+'" data-slot="'+r+'"><div class="dslot-r">'+DRAFT_SLOTLBL[r]+'</div><div class="dslot-p">'+nm+'</div></div>';
+    var wt=draftWaits(r);   // v600 : il attend la fin de la penalite au banc
+    return '<div class="dslot'+(wt?' wait':'')+(S.draftActiveSlot===r?' active':'')+(id?' filled':'')+'" data-slot="'+r+'"><div class="dslot-r">'+DRAFT_SLOTLBL[r]+'</div><div class="dslot-p">'+nm+'</div>'+(wt?'<div class="dslot-w">After the penalty</div>':'')+'</div>';
   }).join('');
   var sEl=document.getElementById('draftSlots'), scs=sEl.querySelectorAll('.dslot');
   for(var s=0;s<scs.length;s++){ (function(c){ c.onclick=function(){ draftSlotTap(c.getAttribute('data-slot')); }; })(scs[s]); }
@@ -7694,13 +7705,13 @@ function renderDraftCards(){
   fEl.innerHTML=fwd.map(card).join(''); dEl.innerHTML=def.map(card).join('');
   function wire(el){ var cs=el.querySelectorAll('.dcardp'); for(var i=0;i<cs.length;i++){ (function(c){ c.onclick=function(){ draftAssign(c.getAttribute('data-pid')); }; })(cs[i]); } }
   wire(fEl); wire(dEl);
-  var full=order.every(function(r){ return draftIsLocked(r) || !!S.draftRoles[r]; });
+  var full=order.every(function(r){ return !!S.draftRoles[r]; });
   document.getElementById('draftConfirm').disabled=!full;
 }
 function confirmDraft(){
   var order=['C','AG','AD','DG','DD'];
-  if(!order.every(function(r){ return draftIsLocked(r) || !!S.draftRoles[r]; })) return;
-  var pick=order.map(function(r){ return draftIsLocked(r) ? null : S.draftRoles[r]; });   // v589 : null = le poste du puni
+  if(!order.every(function(r){ return !!S.draftRoles[r]; })) return;
+  var pick=order.map(function(r){ return S.draftRoles[r]; });
   S.lineup[HUMAN_TEAM]=pick; for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[HUMAN_TEAM][pick[i]]=true; }
   var other=HUMAN_TEAM==='A'?'B':'A'; S.lineup[other]=aiDraft(other);
   S.lineupPeriod=S.period; S.needDraft=false; deployLineup();
