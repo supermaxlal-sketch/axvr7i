@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v603</title>
+<title>Deck 3D v604</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -267,6 +267,8 @@
 .dcard-ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 9px 8px;border-top:1px solid rgba(255,255,255,.06);margin-top:3px;}
 .dcard-size{font-size:9px;font-weight:700;color:#9fb6cd;}
 .dcardp.hcard .dcp-perk{margin-top:0;}
+#injOverlay .mcard{width:min(386px,99vw);padding:16px 6px;max-height:92vh;overflow-y:auto;}   /* v604 : le remplacant d'un blesse -- les cartes de la composition, 2 par rangee */
+#injCard .injgrid{display:grid;grid-template-columns:repeat(2,minmax(0,172px));justify-content:center;gap:8px;margin-bottom:8px;} #injCard .dcardp.hcard{width:auto;min-width:0;} #injCard .dseclbl{text-align:center;}
 /* --- carte de joueur EN JEU (overlay, avec photo) --- */
 .perkbtn.cardbtn{background:#243a52;color:#dbe8f5;}
 .pcard-ov{position:fixed;inset:0;z-index:90;background:rgba(4,10,18,.72);display:none;align-items:center;justify-content:center;padding:16px;}
@@ -1324,7 +1326,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v603';
+var GAME_VERSION='v604';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7678,6 +7680,21 @@ function autoFillDraft(){
   S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; fs.forEach(function(r, i){ S.draftRoles[r]=fwd[i].id; }); ds.forEach(function(r, i){ S.draftRoles[r]=def[i].id; }); S.draftActiveSlot=null;
   renderDraftCards();
 }
+// La carte de hockey d'un joueur (composition de la periode ; v604 : aussi l'ecran du remplacant d'un blesse, cls = sa classe en plus)
+function draftCardHtml(p, cls){ var role=draftRoleOf(p.id), sel=!!role;
+  function attrTier(v){ return v>=75?'hi':(v>=55?'mid':'lo'); }
+  function bar(lbl,v){ return '<div class="dcard-bar"><i class="bl">'+lbl+'</i><i class="trk"><i class="fil t-'+attrTier(v)+'" style="width:'+Math.max(5,Math.min(100,v))+'%"></i></i><i class="bv">'+v+'</i></div>'; }
+  var roleLbl = sel ? ('<span class="dcp-role">'+role+'</span>') : '';
+  var pk=p.perk?('<span class="dcp-perk">'+PERK_INFO[p.perk].n+'</span>'):'';
+  var hd='<span class="dcp-hand '+(p.hand==='G'?'lh':'rh')+'">'+(p.hand==='G'?'L':'R')+'</span>';
+  var ai=ARCH_INFO[p.archetype]||{n:(p.archetype||''),e:''};
+  return '<div class="dcardp hcard '+p.team+(sel?' sel':'')+(cls?' '+cls:'')+'" data-pid="'+p.id+'">'
+    + '<div class="dcard-hd"><span class="dcp-ovr">'+overall(p)+'</span>'
+      + '<span class="dcard-id"><span class="dcp-name">'+roleLbl+hd+p.name+'</span>'
+      + '<span class="dcp-arch">'+ai.e+' '+ai.n+'</span></span></div>'
+    + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
+    + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+stTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
+  + '</div>'; }
 function renderDraftCards(){
   var order=['C','AG','AD','DG','DD'];
   document.getElementById('draftSlots').innerHTML = order.map(function(r){
@@ -7692,22 +7709,8 @@ function renderDraftCards(){
   function byHand(a,b){ var ha=(a.hand==='G')?0:1, hb=(b.hand==='G')?0:1; return ha!==hb ? ha-hb : (b.off+b.pass)-(a.off+a.pass); }
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(byHand);
   var def=av.filter(function(p){return p.pos==='D';}).sort(byHand);
-  function attrTier(v){ return v>=75?'hi':(v>=55?'mid':'lo'); }
-  function bar(lbl,v){ return '<div class="dcard-bar"><i class="bl">'+lbl+'</i><i class="trk"><i class="fil t-'+attrTier(v)+'" style="width:'+Math.max(5,Math.min(100,v))+'%"></i></i><i class="bv">'+v+'</i></div>'; }
-  function card(p){ var role=draftRoleOf(p.id), sel=!!role;
-    var roleLbl = sel ? ('<span class="dcp-role">'+role+'</span>') : '';
-    var pk=p.perk?('<span class="dcp-perk">'+PERK_INFO[p.perk].n+'</span>'):'';
-    var hd='<span class="dcp-hand '+(p.hand==='G'?'lh':'rh')+'">'+(p.hand==='G'?'L':'R')+'</span>';
-    var ai=ARCH_INFO[p.archetype]||{n:(p.archetype||''),e:''};
-    return '<div class="dcardp hcard '+p.team+(sel?' sel':'')+'" data-pid="'+p.id+'">'
-      + '<div class="dcard-hd"><span class="dcp-ovr">'+overall(p)+'</span>'
-        + '<span class="dcard-id"><span class="dcp-name">'+roleLbl+hd+p.name+'</span>'
-        + '<span class="dcp-arch">'+ai.e+' '+ai.n+'</span></span></div>'
-      + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
-      + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+stTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
-    + '</div>'; }
   var fEl=document.getElementById('draftF'), dEl=document.getElementById('draftD');
-  fEl.innerHTML=fwd.map(card).join(''); dEl.innerHTML=def.map(card).join('');
+  fEl.innerHTML=fwd.map(function(p){ return draftCardHtml(p); }).join(''); dEl.innerHTML=def.map(function(p){ return draftCardHtml(p); }).join('');
   function wire(el){ var cs=el.querySelectorAll('.dcardp'); for(var i=0;i<cs.length;i++){ (function(c){ c.onclick=function(){ draftAssign(c.getAttribute('data-pid')); }; })(cs[i]); } }
   wire(fEl); wire(dEl);
   var full=order.every(function(r){ return !!S.draftRoles[r]; });
@@ -9571,9 +9574,12 @@ function careerReplace(q, done){   // le coach choisit un joueur du banc (l'IA :
     S.lineup[team]=lu; careerOnIce(); render(); done(); }
   if(!c.length){ put(null); return; }
   if(team!==HUMAN_TEAM){ c.sort(function(a, b){ return careerLiveEn(b)-careerLiveEn(a); }); put(c[0]); return; }
-  var used=S.draftUsed[team]||{}, el=document.getElementById('injCard');
+  // v604 (son choix B) : les cartes de la composition (overall, type, stats, energie ; « 2nd period — tired » = il a deja joue), le meilleur overall en haut ;
+  // sans joueur du meme poste au banc, une section par poste
+  var el=document.getElementById('injCard'), mix=c.some(function(p){ return p.pos!==q.pos; });
+  function grid(L){ return '<div class="injgrid">'+L.slice().sort(function(a, b){ return overall(b)-overall(a); }).map(function(p){ return draftCardHtml(p, 'cinj'); }).join('')+'</div>'; }
   el.innerHTML='<div class="mtitle">🚑 '+careerEsc(q.name)+' is hurt</div><div class="msub">Pick a replacement for the rest of the period.</div>'
-    +c.map(function(p){ return '<button class="mbtn cinj" data-pid="'+p.id+'">'+careerEsc(p.name)+' · '+p.pos+' · ⚡'+careerLiveEn(p)+(used[p.id]?' · played':'')+'</button>'; }).join('');
+    +(!mix ? grid(c) : [['F', 'Forwards'], ['D', 'Defense']].map(function(x){ var L=c.filter(function(p){ return p.pos===x[0]; }); return L.length ? '<div class="dseclbl">'+x[1]+'</div>'+grid(L) : ''; }).join(''));
   Array.prototype.forEach.call(el.querySelectorAll('.cinj'), function(b){ b.onclick=function(){ _hide('injOverlay'); put(byId(b.getAttribute('data-pid'))); }; });
   _show('injOverlay');
 }
