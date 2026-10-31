@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v609</title>
+<title>Deck 3D v610</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1342,7 +1342,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v609';
+var GAME_VERSION='v610';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10364,12 +10364,16 @@ function careerSwatch(T){ return '<span class="cswatch" style="background:'+T.co
 var OFF={on:false, at:'', want:'', then:null, timer:0, seen:false, quad:null, vw:0, vh:0, sent:false, paint:{}};
 var OFF_BTNS=[['Standings','board','standings'], ['Schedule','calendar','schedule'], ['Stats','laptop','stats'], ['Lines','lines','roster'],
   ['Free agents','phone','fa'], ['Save','cabinet','save'], ['Season','trophies','season'], ['Leave','coat',null]];
-var OFF_ON_OBJ={standings:'board'};   // les ecrans deja ecrits sur leur objet (etape 1 : le tableau blanc)
+var OFF_ON_OBJ={standings:'board', schedule:'calendar', stats:'laptop'};   // les ecrans ecrits sur leur objet (etape 1 : le tableau ; etape 2, v610 : le calendrier, le portable)
 var OFF_WAIT=1500;                    // sans reponse de la 3D, on n'attend pas plus (ms)
 var OFF_MARKER="'Marker Felt','Chalkboard SE','Segoe Print','Bradley Hand','Comic Sans MS',cursive";   // le feutre (polices du systeme)
+var OFF_SANS="'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";   // l'imprime (calendrier) et l'ecran du portable
+var OFF_INK={blue:'#1d3f8f', red:'#c22a2a', green:'#1e8a3c', hilite:'rgba(255,226,60,0.55)'};   // les feutres ; le surligneur
+var OFF_SCREEN={bg:'#10151c', bar:'#1f2a37', fg:'#e8eef6', dim:'#8fa3bb', me:'#ffd23e', meBg:'#2b2a1c'};   // l'ecran du portable
 function offActive(){ return hj3dActive() && !!CAREER && !!document.getElementById('offBar'); }
 function offEnter(){ if(OFF.on) return; OFF.on=true; OFF.at=''; OFF.want=''; OFF.sent=false; OFF.seen=false; OFF.quad=null; OFF.paint={};
   CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   // a chaque entree, le tableau montre ma division, a jour
+  CAREER_STATDIV=CAREER_DIVTAB; CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs');   // v610 : le portable aussi (comme careerGo('stats'))
   document.body.classList.add('office'); document.getElementById('careerOverlay').classList.add('office'); hj3dFit(); }
 function offLeave(){ if(!OFF.on) return; OFF.on=false; OFF.at=''; OFF.want=''; OFF.then=null; OFF.seen=false; OFF.quad=null; clearTimeout(OFF.timer);
   document.body.classList.remove('office'); document.getElementById('careerOverlay').classList.remove('office', 'card'); hj3dFit();
@@ -10393,11 +10397,14 @@ function offMsg(o){   // la 3D : arrivee a un objet (ses 4 coins a l'ecran), gli
   return true; }
 function offRender(v, c){   // careerRender en mode bureau ; false = l'ecran d'aujourd'hui, par-dessus le bureau (mode card)
   var co=document.getElementById('careerOverlay');
-  if(v==='hub'){ co.classList.remove('card'); offHub(c); if(OFF.want!=='hub' || !OFF.sent) offGo('hub'); offPaintBoard(c); return true; }
+  if(v==='hub'){ co.classList.remove('card'); offHub(c); if(OFF.want!=='hub' || !OFF.sent) offGo('hub'); offPaintAll(c); return true; }
   var obj=OFF_ON_OBJ[v];
   if(obj && OFF.at===obj && OFF.seen){ co.classList.remove('card'); offDraw(v, c); return true; }
   co.classList.add('card'); return false; }
-function offDraw(v, c){ if(v==='standings') offBoardStandings(c); }
+function offDraw(v, c){ if(v==='standings') offBoardStandings(c); else if(v==='schedule') offCalSchedule(c); else if(v==='stats') offLaptopStats(c); }
+function offPaintAll(c){ offPaintBoard(c); offPaintCalendar(c); offPaintLaptop(c); }   // a l'entree : tout est deja ecrit, visible de la porte
+function offCanvas(w, h){ var cv=document.createElement('canvas'), x=null; cv.width=w; cv.height=h; try{ x=cv.getContext('2d'); }catch(e){} return x ? {cv:cv, x:x} : null; }
+function offSend(obj, sig, cv){ var url=cv.toDataURL('image/png'), k=url.indexOf(','); if(k<0) return; OFF.paint[obj]=sig; hj3dSend('paint', {obj:obj, png:url.slice(k+1)}); }
 function offBoardStandings(c){   // devant le tableau : la bulle dit le rang ; en bas D1 D2 D3 ‹ Back (un onglet reecrit le tableau)
   var dd=CAREER_DIVTAB, rows=careerStandings(c, dd), say='Division '+dd+'.';
   rows.forEach(function(r, i){ if(r.key!==c.my) return;
@@ -10410,10 +10417,8 @@ function offPaintBoard(c){   // le tableau blanc : le classement de CAREER_DIVTA
   var dd=CAREER_DIVTAB, rows=careerStandings(c, dd);
   var sig=dd+'|'+c.my+'|'+rows.map(function(r){ return r.key+':'+r.gp+'/'+r.w+'/'+r.l+'/'+r.otl+'/'+r.pts+'/'+(r.gf-r.ga); }).join(',');
   if(OFF.paint.board===sig) return;   // deja ecrit : rien ne change
-  var cv=document.createElement('canvas'), x=null; cv.width=1000; cv.height=800;
-  try{ x=cv.getContext('2d'); }catch(e){}
-  if(!x) return;
-  var BLUE='#1d3f8f', RED='#c22a2a', COLS=[['GP',560],['W',650],['L',730],['OTL',830],['PTS',915],['GD',975]];
+  var o=offCanvas(1000, 800); if(!o) return;
+  var x=o.x, BLUE=OFF_INK.blue, RED=OFF_INK.red, COLS=[['GP',560],['W',650],['L',730],['OTL',830],['PTS',915],['GD',975]];
   x.fillStyle='#f4f6f8'; x.fillRect(0, 0, 1000, 800);
   x.textBaseline='alphabetic'; x.fillStyle=BLUE; x.textAlign='left'; x.font='bold 64px '+OFF_MARKER; x.fillText('Standings — D'+dd, 50, 95);
   x.font='bold 30px '+OFF_MARKER; x.fillStyle='#4a6aa8';
@@ -10428,10 +10433,77 @@ function offPaintBoard(c){   // le tableau blanc : le classement de CAREER_DIVTA
     if(i===3){ x.strokeStyle=RED; x.lineWidth=5; x.setLineDash([18, 12]); x.beginPath(); x.moveTo(40, y+24); x.lineTo(960, y+24); x.stroke(); x.setLineDash([]); } });   // la ligne des series
   x.font='bold 32px '+OFF_MARKER; x.fillStyle=RED; x.textAlign='left';
   x.fillText('Top 4: playoffs'+(dd>1?' · ↑ top 2 go up':'')+(dd<3?' · ↓ last 2 go down':''), 50, 750);
-  var url=cv.toDataURL('image/png'), k=url.indexOf(',');
-  if(k<0) return;
-  OFF.paint.board=sig;
-  hj3dSend('paint', {obj:'board', png:url.slice(k+1)}); }
+  offSend('board', sig, o.cv); }
+function offCalSchedule(c){   // v610 : devant le calendrier, la bulle dit la fiche et les matchs qui restent ; ‹ Back
+  var d=careerDivOf(c, c.my), me=careerStandings(c, d).filter(function(r){ return r.key===c.my; })[0], left=c.schedule[d].length-c.day;
+  offPaintCalendar(c);
+  offNote('Record: '+me.w+'-'+me.l+'-'+me.otl+'. '+(c.phase==='regular' ? left+' game'+(left===1?'':'s')+' left.' : 'The regular season is over.')); }
+function offPaintCalendar(c){   // v610 : le calendrier au mur (0,8 x 0,62 m -> 1000 x 775) : une case par ronde, ecrite au feutre
+  var d=careerDivOf(c, c.my), R=c.schedule[d], T=c.teams[c.my], today=(c.phase==='regular') ? c.day : -1;
+  var games=R.map(function(rd, i){ var g=rd.filter(function(gm){ return gm[0]===c.my || gm[1]===c.my; })[0]; if(!g) return null;
+    var home=g[0]===c.my, r=c.results.filter(function(x){ return !x.po && x.day===i && x.div===d && (x.home===c.my || x.away===c.my); })[0];
+    return {opp:home?g[1]:g[0], home:home, gf:r?(home?r.hs:r.as):null, ga:r?(home?r.as:r.hs):null, ot:!!(r && r.ot), so:!!(r && r.so)}; });
+  var sig=d+'|'+c.my+'|'+c.season+'|'+today+'|'+T.colors.join()+'|'+games.map(function(g){ return g ? g.opp+(g.gf==null ? '' : ':'+g.gf+'-'+g.ga+(g.ot?'o':'')+(g.so?'s':'')) : '-'; }).join(',');
+  if(OFF.paint.calendar===sig) return;
+  var o=offCanvas(1000, 775); if(!o) return;
+  var x=o.x, NC=7, X0=24, Y0=150, CW=(1000-2*X0)/NC, CH=(775-Y0-24)/Math.ceil(R.length/NC);
+  x.fillStyle='#f7f6f1'; x.fillRect(0, 0, 1000, 775);
+  x.fillStyle=T.colors[0]; x.fillRect(0, 0, 1000, 125);   // la bande aux couleurs de l'equipe (comme le decor)
+  x.textBaseline='alphabetic'; x.fillStyle=T.colors[1]; x.textAlign='left'; x.font='bold 64px '+OFF_SANS; x.fillText('Schedule', 36, 88);
+  x.textAlign='right'; x.font='bold 40px '+OFF_SANS; x.fillText('Season '+c.season, 964, 84);
+  games.forEach(function(g, i){ var cx=X0+(i%NC)*CW, cy=Y0+Math.floor(i/NC)*CH, mx=cx+CW/2;
+    if(i===today){ x.fillStyle=OFF_INK.hilite; x.fillRect(cx, cy, CW, CH); }   // la ronde du jour, surlignee
+    x.strokeStyle='#b9bcc2'; x.lineWidth=2; x.strokeRect(cx, cy, CW, CH);
+    x.fillStyle='#8a8f98'; x.textAlign='left'; x.font='bold 30px '+OFF_SANS; x.fillText(String(i+1), cx+10, cy+36);   // imprime : le n° de la ronde
+    if(!g) return;
+    x.textAlign='center'; x.fillStyle=OFF_INK.blue;
+    x.font='bold 30px '+OFF_MARKER; x.fillText(g.home?'vs':'at', mx, cy+CH*0.4, CW-30);
+    x.font='bold 44px '+OFF_MARKER; x.fillText(c.teams[g.opp].key, mx, cy+CH*0.64, CW-30);
+    if(g.gf==null) return;
+    var won=g.gf>g.ga;
+    x.fillStyle=won?OFF_INK.green:OFF_INK.red; x.font='bold 34px '+OFF_MARKER; x.fillText(g.gf+'–'+g.ga+(g.ot?(g.so?' SO':' OT'):''), mx, cy+CH*0.92, CW-14);
+    x.strokeStyle=won?OFF_INK.green:OFF_INK.red; x.lineWidth=5; x.beginPath();
+    if(won) x.ellipse(mx, cy+CH*0.5, CW*0.42, CH*0.25, 0, 0, Math.PI*2);   // la victoire : l'adversaire encercle, le pointage dessous
+    else { x.moveTo(cx+14, cy+CH-14); x.lineTo(cx+CW-14, cy+46); }   // la defaite, barree
+    x.stroke(); });
+  offSend('calendar', sig, o.cv); }
+function offLeaders(c){ return careerLeaders(c, CAREER_STATDIV, CAREER_STATK, CAREER_STATPO).slice(0, CAREER_STATK==='gk' ? 5 : 10); }   // comme l'ecran Stats
+function offLaptopStats(c){   // v610 : devant le portable, la bulle dit notre meilleur ; en bas Points Goals Goalies Playoffs / D1 D2 D3 ‹ Back
+  var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gk=(sk==='gk'), SL=offLeaders(c), i=-1, say;
+  SL.forEach(function(e, j){ if(i<0 && e.key===c.my) i=j; });
+  if(!SL.length) say=spo ? 'No playoff games yet.' : 'No games played yet.';
+  else if(i<0) say='None of our players is in the top '+SL.length+'.';
+  else { var s=SL[i].s, n=gk ? s.w : (sk==='g' ? s.g : s.g+s.a), u=gk ? 'win' : (sk==='g' ? 'goal' : 'point');
+    say='Our best: '+careerEsc(SL[i].p.name)+', '+careerOrd(i+1)+' ('+n+' '+u+(n===1?'':'s')+').'; }
+  offPaintLaptop(c);
+  var tab=function(on, js, t){ return '<button class="mbtn sm'+(on?' on':'')+'" onclick="'+js+'">'+t+'</button>'; };
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+say;
+  document.getElementById('offBar').innerHTML=[['pts','Points'],['g','Goals'],['gk','Goalies']].map(function(t){ return tab(t[0]===sk, 'careerStatTab(null, \''+t[0]+'\')', t[1]); }).join('')
+    +tab(spo, 'careerStatTab(null, null, '+(spo?'false':'true')+')', 'Playoffs')
+    +[1,2,3].map(function(x){ return tab(x===sd, 'careerStatTab('+x+', null)', 'D'+x); }).join('')+'<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+function offPaintLaptop(c){   // v610 : l'ecran du portable (0,46 x 0,30 m -> 1000 x 652) : les meneurs, texte clair sur ecran sombre, nous en or
+  var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gk=(sk==='gk'), SL=offLeaders(c), S=OFF_SCREEN;
+  var sig=sd+'|'+sk+'|'+spo+'|'+c.my+'|'+c.season+'|'+SL.map(function(e){ var s=e.s; return e.p.uid+':'+s.gp+'/'+(gk ? s.w+'/'+s.sa+'/'+s.ga : s.g+'/'+s.a); }).join(',');
+  if(OFF.paint.laptop===sig) return;
+  var o=offCanvas(1000, 652); if(!o) return;
+  var x=o.x, COLS=gk ? [['GP',700],['W',800],['SV%',965]] : [['GP',700],['G',790],['A',875],['PTS',965]];
+  x.fillStyle=S.bg; x.fillRect(0, 0, 1000, 652);
+  x.fillStyle=S.bar; x.fillRect(0, 0, 1000, 78);   // la barre des onglets
+  x.textBaseline='alphabetic'; x.textAlign='center'; x.font='bold 32px '+OFF_SANS;
+  [['pts','Points'],['g','Goals'],['gk','Goalies']].forEach(function(t, i){ var tx=20+i*190;
+    if(t[0]===sk){ x.fillStyle=S.bg; x.fillRect(tx, 12, 180, 66); }   // l'onglet ouvert
+    x.fillStyle=(t[0]===sk) ? S.fg : S.dim; x.fillText(t[1], tx+90, 56); });
+  x.textAlign='right'; x.fillStyle=S.dim; x.font='bold 28px '+OFF_SANS; x.fillText('D'+sd+' · '+(spo ? 'Playoffs' : 'Season '+c.season), 975, 54);
+  x.font='bold 26px '+OFF_SANS; x.fillText('#', 60, 128); x.textAlign='left'; x.fillText(gk ? 'Goalie' : 'Player', 80, 128); x.fillText('Team', 450, 128);
+  x.textAlign='right'; COLS.forEach(function(k){ x.fillStyle=(k[0]===({pts:'PTS', g:'G', gk:'W'})[sk]) ? S.fg : S.dim; x.fillText(k[0], k[1], 128); });   // la colonne du tri, en clair
+  if(!SL.length){ x.textAlign='center'; x.fillStyle=S.fg; x.font='bold 36px '+OFF_SANS; x.fillText(spo ? 'No playoff games yet.' : 'No games played yet.', 500, 340); }
+  SL.forEach(function(e, i){ var y=180+i*47, s=e.s, me=(e.key===c.my);
+    if(me){ x.fillStyle=S.meBg; x.fillRect(16, y-35, 968, 46); }
+    x.fillStyle=me ? S.me : S.fg; x.font='bold 36px '+OFF_SANS;
+    x.textAlign='right'; x.fillText(String(i+1), 60, y);
+    x.textAlign='left'; x.fillText(e.p.name, 80, y, 360); x.fillText(c.teams[e.key].nick, 450, y, 195);
+    x.textAlign='right'; (gk ? [s.gp, s.w, careerSvTxt(s)] : [s.gp, s.g, s.a, s.g+s.a]).forEach(function(v, j){ x.fillText(String(v), COLS[j][1], y); }); });
+  offSend('laptop', sig, o.cv); }
 function offHub(c){   // la vue de la porte : la bulle du coach, la barre de boutons (memes infos et memes actions que le hub d'aujourd'hui)
   var T=c.teams[c.my], d=careerDivOf(c, c.my), st=careerStandings(c, d), me=st[0], rk=1, say='', play='';
   st.forEach(function(r, i){ if(r.key===c.my){ me=r; rk=i+1; } });
@@ -10458,7 +10530,7 @@ function offOpen(view, obj){   // un bouton du bureau : la camera glisse vers l'
     careerGo(view); }); }
 function offNextGame(){ offGo('lines', careerPlayClick); }   // la porte : l'alignement du match d'abord (spec : la camera va au tableau de l'equipe)
 function showCareer(view){ if(view) CAREER_VIEW=view; if(!CAREER && CAREER_VIEW!=='pick' && CAREER_VIEW!=='save') CAREER_VIEW='start'; _hide('mainMenu'); careerRender(); _show('careerOverlay'); }
-function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER && !OFF.on) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   /* v609 : au bureau, le tableau garde ce qui y est ecrit */ if(v==='stats' && CAREER){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs'); }   /* v579 ; v580 */ showCareer(v); }
+function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER && !OFF.on) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   /* v609 : au bureau, le tableau garde ce qui y est ecrit */ if(v==='stats' && CAREER && !OFF.on){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs'); }   /* v579 ; v580 ; v610 : au bureau, le portable garde ce qui y est ecrit */ showCareer(v); }
 function careerToMenu(){ _hide('careerOverlay'); showMainMenu(); }
 function careerDivTab(d){ CAREER_DIVTAB=d; careerRender(); }
 function careerPick(key, sure){
@@ -11361,7 +11433,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":471372,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":471580,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
