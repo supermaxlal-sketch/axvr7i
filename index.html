@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v602</title>
+<title>Deck 3D v603</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -46,7 +46,7 @@
   body.view3d #shotOverlay .sctx,body.view3d #shotOverlay .aimclk,body.view3d #shotOverlay .sdice,body.view3d #shotOverlay .sresult{text-shadow:0 1px 3px #000,0 0 6px #000;}
   .cell.canclick{cursor:pointer;}
   .cell.mv::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38%;height:38%;border-radius:50%;background:rgba(31,138,138,.6);box-shadow:0 0 0 2px rgba(255,255,255,.55);}
-  .cell.mv-back::after{background:var(--amber);}
+  .cell.mv-far::after{background:var(--amber);}
   .cell.mv-pivot::after{background:var(--purp);}
   .cell.pt::before,.cell.dt::before,.cell.pr::before,.cell.bk::before{content:"";position:absolute;inset:7%;border-radius:50%;pointer-events:none;}
   .cell.pt::before{box-shadow:0 0 0 3px var(--blue),0 0 9px rgba(31,111,178,.7);}
@@ -652,7 +652,7 @@ button.act:active,button.cbtn:active,.perkbtn:active,.fobtn:active,.dconfirm:act
 .cell.dt::before{box-shadow:0 0 0 3px var(--red);}
 .cell.bk::before{box-shadow:0 0 0 3px var(--purp);}
 .cell.mv::after{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:0;width:46%;height:46%;background:var(--blue);box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 4px rgba(10,30,50,.35);}
-.cell.mv-back::after{background:var(--amber);}
+.cell.mv-far::after{background:var(--amber);}   /* v603 : case du porteur a 2 actions (plus de 3 cases : il ne lance plus apres) -- plus de jaune a reculons */
 .cell.mv-pivot::after{background:var(--purp);}
 .cell.mv-curve::after{background:#35c6b0;border-radius:50% 50% 50% 0;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(53,198,176,.4);}   /* v408 : case de COURBE (virage serre, elan garde) */
 .cell.mv-cut::after{background:#ff8fbf;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(255,143,191,.45);}
@@ -1324,7 +1324,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v602';
+var GAME_VERSION='v603';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3243,6 +3243,11 @@ function goReturned(id){ if(!S.atkPlan) return false; for(var i=0;i<S.atkPlan.le
 function planCanAttach(id){ if(!id || !S.planning || !S.atkPlan) return false;
   var mine=null, k=0; for(var i=0;i<S.atkPlan.length;i++){ if(S.atkPlan[i].id===id){ mine=S.atkPlan[i]; k++; } }
   return k===1 && mine.kind==='move' && planSkateLen(mine)<=PLAY_SKATE_MAX; }
+// v603 (le concepteur : « je veux savoir ou je peux aller et quand meme lancer » ; ses choix : le porteur seulement ; « le jaune
+// doit dire que ces cases te coutent 2 actions, les cases standard restent bleues » ; plus de jaune a reculons) : au plan, une
+// case du porteur a plus de PLAY_SKATE_MAX cases -- il y patine, mais n'y attache plus son jeu (lancer, passe...)
+function moveFar(p, m){ if(!S.planning || !p || p.type!=='sk' || !ownsPuck(p.id) || planHasId(p.id)) return false;
+  return (m.path ? m.path.length : cheb(ghostOf(p), m)) > PLAY_SKATE_MAX; }
 // le plan attend le jeu du porteur prevu quand la DERNIERE action comptee est son patinage court
 // (pas de resolution automatique tant qu'il peut attacher son jeu ; GO ou le chrono resolvent quand meme)
 function planWaitsForPlay(){ var L=null; if(S.atkPlan) for(var i=S.atkPlan.length-1;i>=0;i--){ if(!S.atkPlan[i].att){ L=S.atkPlan[i]; break; } }
@@ -8562,11 +8567,11 @@ function render(){
   var _bd=document.getElementById('board'); if(_bd){ _bd.style.aspectRatio=COLS+'/'+ROWS;
     var _cr=28*0.3048/2*MARK_SCALE; _bd.style.borderRadius=(100*_cr/COLS).toFixed(1)+'%/'+(100*_cr/ROWS).toFixed(1)+'%'; }   // v387 : coins NHL (28 pi) a l'echelle de la glace
   paintRink();
-  var mset={}; for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=S.moves[m].curve?'curve':(S.moves[m].kind||'fwd');   // v408 : case de courbe
+  var mset={}, _msel=byId(S.sel); for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=S.moves[m].curve?'curve':(moveFar(_msel, S.moves[m])?'far':(S.moves[m].kind||'fwd'));   // v408 : case de courbe   // v603 : case du porteur a 2 actions
   for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
     var cell=document.createElement('button'); cell.className='cell'; cell.setAttribute('aria-label','square '+(c+1)+','+(r+1));
     var p=pieceAt(c,r), key=c+','+r, clickable=false;
-    if(mset[key]){ cell.className+=' mv'+(mset[key]==='back'?' mv-back':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':'')))); clickable=true; }
+    if(mset[key]){ cell.className+=' mv'+(mset[key]==='far'?' mv-far':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':'')))); clickable=true; }
     if(isDekeApproach(c,r)){ cell.className+=' dka'; clickable=true; }   // guide mauve : va la pour deker
     if(S.dumpAim){ cell.className+=' dmpaim'; clickable=true; if(isDumpTarget(c,r)) cell.className+=' dmpt'; }
     if(S.cycleAim){ var _cap=byId(S.cycleAim); if(_cap && p && cycleTargets(_cap).indexOf(p.id)>=0){ cell.className+=' cyct'; clickable=true; } }
@@ -11216,7 +11221,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":436592,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":437664,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
