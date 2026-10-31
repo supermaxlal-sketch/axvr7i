@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v605</title>
+<title>Deck 3D v607</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1326,7 +1326,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v605';
+var GAME_VERSION='v607';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6385,8 +6385,15 @@ function penWaiting(id){ var w=S.pen && S.pen.wait; return !!w && ['A','B'].some
 function penSubOn(team, boxed){ var w=S.pen && S.pen.wait && S.pen.wait[team]; if(!w) return null; var k=-1;   // v600 : l'ailier qui attendait CE puni saute sur la glace
   for(var i=0;i<w.length;i++) if(w[i].by===boxed){ k=i; break; } if(k<0) return null; var q=byId(w.splice(k,1)[0].id);
   if(!q || q.onIce || penInBox(q.id) || q.vacant) return null;
-  var sp=clearDot(CTR_C_CELL, 0, q.id); q.c=sp.c; q.r=sp.r; q.onIce=true; q.mom=0; q.speed=0; q.vel=null; q.route=null; q.facing={dc:dir(q.team), dr:0};   // sur la ligne rouge, cote banc
+  var sp=clearDot(endsCol(CTR_C_CELL), benchRow(), q.id); q.c=sp.c; q.r=sp.r; q.onIce=true; q.mom=0; q.speed=0; q.vel=null; q.route=null; q.facing={dc:dir(q.team), dr:0};   // sur la ligne rouge, cote banc
   return q; }
+// v606 (ses notes, item 18 ; son choix B : « la camera reste fixe ») : les equipes changent de cote a chaque periode (prolongation
+// comprise) -- S.ends. Le jeu garde ses colonnes (A attaque toujours les colonnes croissantes) ; la 3D tourne le BATIMENT d'un
+// demi-tour (bancs, bancs des penalites, gradins) et sa camera avec lui. Les points du batiment suivent ici : la porte du banc,
+// celle du banc des penalites.
+function endsSwap(){ S.ends=!S.ends; }
+function benchRow(){ return S.ends ? ROWS-1 : 0; }       // la rangee le long des bancs
+function endsCol(c){ return S.ends ? COLS-1-c : c; }     // une colonne du batiment, vue du jeu
 function penLineupBack(p){ var lu=S.lineup && S.lineup[p.team]; if(!lu || !lu.length || lu.indexOf(p.id)>=0) return true;   // v589 : de retour, il reprend le poste laisse vide pour lui
   var k=lu.indexOf(null); if(k<0) return false;   // aucun poste vide : il reste au banc (jamais un 6e joueur)
   lu[k]=p.id; p.role=LINEUP_ROLES[k]; if(S.draftUsed && S.draftUsed[p.team]) S.draftUsed[p.team][p.id]=true; return true; }
@@ -6433,9 +6440,9 @@ function penClockDown(dt){ var P=S.pen; if(!P || !(dt>0)) return; var rem={};   
 function penBack(b, why){ var P=penState(), i=P.box.indexOf(b); if(i>=0) P.box.splice(i,1); var p=byId(b.id);
   if(penInBox(b.id)){ pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> stays in the box: next penalty.'); matchRec('pen', {ev:'next', team:b.team, id:b.id}); renderPen(); return; }   // v589 : double penalite, l'une apres l'autre
   var sub=(p && !p.onIce) ? penSubOn(b.team, b.id) : null;   // v600 : celui qui l'attendait saute sur la glace, le puni va au banc
-  if(!sub && p && !p.onIce && penLineupBack(p)){ var sp=clearDot(penBoxCol(p.team), ROWS-1, p.id); p.c=sp.c; p.r=sp.r; p.onIce=true; p.mom=0; p.speed=0; p.vel=null; p.route=null; p.facing={dc:dir(p.team), dr:0}; }   // v605 : devant la porte de son banc des penalites, en face des bancs (avant : la ligne rouge, cote banc)
+  if(!sub && p && !p.onIce && penLineupBack(p)){ var sp=clearDot(penBoxCol(p.team), ROWS-1-benchRow(), p.id); p.c=sp.c; p.r=sp.r; p.onIce=true; p.mom=0; p.speed=0; p.vel=null; p.route=null; p.facing={dc:dir(p.team), dr:0}; }   // v605 : devant la porte de son banc des penalites, en face des bancs (avant : la ligne rouge, cote banc)
   pushLog((why||'')+'<b>'+(p?p.name:'?')+'</b> is back from the box'+(sub?' and goes to the bench — <b>'+sub.name+'</b> jumps on the ice.':'.')); matchRec('pen', {ev:'back', team:b.team, id:b.id}); renderPen(); }
-function penBoxCol(team){ return team==='A' ? Math.floor(CTR_C)-1 : Math.ceil(CTR_C)+1; }   // v605 : la colonne de la porte de son banc des penalites (en face des bancs ; Harfangs a gauche de la ligne rouge, comme leur banc ; 3D : PBOX_CX)
+function penBoxCol(team){ return endsCol(team==='A' ? Math.floor(CTR_C)-1 : Math.ceil(CTR_C)+1); }   // v605 : la colonne de la porte de son banc des penalites (en face des bancs ; Harfangs a gauche de la ligne rouge, comme leur banc ; 3D : PBOX_CX)
 function penRelease(){ var P=S.pen; if(!P) return; var done=P.box.filter(function(b){ return b.left<=0; }); for(var i=0;i<done.length;i++) penBack(done[i]); }
 function penOnGoal(team){   // but : la differee contre l equipe qui encaisse est annulee ; en avantage numerique, le plus ancien puni revient
   var P=S.pen; if(!P) return; var opp=team==='A'?'B':'A', kept=[];
@@ -6452,7 +6459,7 @@ function penCanPull(team){ var P=S.pen; if(!P || P.pulled[team] || !penDelayedOn
   var ow=S.puckOwner?byId(S.puckOwner):null; if(!ow || ow.team!==team || ow.type==='g') return false;
   var g=goalieOf(team); return !!(g && g.onIce!==false && penExtraPick(team)); }
 function pullGoalie(team){ if(!penCanPull(team)) return false; var g=goalieOf(team), x=penExtraPick(team);
-  g.onIce=false; var sp=clearDot(CTR_C_CELL, 0, x.id); x.c=sp.c; x.r=sp.r; x.onIce=true; x.mom=0; x.speed=0; x.vel=null; x.route=null; x.facing={dc:dir(team), dr:0};
+  g.onIce=false; var sp=clearDot(endsCol(CTR_C_CELL), benchRow(), x.id); x.c=sp.c; x.r=sp.r; x.onIce=true; x.mom=0; x.speed=0; x.vel=null; x.route=null; x.facing={dc:dir(team), dr:0};
   S.pen.pulled[team]={g:g.id, x:x.id};
   pushLog('<b>'+TEAM_NAME[team]+'</b> pull the goalie — <b>'+x.name+'</b> jumps on as the extra attacker.'); matchRec('pen', {ev:'pull', team:team, id:x.id});
   if(S.planning) renderPlanBar(); render(); renderPen(); return true; }
@@ -7804,13 +7811,13 @@ function endPeriod(){
     if(S.score.A!==S.score.B){ gameOver(S.score.A>S.score.B?'A':'B'); return; }
     if(S.overtime && !S.tut && !(CAREER_MATCH && CAREER_MATCH.po)){ shootoutStart(); return; }   // v536 : une seule prolongation, puis la fusillade (en series : jusqu'au but)
     var _wasOT=S.overtime; S.overtime=true; pushLog(_wasOT ? 'Overtime continues — still '+S.score.A+'–'+S.score.B+' !' : ('End of the 3rd — tied '+S.score.A+'–'+S.score.B+' ! OVERTIME: next goal wins.'));
-    faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); return;
+    endsSwap(); faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); return;   // v606 : la prolongation aussi change de cote
   }
   S.period++;
   S.coachPeriodUsed={A:false,B:false};   // le verrou "1 strategie/periode" se remet a zero
   pushLog('Start of period '+S.period+'.');
-  if(CAREER_MATCH && !S.tut){ tunnelScene('out', function(){ speechOpen('inter', function(){ S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); }); return; }   // v504 : le discours entre les periodes ; v510 : d'abord la sortie par le tunnel
-  S.needDraft=true; faceoff(S.period%2===0?'B':'A');
+  if(CAREER_MATCH && !S.tut){ tunnelScene('out', function(){ speechOpen('inter', function(){ endsSwap(); S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); }); return; }   // v504 : le discours entre les periodes ; v510 : d'abord la sortie par le tunnel ; v606 : ils changent de cote pendant l'entracte (apres la sortie, avant l'entree)
+  endsSwap(); S.needDraft=true; faceoff(S.period%2===0?'B':'A');
 }
 function gameOver(winner){
   if(S.currentSeq) killSeq(S.currentSeq);
@@ -8947,7 +8954,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -11232,7 +11239,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":446752,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":452016,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
