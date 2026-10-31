@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v607</title>
+<title>Deck 3D v608</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -339,6 +339,33 @@
 .tutl.done::after{content:' ✓';color:#7ee0a8;}
 #tutMenu .mcard{max-height:92vh;overflow-y:auto;}
 #careerOverlay .mcard{max-height:92vh;overflow-y:auto;width:min(440px,94vw);}   /* v483 : carriere */
+/* v608 : le bureau du coach = le menu de carriere (3D) -- le canevas plein ecran derriere, la bulle, la barre, la couche sur l'objet */
+body.office #g3d{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:249;}
+body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans ca, les ecrans du jeu (l'alignement, z 60) passent devant le bureau */
+#careerOverlay .offobj,#careerOverlay .offsay,#careerOverlay .offbar{display:none;}
+#careerOverlay.office{background:transparent;}
+#careerOverlay.office .mcard{display:none;}
+#careerOverlay.office.card{background:rgba(6,13,22,.6);}
+#careerOverlay.office.card .mcard{display:block;}
+#careerOverlay.office:not(.card) .offsay{display:block;}
+#careerOverlay.office:not(.card) .offbar{display:grid;}
+#careerOverlay.office:not(.card) .offobj.on{display:block;}
+.offsay{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));padding:10px 14px;background:rgba(8,16,28,.92);border:2px solid #355a86;border-radius:14px;box-shadow:0 4px 0 #000;color:#f2f7fd;font-weight:700;font-size:15px;line-height:1.35;}
+.offsay .who{font-family:'PxDisplay',monospace;font-size:14px;color:#ffd23e;letter-spacing:.06em;}
+.offsay small{display:block;font-size:12px;color:#b9cde3;margin-top:3px;font-weight:600;}
+.offbar{position:absolute;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));grid-template-columns:repeat(4,1fr);gap:8px;}
+.offbar .mbtn{margin:0;padding:10px 4px;font-size:13px;}
+.offbar .mbtn.play{grid-column:1/-1;font-size:17px;color:#06121f;background:linear-gradient(180deg,#ffe46b,#ffb000);border-color:#06121f;box-shadow:0 4px 0 #06121f;}
+.offobj{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;}
+.offmk{width:100%;height:100%;box-sizing:border-box;padding:22px 28px;font-family:'Marker Felt','Chalkboard SE','Segoe Print','Bradley Hand','Comic Sans MS',cursive;color:#1d3f8f;font-weight:700;}
+.offboard .t{font-size:36px;line-height:1.1;margin-bottom:6px;}
+.offboard table{width:100%;border-collapse:collapse;font-size:26px;}
+.offboard th{font-size:17px;color:#4a6aa8;text-align:right;padding:0 6px;font-weight:700;}
+.offboard td{text-align:right;padding:2px 6px;line-height:1.25;white-space:nowrap;}
+.offboard th:nth-child(2),.offboard td:nth-child(2){text-align:left;}
+.offboard tr.cut td{border-bottom:3px dashed #c22a2a;}
+.offboard tr.me .nm{border:3px solid #c22a2a;border-radius:50%;padding:0 10px;margin-left:-13px;}
+.offboard .n{font-size:16px;color:#c22a2a;margin-top:8px;}
 .cswatch{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:7px;vertical-align:-2px;border:1px solid rgba(255,255,255,.35);}
 .mbtn.cteam{text-align:left;} .mbtn.cteam small{display:block;font-weight:600;font-size:11px;color:#9fb6cd;margin-top:3px;}
 .crec,.cnext,.clast,.cmsg,.cchamp{color:#eaf2fb;font-size:13px;text-align:center;margin:8px 0;} .cmsg{color:#ffd23e;} .cchamp{font-size:15px;}
@@ -1024,7 +1051,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 </div>
 
 <div class="tutcoach" id="tutCoach" style="display:none" role="status" aria-live="polite"><div class="tuthd" id="tutHd"></div><div class="tutsay" id="tutSay"></div><div class="tutbtns" id="tutBtns"></div></div>
-<div class="ov menu" id="careerOverlay"><div class="mcard" id="careerCard"></div></div>
+<div class="ov menu" id="careerOverlay"><div class="mcard" id="careerCard"></div><div class="offobj" id="offObj"></div><div class="offsay" id="offSay"></div><div class="offbar" id="offBar"></div></div>
 <div class="ov menu" id="injOverlay"><div class="mcard" id="injCard"></div></div>
 <div class="ov menu" id="tutMenu"><div class="mcard"><div class="mtitle">🎓 Tutorial</div><div class="msub">Learn the game one step at a time.</div><div id="tutList"></div><button class="mbtn" id="tutBack" data-tut="1">← Back to menu</button></div></div>
 <div class="ov tip" id="tipOverlay" role="dialog" aria-label="Tip"><div class="tipcard"><div class="tiphd">💡 Tip</div><div class="tiptext" id="tipText"></div><div class="tipbtns"><button class="tipoff" id="tipOff">Turn off tips</button><button class="tipok" id="tipOk">Got it</button></div></div></div>
@@ -1326,7 +1353,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v607';
+var GAME_VERSION='v608';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8909,7 +8936,8 @@ function hj3dApplyView(){ if(!document.body) return; document.body.classList.tog
 function hj3dFit(){   // le canevas prend la taille de la glace, en pixels reels (plafond x2 : les petits telephones)
   if(typeof HJ3D==='undefined' || !HJ3D) return;
   var cv=document.getElementById('g3d'), bw=document.querySelector('.boardwrap'); if(!cv || !bw) return;
-  var k=Math.min(2, window.devicePixelRatio||1), W=Math.round(bw.clientWidth*k), H=Math.round(bw.clientHeight*k);
+  var full=document.body.classList.contains('office');   // v608 : le bureau -- le canevas prend tout l'ecran
+  var k=Math.min(2, window.devicePixelRatio||1), W=Math.round((full ? window.innerWidth : bw.clientWidth)*k), H=Math.round((full ? window.innerHeight : bw.clientHeight)*k);
   HJ3D.k=k;
   if(W>0 && H>0 && (cv.width!==W || cv.height!==H)){ cv.width=W; cv.height=H; }
 }
@@ -9075,6 +9103,7 @@ var hj3d={
     var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
     var t=magnetPick(c, r, fc, fr, px/(HJ3D.k||1)); onCell(t.c, t.r); return true; },
   drag:function(phase, c, r){ return hj3dDrag(phase, c, r); },
+  office:function(o){ return offMsg(o); },   // v608 : le bureau -- arrivee a un objet (ses 4 coins a l'ecran) ou glissement (obj null)
   ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
   cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); return true; },   // v494 : la camera 3D (les bulles se placent sur la 3D)
@@ -9191,7 +9220,7 @@ document.getElementById('draftConfirm').onclick=confirmDraft;
 document.getElementById('draftAuto').onclick=autoFillDraft;
 // --- MENU PRINCIPAL / SETTINGS ---
 function _show(id){ var e=document.getElementById(id); if(e) e.classList.add('show'); }
-function _hide(id){ var e=document.getElementById(id); if(e) e.classList.remove('show'); }
+function _hide(id){ var e=document.getElementById(id); if(e) e.classList.remove('show'); if(id==='careerOverlay' && typeof OFF!=='undefined' && OFF) offLeave(); }   // v608 : on sort du bureau avec l'ecran de carriere
 function showMainMenu(){ _hide('settingsPanel'); _show('mainMenu'); matchSaveMenu(); }   // v499 : « Resume match » s'il y a une partie sauvegardee
 function draftIsOpen(){ var d=document.getElementById('draftOverlay'); return !!(d && d.classList.contains('show')); }
 function autoStratDraft(){   // choisit 3 stratégies (2 off + 1 def) pour le joueur puis confirme, et ferme l'écran stratégies
@@ -10338,6 +10367,102 @@ var DIV_NAME={1:'Division 1 · USA and Canada', 2:'Division 2 · Canada', 3:'Div
 function careerEsc(t){ return String(t).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
 function careerOrd(n){ return n+(n===1?'st':(n===2?'nd':(n===3?'rd':'th'))); }
 function careerSwatch(T){ return '<span class="cswatch" style="background:'+T.colors[0]+';box-shadow:inset -6px 0 0 '+T.colors[1]+'"></span>'; }
+// v608 (spec 2026-10-31, LE BUREAU = LE MENU DE CARRIERE) : la couche HTML posee sur la surface d'un objet du bureau 3D.
+// Homographie du rectangle (0,0)-(w,h) vers les 4 coins (haut-gauche, haut-droit, bas-droit, bas-gauche ; px ecran) -> matrix3d
+// CSS (colonne par colonne, transform-origin 0 0). Heckbert : carre unite -> quadrilatere, puis l'echelle 1/w, 1/h.
+function offQuadMatrix(q, w, h){
+  var x0=q[0][0], y0=q[0][1], x1=q[1][0], y1=q[1][1], x2=q[2][0], y2=q[2][1], x3=q[3][0], y3=q[3][1];
+  var sx=x0-x1+x2-x3, sy=y0-y1+y2-y3, a, b, d, e, g=0, k=0;
+  if(Math.abs(sx)<1e-9 && Math.abs(sy)<1e-9){ a=x1-x0; b=x2-x1; d=y1-y0; e=y2-y1; }   // parallelogramme : affine
+  else { var dx1=x1-x2, dx2=x3-x2, dy1=y1-y2, dy2=y3-y2, den=dx1*dy2-dx2*dy1;
+    g=(sx*dy2-dx2*sy)/den; k=(dx1*sy-sx*dy1)/den;
+    a=x1-x0+g*x1; b=x3-x0+k*x3; d=y1-y0+g*y1; e=y3-y0+k*y3; }
+  a/=w; d/=w; g/=w; b/=h; e/=h; k/=h;
+  return [a, d, 0, g,  b, e, 0, k,  0, 0, 1, 0,  x0, y0, 0, 1];
+}
+function offQuadCss(m){ return 'matrix3d('+m.map(function(v){ return +v.toFixed(8); }).join(',')+')'; }
+// En 3D (Godot repond) : le hub de carriere est le bureau du coach. Un bouton -> la camera glisse vers l'objet (repere
+// office:<objet>) ; a l'arrivee (hj3d.office : les 4 coins de sa surface a l'ecran), l'ecran s'ecrit sur l'objet (#offObj) ou,
+// pour un objet pas encore fait, l'ecran d'aujourd'hui s'ouvre par-dessus (mode card). En 2D ou sans Godot : rien ne change.
+var OFF={on:false, at:'', want:'', then:null, timer:0, quad:null, vw:0, vh:0, sent:false};
+var OFF_BTNS=[['Standings','board','standings'], ['Schedule','calendar','schedule'], ['Stats','laptop','stats'], ['Lines','lines','roster'],
+  ['Free agents','phone','fa'], ['Save','cabinet','save'], ['Season','trophies','season'], ['Leave','coat',null]];
+var OFF_ON_OBJ={standings:'board'};   // les ecrans deja ecrits sur leur objet (etape 1 : le tableau blanc)
+var OFF_SIZE={board:[600, 480]};      // la taille de dessin de la couche (px CSS), aux proportions de la surface (1,5 x 1,2 m)
+var OFF_WAIT=1500;                    // sans reponse de la 3D, on n'attend pas plus (ms)
+function offActive(){ return hj3dActive() && !!CAREER && !!document.getElementById('offBar'); }
+function offEnter(){ if(OFF.on) return; OFF.on=true; OFF.at=''; OFF.want=''; OFF.sent=false; OFF.quad=null;
+  document.body.classList.add('office'); document.getElementById('careerOverlay').classList.add('office'); hj3dFit(); }
+function offLeave(){ if(!OFF.on) return; OFF.on=false; OFF.at=''; OFF.want=''; OFF.then=null; OFF.quad=null; clearTimeout(OFF.timer);
+  document.body.classList.remove('office'); document.getElementById('careerOverlay').classList.remove('office', 'card');
+  var ob=document.getElementById('offObj'); ob.classList.remove('on'); ob.innerHTML=''; hj3dFit();
+  if(hj3dActive()) hj3dSend('cue', 'rise'); }
+function offGo(obj, then){   // la camera glisse vers l'objet ; a l'arrivee : then() (sinon : on repose la couche)
+  OFF.want=obj; OFF.then=then||null; clearTimeout(OFF.timer);
+  document.getElementById('offObj').classList.remove('on');
+  if(OFF.at===obj && OFF.sent){ offArrived(); return; }
+  var T=CAREER.teams[CAREER.my];
+  hj3dSend('cue', 'office:'+obj+(OFF.sent ? '' : ':'+T.key+':'+T.colors[0]+':'+T.colors[1])); OFF.sent=true; OFF.at='';
+  OFF.timer=setTimeout(function(){ if(OFF.on && OFF.want===obj && OFF.at!==obj){ OFF.at=obj; OFF.quad=null; offArrived(); } }, OFF_WAIT); }
+function offArrived(){ var f=OFF.then; OFF.then=null; if(f) f(); else offPlace(); }
+function offMsg(o){   // la 3D : arrivee a un objet (ses 4 coins), glissement (obj null), ou la vue a change de taille (meme objet)
+  if(!o || !OFF.on) return false;
+  OFF.vw=o.vw||0; OFF.vh=o.vh||0;
+  if(o.obj==null){ document.getElementById('offObj').classList.remove('on'); return true; }
+  OFF.quad=o.quad||null;
+  if(o.obj!==OFF.at){ OFF.at=o.obj; if(o.obj===OFF.want){ clearTimeout(OFF.timer); offArrived(); return true; } }
+  if(OFF.quad && OFF_ON_OBJ[CAREER_VIEW]===o.obj && document.getElementById('careerOverlay').classList.contains('card')){ careerRender(); return true; }   // arrivee tardive (apres le secours de 1,5 s) : l'ecran passe sur l'objet
+  offPlace(); return true; }
+function offPlace(){   // la couche de l'ecran ouvert, posee sur les 4 coins de son objet
+  var ob=document.getElementById('offObj'), sz=OFF_SIZE[OFF.at];
+  if(!OFF.on || !sz || !OFF.quad || OFF_ON_OBJ[CAREER_VIEW]!==OFF.at || !ob.innerHTML){ ob.classList.remove('on'); return; }
+  var cv=document.getElementById('g3d'), r=cv ? cv.getBoundingClientRect() : {left:0, top:0, width:0, height:0};
+  var kx=(r.width||OFF.vw)/(OFF.vw||1), ky=(r.height||OFF.vh)/(OFF.vh||1);
+  var q=OFF.quad.map(function(p){ return [r.left+p[0]*kx, r.top+p[1]*ky]; });
+  ob.style.width=sz[0]+'px'; ob.style.height=sz[1]+'px'; ob.style.transform=offQuadCss(offQuadMatrix(q, sz[0], sz[1])); ob.classList.add('on'); }
+function offRender(v, c){   // careerRender en mode bureau ; false = l'ecran d'aujourd'hui, par-dessus le bureau (mode card)
+  var co=document.getElementById('careerOverlay'), ob=document.getElementById('offObj');
+  if(v==='hub'){ co.classList.remove('card'); ob.classList.remove('on'); offHub(c); if(OFF.want!=='hub' || !OFF.sent) offGo('hub'); return true; }
+  var obj=OFF_ON_OBJ[v];
+  if(obj && OFF.at===obj && OFF.quad){ co.classList.remove('card'); offDraw(v, c); offPlace(); return true; }
+  co.classList.add('card'); ob.classList.remove('on'); return false; }
+function offDraw(v, c){ if(v==='standings') offBoardStandings(c); }
+function offBoardStandings(c){   // le tableau blanc : le classement au feutre, toutes les colonnes ; mon equipe encerclee ; la ligne des series
+  var dd=CAREER_DIVTAB, rows=careerStandings(c, dd), say='Division '+dd+'.';
+  var h='<div class="offmk offboard"><div class="t">Standings — D'+dd+'</div><table><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>OTL</th><th>PTS</th><th>GD</th></tr>';
+  rows.forEach(function(r, i){ var T2=c.teams[r.key], mk=(dd>1 && i<2)?' ↑':((dd<3 && i>5)?' ↓':''), gd=r.gf-r.ga;
+    if(r.key===c.my){ var gap=i ? rows[i-1].pts-r.pts : 0, ahead=i ? careerEsc(c.teams[rows[i-1].key].nick) : '';
+      say=i===0 ? 'We are 1st.' : 'We are '+careerOrd(i+1)+(gap ? ', '+gap+' point'+(gap===1?'':'s')+' behind '+ahead+'.' : ', tied with '+ahead+'.'); }
+    h+='<tr class="'+(r.key===c.my?'me':'')+(i===3?' cut':'')+'"><td>'+(i+1)+'</td><td><span class="nm">'+careerEsc(T2.nick)+'</span>'+mk+'</td><td>'+r.gp+'</td><td>'+r.w+'</td><td>'+r.l+'</td><td>'+r.otl+'</td><td>'+r.pts+'</td><td>'+(gd>0?'+':'')+gd+'</td></tr>'; });
+  h+='</table><div class="n">Top 4: playoffs'+(dd>1?' · ↑ top 2 go up':'')+(dd<3?' · ↓ last 2 go down':'')+'</div></div>';
+  document.getElementById('offObj').innerHTML=h;
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+say;
+  document.getElementById('offBar').innerHTML=[1,2,3].map(function(x){ return '<button class="mbtn sm'+(x===dd?' on':'')+'" onclick="careerDivTab('+x+')">D'+x+'</button>'; }).join('')+'<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+function offHub(c){   // la vue de la porte : la bulle du coach, la barre de boutons (memes infos et memes actions que le hub d'aujourd'hui)
+  var T=c.teams[c.my], d=careerDivOf(c, c.my), st=careerStandings(c, d), me=st[0], rk=1, say='', play='';
+  st.forEach(function(r, i){ if(r.key===c.my){ me=r; rk=i+1; } });
+  var sub=me.w+'-'+me.l+'-'+me.otl+' · '+me.pts+' pts · '+careerOrd(rk)+' of 8';
+  if(c.phase==='regular'){ var _tm=careerTeamMorale(c, c.my); sub+=' · Morale: '+moraleLabel(_tm.v); }
+  if(c.last){ var L=c.last; sub+='<br>Last game: '+(L.gf>L.ga?'Win':'Loss')+' '+L.gf+'–'+L.ga+(L.ot?(L.so?' (SO)':' (OT)'):'')+' vs '+careerEsc(c.teams[L.opp].nick); }
+  var g=careerMyGame(c), pb='<button class="mbtn play" id="offPlay" onclick="offNextGame()">'+(matchSaveIsToday(matchSaveRead()) ? '▶️ Resume match' : '▶ Next game')+'</button>';   // la spec : ▶ Next game, dore, pleine largeur
+  if(c.phase==='regular' && g){ var op=g.home===c.my?g.away:g.home; say='Next game: '+(g.home===c.my?'vs':'at')+' '+careerEsc(c.teams[op].full)+' (round '+(c.day+1)+' of '+c.schedule[d].length+').'; play=pb; }
+  else if(c.phase==='playoffs'){ var sr=careerMySeries(c), P=c.playoffs[d];
+    if(sr){ var op2=sr.a===c.my?sr.b:sr.a, mw=sr.a===c.my?sr.wa:sr.wb, ow=sr.a===c.my?sr.wb:sr.wa;
+      say=(P.final===sr?'Final':'Semi-final')+', game '+(sr.games.length+1)+': vs '+careerEsc(c.teams[op2].full)+' (series '+mw+'–'+ow+').'; play=pb; }
+    else { say='Playoffs: your team is out. The others play on.'; play='<button class="mbtn play" id="offSim" onclick="careerSimDay()">⏩ Simulate the playoffs</button>'; } }
+  else if(c.phase==='done'){ say='The season is over.'; play='<button class="mbtn play" id="offSeason" onclick="offOpen(\'season\', \'trophies\')">🏆 Season summary</button>'; }
+  document.getElementById('offSay').innerHTML='<div class="who">COACH '+careerEsc(String(T.coach.name).toUpperCase())+'</div>'+say+(CAREER_MSG ? '<div class="cmsg">'+CAREER_MSG+'</div>' : '')+'<small>'+sub+'</small>';
+  document.getElementById('offBar').innerHTML=play+OFF_BTNS.map(function(b, i){ return '<button class="mbtn sm" data-off="'+b[1]+'" onclick="offBtn('+i+')">'+b[0]+'</button>'; }).join(''); }
+function offNote(text){   // une phrase du coach devant l'objet, et ‹ Back
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+text;
+  document.getElementById('offBar').innerHTML='<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+function offBtn(i){ var b=OFF_BTNS[i]; offOpen(b[2], b[1]); }
+function offOpen(view, obj){   // un bouton du bureau : la camera glisse vers l'objet, puis son ecran
+  offGo(obj, function(){
+    if(view===null){ careerToMenu(); return; }
+    if(view==='season' && CAREER.phase!=='done'){ offNote('No season summary yet. Finish the season first.'); return; }
+    careerGo(view); }); }
+function offNextGame(){ offGo('lines', careerPlayClick); }   // la porte : l'alignement du match d'abord (spec : la camera va au tableau de l'equipe)
 function showCareer(view){ if(view) CAREER_VIEW=view; if(!CAREER && CAREER_VIEW!=='pick' && CAREER_VIEW!=='save') CAREER_VIEW='start'; _hide('mainMenu'); careerRender(); _show('careerOverlay'); }
 function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my); if(v==='stats' && CAREER){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs'); }   /* v579 ; v580 */ showCareer(v); }
 function careerToMenu(){ _hide('careerOverlay'); showMainMenu(); }
@@ -10355,6 +10480,9 @@ function careerImportFile(inp){ var f=inp.files && inp.files[0]; if(!f) return; 
 function careerImportPaste(){ var t=document.getElementById('careerPaste'); careerImport(t ? t.value : ''); }
 function careerRender(){
   var el=document.getElementById('careerCard'); if(!el) return; var v=CAREER_VIEW, c=CAREER, h='';
+  if(OFF.on && !offActive()) offLeave();   // v608 : la 3D est tombee -> les ecrans d'aujourd'hui
+  if(v==='hub' && c && c.teams[c.my].coach && offActive()) offEnter();   // v608 : le hub de carriere = le bureau du coach
+  if(OFF.on && offRender(v, c)) return;
   if(v==='start'){
     h+='<div class="mtitle">🏆 Career</div><div class="msub">Lead a Quebec team from Division 3 to the cup.</div>'; if(CAREER_MSG) h+='<div class="cmsg">'+CAREER_MSG+'</div>';
     if(c) h+='<button class="mbtn play" onclick="careerGo(\'hub\')">▶ Continue — '+careerEsc(c.teams[c.my].full)+'</button>';
@@ -11239,7 +11367,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":452016,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":468172,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
