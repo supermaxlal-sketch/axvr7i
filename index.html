@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v613</title>
+<title>Deck 3D v614</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1346,7 +1346,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v613';
+var GAME_VERSION='v614';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1619,9 +1619,8 @@ function resolveSeq(seq){
     if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr), _cutIn=!!_pb2.blocker && raceCut(_pb2.blocker.id);   /* v569 / v570 : il est entre dans le couloir le premier -- on le contourne, la rencontre */ if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id), _cutIn ? [_pb2.blocker.id] : null); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
       else if(_pb2.mate){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog(p.name+' pulls up behind '+_pb2.mate.name+'.'); } }   // v443
     var oc=p.c, orr=p.r, sp;
-    if(_det){ var _dsp=detourSpot(p, _det), _osd=orderStopIdx(p, _dsp.path);   // v613 : un ordre de coup en route l'arrete
-      if(_osd>=0) _dsp={c:_dsp.path[_osd].c, r:_dsp.path[_osd].r, path:_dsp.path.slice(0, _osd+1), keep:false};
-      skateToSpot(p, _dsp); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
+    var _om=null; S._ordTried=null;   // v614 : un ordre de coup croise en route -- le coup part pendant le patin (orderMeet)
+    if(_det){ var _dsp=detourSpot(p, _det); _om=orderMeet(p, _dsp.path); skateToSpot(p, _dsp); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
     else if(_crv){   // v408 : l'arc est revalide case par case (un joueur a pu s'y glisser) : il s'arrete avant
       var _rsp=routeContacts(p, routeSpot(p, a.path, 'atk'));   // v492 : contacts du contournement   // v410 : part de ce tour du trace, revalidee ; la suite est rangee sur le joueur
       if(!_rsp || _rsp.blocked) pushLog(p.name+' is cut off in his turn and stops short.');
@@ -1633,14 +1632,12 @@ function resolveSeq(seq){
         seq._rp={id:p.id, cells:_rsp.path.slice(_k), later:_rsp.rest, keep:_rsp.keep, blocked:_rsp.blocked, endMom:_rs0.endMom};
         _rsp={c:_rsp.path[_k-1].c, r:_rsp.path[_k-1].r, path:_rsp.path.slice(0,_k), keep:_rsp.keep, rest:[], kind:'atk'};
       }
-      if(_rsp && !(seq._rp && seq._rp.id===p.id)){ var _osc=orderStopIdx(p, _rsp.path);   // v613 : un ordre de coup en route l'arrete
-        if(_osc>=0) _rsp={c:_rsp.path[_osc].c, r:_rsp.path[_osc].r, path:_rsp.path.slice(0, _osc+1), keep:false, rest:[], kind:'atk'}; }
+      if(_rsp) _om=orderMeet(p, _rsp.path);   // v614
       if(_rsp){ skateToSpot(p, _rsp); p._movedThisTurn=true; } else p.route=null;
       sp={c:p.c, r:p.r};
     } else {
-      if(!_bend){ var _ocl=clampToBudget(p, atc, atr), _osl=lineCells(p.c, p.r, _ocl.c, _ocl.r), _oss=orderStopIdx(p, _osl);   // v613 : un ordre de coup en route l'arrete
-        if(_oss>=0){ atc=_osl[_oss].c; atr=_osl[_oss].r; } }
       sp=_bend?{c:a.toC,r:a.toR}:landSpot(p, atc, atr, {});   // coude : arrivee = destination (chemin revalide) ; sinon on calcule
+      if(!_bend) _om=orderMeet(p, lineCells(oc, orr, sp.c, sp.r));   // v614
       p.c=sp.c; p.r=sp.r;
       if(_bend){ addTrail(oc, orr, a.viaC, a.viaR); addSlide(p.id, a.viaC-sp.c, a.viaR-sp.r); }   // 1er segment trace + 2e segment (via -> dest) anime
       else addSlide(p.id, oc-sp.c, orr-sp.r);
@@ -1662,8 +1659,13 @@ function resolveSeq(seq){
       seq._flow={id:p.id, ms:_slF ? (_slF.pts ? Math.max(450, 190*(_slF.cells||_slF.pts.length)) : Math.round(1000*Math.max(0.3, 0.28*Math.max(Math.abs(_slF.dx),Math.abs(_slF.dy))))) : 450};
       sfx('skate'); seq.rank++; resolveSeq(seq); return;
     }
+    var _omMs=0, _omRes=null;
+    if(_om){ var _slO=S.slides && S.slides[p.id], _tot=_slO ? (_slO.pts ? Math.max(450, 190*(_slO.cells||_slO.pts.length)) : 1000*Math.max(0.3, 0.28*Math.max(Math.abs(_slO.dx),Math.abs(_slO.dy)))) : 450;
+      _omMs=Math.round(_tot*(_om.k+0.7)/_om.n); }   // v614 : quand il passe a cote du defenseur
     S.animating=true; sfx('skate'); render();
+    if(_om) setTimeout(function(){ _omRes=orderMeetTry(seq, p, _om); }, _omMs);
     setTimeout(function(){
+      if(_omRes && _omRes.success) return;   // v614 : le coup en route a reussi -- looseBall pilote (il tue la sequence)
       S.animating=false;
       if(seq!==S.currentSeq) return;
       var wasLoose=!!S.puckLoose;
@@ -1694,7 +1696,7 @@ function resolveSeq(seq){
       if(resolveSeqContact(seq, df)) return;
       var _nx=seq.atk[seq.rank+1], _same=(_nx && _nx.id===p.id);
       setTimeout(function(){ if(seq!==S.currentSeq) return; seqAdvance(seq); }, _same?TEMPO.same:TEMPO.beat);
-    }, TEMPO.slide+TEMPO.settle);
+    }, Math.max(TEMPO.slide+TEMPO.settle, _om ? _omMs+500 : 0));   // v614 : apres le coup en route
     return;
   }
   if(a.kind==='shoot'){
@@ -6338,18 +6340,35 @@ function contactsAlongPath(p, fromC, fromR, toC, toR){
   return out;
 }
 // v613 (le concepteur, export v611 P1 2:42 : « quand deux joueurs se croisent dans une ligne de course, il doit y avoir un petit
-// contact » ; son choix « ordre = coup, sinon frole ») : un defenseur avec un ordre Body check / Poke check pas encore servi,
-// que le porteur croise EN ROUTE (colle a une case de son trajet), l'arrete la et tente son coup une fois (comme doMoveExec,
-// ghit). Avant : le contact etait note au passage puis jete (le porteur finissait 2 cases plus loin : filtre v244).
-// cells = le trajet sans la case de depart ; renvoie l'indice de la case d'arret, ou -1.
-function orderStopIdx(p, cells){
-  S._ordStop=null;
-  if(!p || S.puckOwner!==p.id || !S.defOrders || !S.defOrders.length || !cells) return -1;
-  for(var k=0;k<cells.length;k++) for(var j=0;j<S.defOrders.length;j++){ var o=S.defOrders[j];
+// contact » ; son choix « ordre = coup, sinon frole ») ; v614 (son retour sur v613 : « le porteur ne doit pas s'arreter, mais le
+// gars doit essayer son poke check ou sa mise en echec sur le porteur en mouvement » ; son choix : poke reussi -> il continue
+// sans) : un defenseur avec un ordre Body check / Poke check pas encore servi, que le porteur croise EN ROUTE (colle a une case
+// de son trajet, avant la derniere -- a l'arrivee, c'est le contact de toujours), tente son coup QUAND il passe, une fois.
+// Rate : le porteur file jusqu'au bout. Poke reussi : la rondelle reste la, il file sans. Mise en echec reussie : frappe la.
+// Avant v613 : le contact etait note au passage puis jete (le porteur finissait 2 cases plus loin : filtre v244).
+// cells = le trajet sans la case de depart ; renvoie {k, n, cell, d, o} ou null.
+function orderMeet(p, cells){
+  if(!p || S.puckOwner!==p.id || !S.defOrders || !S.defOrders.length || !cells) return null;
+  for(var k=0;k<cells.length-1;k++) for(var j=0;j<S.defOrders.length;j++){ var o=S.defOrders[j];
     if((o.order!=='check' && o.order!=='poke') || o.used) continue;
     var d=byId(o.defId); if(!d || !d.onIce || d.type!=='sk' || d.team===p.team || raceLate(d.id) || chargedPending(d)) continue;
-    if(cheb(cells[k], d)===1){ S._ordStop={id:d.id, o:o}; pushLog('<b>'+d.name+'</b> steps up on '+p.name+' — '+p.name+' has to stop.'); return k; } }
-  return -1;
+    if(cheb(cells[k], d)===1) return {k:k, n:cells.length, cell:{c:cells[k].c, r:cells[k].r}, d:d, o:o}; }
+  return null;
+}
+// le coup part au croisement : le porteur est pose a la case du croisement le temps de la resolution (sans dessin : la 3D le
+// voit toujours filer), puis il reprend sa case d'arrivee -- sauf mise en echec reussie (frappe la, bodyCheckOutcome).
+function orderMeetTry(seq, p, m){
+  if(seq!==S.currentSeq || S.puckOwner!==p.id || m.o.used || !m.d.onIce) return null;
+  var fc=p.c, fr=p.r, _pn=S.planNext; S.planNext=null;
+  S._ordTried=m.d.id;
+  pushLog('<b>'+m.d.name+'</b> '+(m.o.order==='poke' ? 'pokes at' : 'steps into')+' '+p.name+' as he goes by.');
+  p.c=m.cell.c; p.r=m.cell.r; S._holdRender=true;
+  var res=null; try{ res=resolveCheck(m.d, false); } finally { S._holdRender=false; }
+  m.o.used=true;   // servi APRES : resolveCheck lit l'ordre (hasOrder : check = mise en echec postee, poke = poke)
+  S.planNext=_pn;
+  if(!(res && res.success && res.body)){ p.c=fc; p.r=fr; }   // rate, ou poke reussi : il file jusqu'au bout (sans la rondelle)
+  render();
+  return res;
 }
 function lineCells(fc, fr, tc, tr){ var dx=Math.sign(tc-fc), dy=Math.sign(tr-fr), n=Math.max(Math.abs(tc-fc), Math.abs(tr-fr)), out=[];
   for(var k=1;k<=n;k++) out.push({c:fc+dx*Math.min(k,Math.abs(tc-fc)), r:fr+dy*Math.min(k,Math.abs(tr-fr))});
@@ -6367,7 +6386,6 @@ function runContactQueue(seq, queue, carrierId){
   if(!queue.length){ seqAdvance(seq); return; }   // file vide : la sequence reprend
   var entry=queue.shift();
   resolveCheck(entry.d, entry.anticipated);         // bonus d anticipation seulement pour l embuscade
-  if(entry.ord) entry.ord.used=true;                // v613 : l'ordre qui a arrete le porteur en route est servi (il a tente son coup)
   setTimeout(function(){ runContactQueue(seq, queue, carrierId); }, 1500);
 }
 /* Le defenseur en embuscade n est pas exclu de la file : contactsAlongPath
@@ -6384,8 +6402,10 @@ function startPassContacts(seq, p, oc, orr, ambushId){
   var _xs = (S.puckOwner===p.id) ? crossingOpponents(p) : [], _xcIds={};
   for(var _xi=0;_xi<_xs.length;_xi++){ var _xq=_xs[_xi].q, _dup=false; if(raceLate(_xq.id)) continue;   /* v574 (le concepteur : « contact pas rapport », 2:39 de la prolongation) : arrive trop tard au croisement (v570), il ne touche pas -- avant, il plaquait a 3 cases */ for(var _h=0;_h<hits.length;_h++){ if(hits[_h].id===_xq.id){ _dup=true; break; } } if(!_dup) hits.push(_xq); _xcIds[_xq.id]=true; }   // v473 : deja colle au trajet ET croise -> c'est un croisement (avant : drapeau perdu, contact jete s'il finissait loin)
   if(!hits.length) return false;
-  var _os=S._ordStop; S._ordStop=null;   // v613 : le defenseur (ordre) qui l'a arrete en route
-  var queue = hits.map(function(d){ return {d:d, anticipated:(ambushId!=null && d.id===ambushId), cross:!!_xcIds[d.id], ord:(_os && _os.id===d.id) ? _os.o : null}; });
+  var _ot=S._ordTried; S._ordTried=null;   // v614 : il a deja tente son coup en route (orderMeetTry) -- une seule fois
+  if(_ot) hits=hits.filter(function(d){ return d.id!==_ot; });
+  if(!hits.length) return false;
+  var queue = hits.map(function(d){ return {d:d, anticipated:(ambushId!=null && d.id===ambushId), cross:!!_xcIds[d.id]}; });
   S.planNext=null;                                  // c est la file qui relance la sequence
   runContactQueue(seq, queue, p.id);
   return true;
@@ -6618,7 +6638,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
   else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (carName+' shields the puck.'); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.')); }
   render(); checkFx(success?(isBody?'body':'poke'):(_blowby?'blowby':(_feintBeat?'dekestop':(_shielded?'shield':(isBody?'checkmiss':'pokemiss')))), cc, cr);   /* rate nomme l'action : PROTECTED si bouclier, sinon CHECK MISSED / POKE MISSED */ if(anticipated){ var ocp=document.getElementById('outcome'); ocp.innerHTML='Pressure read! '+ocp.innerHTML; } var activeHas=!!(S.puckOwner && byId(S.puckOwner) && byId(S.puckOwner).team===activeTeam); var lost=activeHad && !activeHas;
-  setTimeout(function(){ if(success && isBody){ looseBall(checker.team); } else if(success && !isBody){ if(hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450); }
+  setTimeout(function(){ if(success && isBody){ looseBall(checker.team); } else if(success && !isBody){ if(hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450);
+  return {success:!!success, body:!!isBody}; }   // v614 : pour le coup en route (orderMeetTry)
 function nearEnemySkater(p){ for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce&&e.type==='sk'&&e.team!==p.team&&cheb(p,e)<=2) return e; } return null; }
 function selfBankLanding(p){ var d=dir(p.team), cand=[[2*d,0],[2*d,-1],[2*d,1],[1*d,-1],[1*d,1],[1*d,0]]; for(var i=0;i<cand.length;i++){ var c=p.c+cand[i][0], r=p.r+cand[i][1]; if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!pieceAt(c,r)) return {c:c,r:r}; } return null; }
 function protBonus(id){ return (S.protecting && S.protecting===id) ? 2 : 0; }
@@ -8567,6 +8588,7 @@ function diagSnap(){   // diag : memorise la position de tous les pions + la ron
   if(S._posHist.length>16) S._posHist.shift();
 }
 function render(){
+  if(S._holdRender) return;   // v614 : le coup en route se resout avec le porteur pose au croisement -- on ne le dessine pas la
   S._bbT=blowbyTargets(); if(S._bbT && Object.keys(S._bbT).length) tipTrigger('blowby');   // v525 : qui on peut deborder
   // DETECTEUR DE SAUT : une piece qui a change de case depuis le dernier render SANS slide en attente
   // = deplacement NON anime (la "teleportation"). On le trace pour retrouver la source.
