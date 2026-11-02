@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v620</title>
+<title>Deck 3D v621</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1349,7 +1349,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v620';
+var GAME_VERSION='v621';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10706,7 +10706,9 @@ function offTap(ev){
   var co=document.getElementById('careerOverlay');
   if(OFF.on && ev.target===co && CAREER_VIEW==='meet' && OFF.at==='door'){ offVisit('skip'); return; }   // v618 : toucher l'ecran -- il saute la marche
   if(!OFF.on || ev.target!==co || co.classList.contains('card') || !OFF.quad || !OFF.seen || !CAREER) return;
-  var W=window.innerWidth||OFF.vw, H=window.innerHeight||OFF.vh, uv=offUnquad(OFF.quad, ev.clientX*OFF.vw/W, ev.clientY*OFF.vh/H);
+  var g=document.getElementById('g3d'), r=g && g.getBoundingClientRect ? g.getBoundingClientRect() : null;   // v621 (son bug, Chrome Android) : la place REELLE du canevas -- il fait 100vh, plus haut que la vue visible (innerHeight) : l'image y est etiree
+  if(!r || !(r.width>0) || !(r.height>0)) r={left:0, top:0, width:window.innerWidth||OFF.vw, height:window.innerHeight||OFF.vh};
+  var uv=offUnquad(OFF.quad, (ev.clientX-r.left)*OFF.vw/r.width, (ev.clientY-r.top)*OFF.vh/r.height);
   if(!uv) return;
   if(OFF.at==='lines') offTapLines(uv[0]*800, uv[1]*1000);
   else if(OFF.at==='card' && CAREER_VIEW==='levelup') offTapMeet(uv[0]*OFF_LVL.w, uv[1]*OFF_LVL.h, ev);
