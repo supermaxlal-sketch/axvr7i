@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v618</title>
+<title>Deck 3D v619</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1349,7 +1349,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v618';
+var GAME_VERSION='v619';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10813,8 +10813,12 @@ function offMeetP(c){ return OFF_MEET ? careerPlayerByUid(c.teams[c.my], OFF_MEE
 function offMeetCanPlace(T, p){ return p.pts>0 && (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return p[k]<p.cap[k]; }); }
 function offMeetRows(T, p){ return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ return {k:k, y:OFF_LVL.y0+i*OFF_LVL.dy}; }); }   // le meme calcul pour peindre et pour toucher
 function offMeetPerks(p){ var L=OFF_LVL; return (p.perkPick||[]).map(function(k, i){ return {k:k, x:28+i*254, y:L.py, w:236, h:L.ph}; }); }
-function offVisit(s, p){ var o={s:s}, T=CAREER.teams[CAREER.my];   // a la 3D : {s:'in', uid, no, hc, sk, sz, g, nm} (il entre) ; skip ; out (il ressort)
-  if(p){ var lk=lookParse(p.look); o.uid=p.uid; o.no=lk.no; o.hc=lk.hc; o.sk=lk.sk; o.sz=p.size||'M'; o.g=offIsGk(T, p) ? 1 : 0; o.nm=offSurname(p.name); }
+var OFF_FITS=['S','T','H'];   // v619 : la tenue du joueur appele (il sort de la douche) -- complet, serviette, survetement d'equipe
+function offOutfit(c, p){ var R=lookRng('fit/'+p.uid+'/'+offDayTag(c)), h=p.uid%3;   // son habitude (uid) ~80 % ; une autre ~20 % (uid + le jour) ; sans Math.random
+  return OFF_FITS[R()<0.8 ? h : (h+(R()<0.5 ? 1 : 2))%3]; }
+function offVisit(s, p){ var o={s:s}, T=CAREER.teams[CAREER.my];   // a la 3D : {s:'in', uid, no, hc, sk, sz, g, nm, hs, bd, o} (il entre) ; skip ; out (il ressort)
+  if(p){ var lk=lookParse(p.look); o.uid=p.uid; o.no=lk.no; o.hc=lk.hc; o.sk=lk.sk; o.sz=p.size||'M'; o.g=offIsGk(T, p) ? 1 : 0; o.nm=offSurname(p.name);
+    o.hs=lk.hs; o.bd=lk.bd; o.o=offOutfit(CAREER, p); }   // v619 : sa tete en civil (sa coupe, sa barbe) et sa tenue
   hj3dSend('visit', o); }
 function offCall(){ var c=CAREER, T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID); if(!p || !(p.pts>0 || p.perkPick)) return;
   if(!p.look) rosterLooks(T.skaters.concat([T.goalie], T.goalie2 ? [T.goalie2] : []), c.my);   // sa recette (comme au match)
@@ -12042,7 +12046,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":499836,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":517436,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
