@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v616</title>
+<title>Deck 3D v617</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1347,7 +1347,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v616';
+var GAME_VERSION='v617';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10027,7 +10027,8 @@ function faJoin(c, T, p, slot){   // il signe : il quitte la banque, arrive repo
   c.fa=(c.fa||[]).filter(function(q){ return q!==p; });
   var labs={}; T.skaters.concat(faGoalies(T)).forEach(function(q){ labs[q.label]=1; });
   p.label=faLabel(p.name, labs); delete p.look; delete p.fa; p.en=100; p.rest=false; p.mor=0; p.inj=null; p.rust=0; p.seq=null;
-  if(p.pos==='G'){ if(slot==='goalie') T.goalie=p; else T.goalie2=p; } else T.skaters.push(p); }
+  if(p.pos==='G'){ if(slot==='goalie') T.goalie=p; else T.goalie2=p; }
+  else { p.rest=T.skaters.filter(function(q){ return !q.inj && !q.rest; }).length>=DRESS_N; T.skaters.push(p); } }   // v617 : 16 deja habilles -> il commence aux gradins (avant : 17/16)
 function faRelease(c, T, p){   // il part dans la banque
   if(p===T.goalie){ T.goalie=T.goalie2; T.goalie2=null; T.gStart=1; } else if(p===T.goalie2){ T.goalie2=null; T.gStart=1; }
   else T.skaters=T.skaters.filter(function(q){ return q!==p; });
@@ -10049,12 +10050,12 @@ function faSignClick(uid){ var c=CAREER, T=c.teams[c.my], p=faFind(c, uid); if(!
   if(!faOpen(c)){ CAREER_MSG='The signing window is closed.'; careerGo('fa', true); return; }
   var full=p.pos==='G' ? faGoalies(T).length>=FA_MAX_G : T.skaters.length>=FA_MAX_SK;
   if(full){ CAREER_FA_PICK=uid; careerGo('farelease'); return; }
-  faJoin(c, T, p, T.goalie ? 'goalie2' : 'goalie'); CAREER_MSG='✅ '+careerEsc(p.name)+' signs with the '+careerEsc(T.nick)+'.'; careerSave(); careerGo('fa', true); }
+  faJoin(c, T, p, T.goalie ? 'goalie2' : 'goalie'); CAREER_MSG='✅ '+careerEsc(p.name)+' signs with the '+careerEsc(T.nick)+'.'+(p.rest ? ' He starts in the stands.' : ''); careerSave(); careerGo('fa', true); }
 function faReleaseClick(uid){ var c=CAREER, T=c.teams[c.my], p=faFind(c, CAREER_FA_PICK), out=careerPlayerByUid(T, uid); if(!p || !out || !faOpen(c)) return;
   var slot=out===T.goalie ? 'goalie' : 'goalie2';
   if(p.pos==='G'){ var keep=(out===T.goalie) ? T.goalie2 : T.goalie; c.fa.push(out); out.fa='released'; out.pos='G'; out.rest=false; if(slot==='goalie'){ T.goalie=null; } else { T.goalie2=null; } faJoin(c, T, p, slot); if(!T.goalie){ T.goalie=keep; } }
   else { faRelease(c, T, out); faJoin(c, T, p); }
-  CAREER_FA_PICK=null; CAREER_MSG='✅ '+careerEsc(p.name)+' signs; '+careerEsc(out.name)+' goes to the free agents.'; careerSave(); careerGo('fa', true); }
+  CAREER_FA_PICK=null; CAREER_MSG='✅ '+careerEsc(p.name)+' signs; '+careerEsc(out.name)+' goes to the free agents.'+(p.rest ? ' '+careerEsc(p.name)+' starts in the stands.' : ''); careerSave(); careerGo('fa', true); }
 function careerPlayDay(c, my){   // le jour : ton resultat (my = {hs, as, ot} vu de home / away ; null = simule) + tous les autres matchs simules
   if(c.phase==='regular'){
     for(var d=1;d<=3;d++){ (c.schedule[d][c.day]||[]).forEach(function(g){
