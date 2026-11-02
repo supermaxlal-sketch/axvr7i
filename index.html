@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v612</title>
+<title>Deck 3D v613</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1346,7 +1346,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v612';
+var GAME_VERSION='v613';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1619,7 +1619,9 @@ function resolveSeq(seq){
     if(!_bend && !_crv){ var _pb2=pathBlocked(p, atc, atr), _cutIn=!!_pb2.blocker && raceCut(_pb2.blocker.id);   /* v569 / v570 : il est entre dans le couloir le premier -- on le contourne, la rencontre */ if(_pb2.blocker||_pb2.mate) _det=detourPath(p, p.c, p.r, atc, atr, whoAt(p.id), _cutIn ? [_pb2.blocker.id] : null); if(_det){} else if(_pb2.blocker){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog('<b>'+_pb2.blocker.name+'</b> cuts into the lane — '+p.name+' has to pull up.'); }
       else if(_pb2.mate){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog(p.name+' pulls up behind '+_pb2.mate.name+'.'); } }   // v443
     var oc=p.c, orr=p.r, sp;
-    if(_det){ skateToSpot(p, detourSpot(p, _det)); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
+    if(_det){ var _dsp=detourSpot(p, _det), _osd=orderStopIdx(p, _dsp.path);   // v613 : un ordre de coup en route l'arrete
+      if(_osd>=0) _dsp={c:_dsp.path[_osd].c, r:_dsp.path[_osd].r, path:_dsp.path.slice(0, _osd+1), keep:false};
+      skateToSpot(p, _dsp); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
     else if(_crv){   // v408 : l'arc est revalide case par case (un joueur a pu s'y glisser) : il s'arrete avant
       var _rsp=routeContacts(p, routeSpot(p, a.path, 'atk'));   // v492 : contacts du contournement   // v410 : part de ce tour du trace, revalidee ; la suite est rangee sur le joueur
       if(!_rsp || _rsp.blocked) pushLog(p.name+' is cut off in his turn and stops short.');
@@ -1631,9 +1633,13 @@ function resolveSeq(seq){
         seq._rp={id:p.id, cells:_rsp.path.slice(_k), later:_rsp.rest, keep:_rsp.keep, blocked:_rsp.blocked, endMom:_rs0.endMom};
         _rsp={c:_rsp.path[_k-1].c, r:_rsp.path[_k-1].r, path:_rsp.path.slice(0,_k), keep:_rsp.keep, rest:[], kind:'atk'};
       }
+      if(_rsp && !(seq._rp && seq._rp.id===p.id)){ var _osc=orderStopIdx(p, _rsp.path);   // v613 : un ordre de coup en route l'arrete
+        if(_osc>=0) _rsp={c:_rsp.path[_osc].c, r:_rsp.path[_osc].r, path:_rsp.path.slice(0, _osc+1), keep:false, rest:[], kind:'atk'}; }
       if(_rsp){ skateToSpot(p, _rsp); p._movedThisTurn=true; } else p.route=null;
       sp={c:p.c, r:p.r};
     } else {
+      if(!_bend){ var _ocl=clampToBudget(p, atc, atr), _osl=lineCells(p.c, p.r, _ocl.c, _ocl.r), _oss=orderStopIdx(p, _osl);   // v613 : un ordre de coup en route l'arrete
+        if(_oss>=0){ atc=_osl[_oss].c; atr=_osl[_oss].r; } }
       sp=_bend?{c:a.toC,r:a.toR}:landSpot(p, atc, atr, {});   // coude : arrivee = destination (chemin revalide) ; sinon on calcule
       p.c=sp.c; p.r=sp.r;
       if(_bend){ addTrail(oc, orr, a.viaC, a.viaR); addSlide(p.id, a.viaC-sp.c, a.viaR-sp.r); }   // 1er segment trace + 2e segment (via -> dest) anime
@@ -2853,6 +2859,7 @@ function teammateInOffZone(team,exceptId){ for(var i=0;i<S.pieces.length;i++){ v
 function offsideDot(team,atRow){ return {c: team==='A'?BLUE_A-2:BLUE_B+2,   /* v394 : point decolle de la bleue (1 case dedans, comme le 3D) */ r: atRow<=CTR_R?CTR_R-3:CTR_R+3}; }   // mise au jeu de hors-jeu : au point neutre JUSTE en dedans de la ligne bleue attaquee, du cote du jeu (rangees CTR_R±3, sur les points dessines)
 function doFaceoffNeutral(col,row){ pushLog('⛔ Offside called.'); startFaceoffRPS(col,row,false); }
 function showWhistle(cb, icon, big, sub){
+  S.stop=true;   // v613 : arret de jeu -- le chrono attend la mise au jeu (applyFaceoff)
   sfx('whistle'); matchEv('whistle', {why:big||'OFFSIDE'});   // v447
   document.getElementById('wIcon').textContent = icon || '⛔';
   document.getElementById('wBig').textContent  = big  || 'OFFSIDE';
@@ -3319,6 +3326,14 @@ function spend(){
   if(glidePickupTakeover(_gp)) return;   // v382 : une glisse a ramasse la rondelle libre -> possession
   if(S.gestes<=0){ if(S.puckOwner){ endExchange(); } else { passTurn(); } return; } clearSel(); render(); }
 function gkBehindLine(gk, c){ var cc=(c===undefined)?gk.c:c; return gk.team==='A' ? cc<NET_B : cc>NET_A; }   // v597 (ses notes) : derriere SA ligne de but (A defend NET_B) -- il ne peut pas y geler la rondelle
+// v613 (le concepteur, export v611 P2 1:42 : « gardien gele la rondelle apres un dump meme si elle etait loin devant lui » ;
+// son choix « dans son demi-cercle ») : le gardien couvre une rondelle libre seulement si elle s'arrete VRAIMENT dans son
+// demi-cercle (celui de la 3D : 1,83 m x MARK_SCALE de rayon, centre sur la ligne des buts). S._puckAt = ou elle s'est
+// vraiment arretee (fin du vol) ; la case arrondie seule ne suffit pas (avant : 2,7 m devant lui = « a 1 case »).
+var CREASE_R=1.83*MARK_SCALE/2;   // en cases
+function looseAt(L){ var P=S._puckAt; return (P && Math.round(P.c)===L.c && Math.round(P.r)===L.r) ? P : {c:L.c, r:L.r}; }
+function inCrease(gk, L){ var P=looseAt(L), net=(gk.team==='A')?NET_B:NET_A, out=(gk.team==='A')?1:-1, dx=(P.c-net)*out;
+  return dx>=-0.05 && Math.hypot(dx, P.r-CTR_R)<=CREASE_R; }
 function coverTargets(p){
   // le gardien peut couvrir directement SEULEMENT si aucun adversaire ne conteste.
   // Sil y a un adversaire dans le coup, ca doit passer par la course (looseContest).
@@ -3372,7 +3387,7 @@ function flyPuckBoard(fromC,fromR,toC,toR,onDone,dur,near){
   fp.style.left=((toC+0.5)/COLS*100)+'%'; fp.style.top=((toR+0.5)/ROWS*100)+'%';
   // le vol a MONTRE le trajet : la case de reference pour la prochaine glisse du #loose est
   // l'ARRIVEE (sinon le #loose reapparait a l'origine et re-glisse -> rondelle "dumpee" 2 fois).
-  setTimeout(function(){ fp.style.display='none'; S._puckCell={c:toC, r:toR}; onDone(); }, rd?40:Math.round(dur*1000+30));
+  setTimeout(function(){ fp.style.display='none'; S._puckCell={c:toC, r:toR}; S._puckAt={c:toC, r:toR}; onDone(); }, rd?40:Math.round(dur*1000+30));   // v613 : _puckAt (inCrease)
 }
 /* ===== v441 : PHYSIQUE DES BANDES -- code IDENTIQUE au labo (rebond-sim.html ; battery 318 le verifie) =====
    Au contact : la vitesse NORMALE rebondit (ressort) ; la vitesse TANGENTIELLE est freinee par frottement de Coulomb
@@ -3406,7 +3421,7 @@ function boardSim(x0,y0,dx,dy,power,P,cols,rows,obs){
   }
   return {pts:pts, hits:hits, rest:{c:Math.max(0,Math.min(cols-1,Math.round(x))), r:Math.max(0,Math.min(rows-1,Math.round(y)))}};
 }
-var BOARD_PHYS={rest:0.52, board:0.05, ice:0.009, corner:28*0.3048/2*MARK_SCALE};
+var BOARD_PHYS={rest:0.35, board:0.05, ice:0.009, corner:28*0.3048/2*MARK_SCALE};   // v613 (le concepteur, export v611 P2 1:18 : « rebound trop rebondis » ; video des 3 reglages sur son tir) : ressort 0,52 -> 0,35
 // v584 (spec 2026-10-24-rondelle-frappe-les-corps-design, le concepteur : « les rondelles passent au travers des joueurs ») :
 // LES CORPS. Chaque patineur sur la glace est un cercle de BODY_R case dans la simulation de la rondelle libre (comme le filet) ;
 // de face elle garde BODY_E de sa vitesse, de biais plus (BODY_MU : frottement) ; la sortie tourne au hasard de +-BODY_JIT deg
@@ -3648,7 +3663,7 @@ function flyPuckPath(pts, onDone, noEv){   // v441 : la rondelle suit la simulat
     for(; k<idx; k++){ if(pts[k+1].b) sfx('block'); }
     var q=pts[idx]; fp.style.left=((q.c+0.5)/COLS*100)+'%'; fp.style.top=((q.r+0.5)/ROWS*100)+'%';
     if(u<1){ setTimeout(tick, 16); return; }
-    fp.style.display='none'; S._puckCell={c:Math.round(q.c), r:Math.round(q.r)}; if(onDone) onDone();
+    fp.style.display='none'; S._puckCell={c:Math.round(q.c), r:Math.round(q.r)}; S._puckAt={c:q.c, r:q.r}; if(onDone) onDone();   // v613 : le point reel ou elle s'arrete (inCrease)
   })();
 }
 function distToSeg(px,py,ax,ay,bx,by){ var dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy; var t=L?((px-ax)*dx+(py-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); var qx=ax+t*dx, qy=ay+t*dy; return {d:Math.sqrt((px-qx)*(px-qx)+(py-qy)*(py-qy)), t:t}; }
@@ -4111,6 +4126,7 @@ function nearestToLoose(L){
     if(!p.onIce || (p.type!=='sk' && p.type!=='g')) continue;
     if(!canReachLoose(p, L)) continue;
     if(p.type==='g' && skReach[p.team==='A'?'B':'A']) continue;   // un patineur adverse peut l'atteindre : le gardien ne gele pas
+    if(p.type==='g' && !gkBehindLine(p, L.c) && !inCrease(p, L)) continue;   // v613 : devant lui mais hors de son demi-cercle -- la course (pas de gel)
     var d=Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r));
     // Le PLUS PROCHE l'emporte, quelle que soit l'equipe (fini le bonus de distance qui faisait gagner
     // un joueur plus LOIN). Le porteur depossede peut donc reprendre SA rondelle s'il est le plus pres --
@@ -4143,8 +4159,9 @@ function takeLooseSolo(L, onDone){
     if(S.puckOwner || !S.puckLoose){ render(); return; }
     if(p.type==='g' && !gkBehindLine(p, L.c)){   // v597 : derriere le but, il la ramasse comme un patineur (sans la geler)
       pushLog('<b>'+p.name+'</b> covers the loose puck — whistle.');
-      S.puckLoose=null; S.gkSide=(L.r<CTR_R)?'T':((L.r>CTR_R)?'B':null);
-      sfx('save'); render(); gkFreeze(p); return;
+      S.puckLoose=null; S.puckOwner=p.id; S.gkSide=(L.r<CTR_R)?'T':((L.r>CTR_R)?'B':null);   // v613 : a lui d'abord -- la 3D le montre aller dessus
+      sfx('save'); S.animating=true; render();
+      setTimeout(function(){ S.animating=false; gkFreeze(p); }, 420); return;   // v613 : comme goalieCover, puis le sifflet
     }
     var ot=pickupLoose(p, p.c, p.r);
     if(S.puckOwner!==p.id && S.puckLoose){ S.puckOwner=p.id; S.puckLoose=null; }
@@ -4237,6 +4254,7 @@ function creaseRebound(L){
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(p.onIce && p.type==='g' && Math.max(Math.abs(p.c-L.c),Math.abs(p.r-L.r))<=1){ gk=p; break; } }
   if(!gk) return null;
+  if(!inCrease(gk, L)) return null;   // v613 (son choix) : hors de son demi-cercle, ce n'est pas un rebond d'enclave -- la course
   // un patineur DEFENSEUR colle au palet ? alors c'est une bataille de patineurs normale, pas au gardien de decider
   for(var j=0;j<S.pieces.length;j++){ var d=S.pieces[j];
     if(d.onIce && d.type==='sk' && d.team===gk.team && Math.max(Math.abs(d.c-L.c),Math.abs(d.r-L.r))<=1) return null; }
@@ -4252,11 +4270,12 @@ function creaseRebound(L){
 }
 function goalieCoverRebound(gk, L){
   // le gardien remporte le duel d'enclave : il couvre -> coup de sifflet -> mise au jeu en zone
-  S.puckLoose=null; S.puckOwner=null;
+  S.puckLoose=null; S.puckOwner=gk.id;   // v613 : a lui d'abord (avant : personne) -- la 3D le montre aller dessus et la plaquer
   S.gkSide=(L.r<CTR_R)?'T':((L.r>CTR_R)?'B':null);
   pushLog('<b>'+gk.name+'</b> smothers the rebound — whistle.');
   var oc=document.getElementById('outcome'); if(oc) oc.innerHTML='<b>'+gk.name+'</b> covers the rebound.';
-  sfx('save'); render(); gkFreeze(gk);
+  sfx('save'); S.animating=true; render();
+  setTimeout(function(){ S.animating=false; gkFreeze(gk); }, 420);   // v613 : puis le sifflet (comme goalieCover)
 }
 function looseBall(team, prio){ decaySpeed(S.turn); S.foPress=null; S.seqDef=null; S.feintBeaten=null; S.feintSpace=null; S.cycleN=0; S.stepDone=null;   // toute sequence en cours est morte ici
   S.wearId=null; S.wearN=0; S.lunge=null; S.slide=null; S.anticip=null; S.turn=team;
@@ -5925,12 +5944,15 @@ function doPass(p,targetId){
     var _cut=passCutPoint(pc, pr, tc, tr, intc.def), _cc={c:Math.round(_cut.c), r:Math.round(_cut.r)};
     if((_cc.c!==intc.def.c || _cc.r!==intc.def.r) && !pieceAt(_cc.c, _cc.r)) skateToSpot(intc.def, _cc);
     var dn=intc.def.name, ic=_cut.c, ir=_cut.r, did=intc.def.id, dteam=intc.def.team;
+    // v613 (le concepteur, export v611 P3 2:42 : « les passes ratees sont trop molles » ; choix « vitesse de la passe ») : la rondelle part a la
+    // vitesse de la passe complete et s'arrete sur son baton -- avant : 0,62 s pour tout vol, meme coupe a 1,9 m (3 fois plus lent)
+    var _cutDur=Math.max(0.08, (_flow ? _flow.ms/1000 : 0.62)*Math.hypot(ic-pc, ir-pr)/Math.max(0.01, Math.hypot(tc-pc, tr-pr)));
     if(intc.crowd>=2 && Math.random()<0.45){   // trafic dense : la rondelle est DEVIEE plus loin -> rondelle libre (melee) au lieu d'une interception propre
       // v441 : VRAIE PHYSIQUE -- la rondelle repart du baton du defenseur, de biais (30-65 deg), avec 45 % de la force de la passe
       var _dfv=rotVec(tc-pc, tr-pr, (Math.random()<0.5?-1:1)*(0.5+Math.random()*0.65)), _dfs=puckPath(ic, ir, _dfv.x, _dfv.y, 0.45*boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(p,t), 3, 8)), _dl=_dfs.rest;
-      flyPuckBoard(pc,pr,ic,ir,function(){ flyPuckPath(_dfs.pts, function(){ morPass(p, false); checkFx('blockpass', ic, ir); placeLooseNear(_dl.c,_dl.r); sfx('block'); document.getElementById('outcome').innerHTML='Deflected in traffic!'; pushLog('<b>Deflected pass</b>: '+dn+' tips '+pname+'\'s pass in traffic — the puck bounces away, loose.'); S.animating=false; render(); looseBall(dteam, null); }); });
+      flyPuckBoard(pc,pr,ic,ir,function(){ flyPuckPath(_dfs.pts, function(){ morPass(p, false); checkFx('blockpass', ic, ir); placeLooseNear(_dl.c,_dl.r); sfx('block'); document.getElementById('outcome').innerHTML='Deflected in traffic!'; pushLog('<b>Deflected pass</b>: '+dn+' tips '+pname+'\'s pass in traffic — the puck bounces away, loose.'); S.animating=false; render(); looseBall(dteam, null); }); }, _cutDur);
       return; }
-    flyPuckBoard(pc,pr,ic,ir,function(){ S.puckOwner=did; S.rcvPop=did; careerTrack('steal', {id:did}); morPass(p, false); armScramble(did,'pick'); checkFx('blockpass', ic, ir); document.getElementById('outcome').innerHTML='Interception by '+dn+' !'; pushLog('<b>Interception</b> : '+dn+' cuts off the pass from '+pname+'.'); gainPuck(dteam); });
+    flyPuckBoard(pc,pr,ic,ir,function(){ S.puckOwner=did; S.rcvPop=did; careerTrack('steal', {id:did}); morPass(p, false); armScramble(did,'pick'); checkFx('blockpass', ic, ir); document.getElementById('outcome').innerHTML='Interception by '+dn+' !'; pushLog('<b>Interception</b> : '+dn+' cuts off the pass from '+pname+'.'); gainPuck(dteam); }, _cutDur);
     return; }
   var _near=null;   // v584 : un adversaire a essaye de couper la passe et l'a ratee (le couloir ou l'ordre de bloc) : la 3D le montre
   [intc, blk].forEach(function(x){ if(x && x.def && !x.intercepted){ var dd=distToSeg(x.def.c, x.def.r, pc, pr, tc, tr).d; if(!_near || dd<_near.d) _near={id:x.def.id, d:dd}; } });
@@ -6315,6 +6337,23 @@ function contactsAlongPath(p, fromC, fromR, toC, toR){
   }
   return out;
 }
+// v613 (le concepteur, export v611 P1 2:42 : « quand deux joueurs se croisent dans une ligne de course, il doit y avoir un petit
+// contact » ; son choix « ordre = coup, sinon frole ») : un defenseur avec un ordre Body check / Poke check pas encore servi,
+// que le porteur croise EN ROUTE (colle a une case de son trajet), l'arrete la et tente son coup une fois (comme doMoveExec,
+// ghit). Avant : le contact etait note au passage puis jete (le porteur finissait 2 cases plus loin : filtre v244).
+// cells = le trajet sans la case de depart ; renvoie l'indice de la case d'arret, ou -1.
+function orderStopIdx(p, cells){
+  S._ordStop=null;
+  if(!p || S.puckOwner!==p.id || !S.defOrders || !S.defOrders.length || !cells) return -1;
+  for(var k=0;k<cells.length;k++) for(var j=0;j<S.defOrders.length;j++){ var o=S.defOrders[j];
+    if((o.order!=='check' && o.order!=='poke') || o.used) continue;
+    var d=byId(o.defId); if(!d || !d.onIce || d.type!=='sk' || d.team===p.team || raceLate(d.id) || chargedPending(d)) continue;
+    if(cheb(cells[k], d)===1){ S._ordStop={id:d.id, o:o}; pushLog('<b>'+d.name+'</b> steps up on '+p.name+' — '+p.name+' has to stop.'); return k; } }
+  return -1;
+}
+function lineCells(fc, fr, tc, tr){ var dx=Math.sign(tc-fc), dy=Math.sign(tr-fr), n=Math.max(Math.abs(tc-fc), Math.abs(tr-fr)), out=[];
+  for(var k=1;k<=n;k++) out.push({c:fc+dx*Math.min(k,Math.abs(tc-fc)), r:fr+dy*Math.min(k,Math.abs(tr-fr))});
+  return out; }
 function runContactQueue(seq, queue, carrierId){
   if(seq!==S.currentSeq) return;
   if(S.puckLoose && !S.puckOwner){ return; }   // un check de la file a rendu la rondelle libre -> looseBall pilote (il tuera la sequence). On NE relance PAS la sequence : fini le porteur depossede qui joue quand meme son mouvement suivant (meme course contre le null de looseBall qu'en v346, mais ici sur le chemin auto-contact)
@@ -6328,6 +6367,7 @@ function runContactQueue(seq, queue, carrierId){
   if(!queue.length){ seqAdvance(seq); return; }   // file vide : la sequence reprend
   var entry=queue.shift();
   resolveCheck(entry.d, entry.anticipated);         // bonus d anticipation seulement pour l embuscade
+  if(entry.ord) entry.ord.used=true;                // v613 : l'ordre qui a arrete le porteur en route est servi (il a tente son coup)
   setTimeout(function(){ runContactQueue(seq, queue, carrierId); }, 1500);
 }
 /* Le defenseur en embuscade n est pas exclu de la file : contactsAlongPath
@@ -6344,7 +6384,8 @@ function startPassContacts(seq, p, oc, orr, ambushId){
   var _xs = (S.puckOwner===p.id) ? crossingOpponents(p) : [], _xcIds={};
   for(var _xi=0;_xi<_xs.length;_xi++){ var _xq=_xs[_xi].q, _dup=false; if(raceLate(_xq.id)) continue;   /* v574 (le concepteur : « contact pas rapport », 2:39 de la prolongation) : arrive trop tard au croisement (v570), il ne touche pas -- avant, il plaquait a 3 cases */ for(var _h=0;_h<hits.length;_h++){ if(hits[_h].id===_xq.id){ _dup=true; break; } } if(!_dup) hits.push(_xq); _xcIds[_xq.id]=true; }   // v473 : deja colle au trajet ET croise -> c'est un croisement (avant : drapeau perdu, contact jete s'il finissait loin)
   if(!hits.length) return false;
-  var queue = hits.map(function(d){ return {d:d, anticipated:(ambushId!=null && d.id===ambushId), cross:!!_xcIds[d.id]}; });
+  var _os=S._ordStop; S._ordStop=null;   // v613 : le defenseur (ordre) qui l'a arrete en route
+  var queue = hits.map(function(d){ return {d:d, anticipated:(ambushId!=null && d.id===ambushId), cross:!!_xcIds[d.id], ord:(_os && _os.id===d.id) ? _os.o : null}; });
   S.planNext=null;                                  // c est la file qui relance la sequence
   runContactQueue(seq, queue, p.id);
   return true;
@@ -7175,7 +7216,7 @@ function stShot(sh){ var k=stState(sh); return (k==='angry' || k==='panic') ? 1-
 function stStep(p, b){ return (b>1 && stState(p)==='stun') ? 1 : 0; }   // sonne : 1 case de moins
 function stTag(p){ var tp=tempOf(p); if(!tp) return ''; var k=stState(p);
   return '<span class="dcp-temp" title="Temperament">'+TEMP_NAME[tp]+'</span>'+(k ? '<span class="dcp-st st-'+k+'" title="'+ST_NAME[k]+'">'+ST_ICON[k]+' '+ST_NAME[k]+'</span>' : ''); }
-function celebrate(team,who){ if(S.celebrating) return; (S.goalLog=S.goalLog||[]).push({team:team, per:S.period, clock:S.clock, ot:!!S.overtime});   /* v558 : pour les fins dramatiques */ momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ for(var _sci=0;_sci<S.pieces.length;_sci++){ if(S.pieces[_sci].team===team && S.pieces[_sci].name===who){ stGood(S.pieces[_sci]); morAdd(S.pieces[_sci], MOR_GOAL, 0); break; } }   /* v555 : le marqueur */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
+function celebrate(team,who){ if(S.celebrating) return; (S.goalLog=S.goalLog||[]).push({team:team, per:S.period, clock:S.clock, ot:!!S.overtime});   /* v558 : pour les fins dramatiques */ momAdd(team, MOM_GOAL);   /* v554 : le but fait basculer le momentum */ for(var _sci=0;_sci<S.pieces.length;_sci++){ if(S.pieces[_sci].team===team && S.pieces[_sci].name===who){ stGood(S.pieces[_sci]); morAdd(S.pieces[_sci], MOR_GOAL, 0); break; } }   /* v555 : le marqueur */ if(S.tut){ if(team===HUMAN_TEAM) S.tut.goals=(S.tut.goals||0)+1; else S.tut.against=(S.tut.against||0)+1; }   /* v453 */ matchEv('goal', {team:team, by:who});   /* v447 */ penOnGoal(team);   /* v445 : differee annulee / avantage numerique */ S.celebrating=true; S.stop=true; /* v613 : le but arrete le chrono jusqu'a la mise au jeu */ S.animating=true; S.cheer=team; S.rebStreak=0; S.rebTeam=null; sfx('goal'); crowd(team===HUMAN_TEAM?'cheer':'groan');   /* v402 : foule a domicile (Harfangs) */
   flashGoalLight(team==='A'?'right':'left');
   render();
   var gs=document.getElementById('goalsiren'); if(gs){ gs.classList.remove('go'); void gs.offsetWidth; gs.classList.add('go'); setTimeout(function(){ gs.classList.remove('go'); }, realMs(1550)); }
@@ -7250,6 +7291,7 @@ var HUMAN_TEAM='A';
 var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay','tunnelOverlay'];   // v510 : le couloir   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
 function clockPaused(){
   if(S.paused) return true;
+  if(S.stop) return true;   // v613 (son choix : « le temps s'arrete tout le temps aux arrets de jeu ») : but ou sifflet -> jusqu'a la rondelle qui tombe
   if(S.gameEnded||S.needDraft||(S.animating && !clockLive())||S.faceoff) return true;   // v595 : sous 30 s, le chrono coule pendant l'action
   for(var i=0;i<OV_IDS.length;i++){ var e=document.getElementById(OV_IDS[i]); if(e&&e.classList.contains('show')) return true; }
   return false;
@@ -7757,7 +7799,7 @@ function confirmDraft(){
 function nearestSkater(team,c,r){ var best=null,bd=1e9; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce&&q.type==='sk'&&q.team===team){ var dd=Math.abs(q.c-c)+Math.abs(q.r-r); if(dd<bd){bd=dd;best=q;} } } return best; }
 function pieceAtExcept(c,r,id){ var p=pieceAt(c,r); return (p&&p.id!==id)?p:null; }
 function clearDot(c,r,exceptId){ if(!pieceAtExcept(c,r,exceptId)) return {c:c,r:r}; for(var rad=1;rad<=5;rad++){ for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){ var x=c+dc,y=r+dr; if(x>=0&&x<COLS&&y>=0&&y<ROWS&&!pieceAtExcept(x,y,exceptId)) return {c:x,r:y}; } } return {c:c,r:r}; }
-function applyFaceoff(fo,winner){ if(S.so) return;   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */ matchEv('faceoff', {c:fo.dotC, r:fo.dotR, win:winner});   // v447
+function applyFaceoff(fo,winner){ if(S.so) return; S.stop=false;   /* v613 : la rondelle tombe -- le chrono repart */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */ matchEv('faceoff', {c:fo.dotC, r:fo.dotR, win:winner});   // v447
   S._hitRecover=null;   // v468
   if(S.currentSeq) killSeq(S.currentSeq);
   S.currentSeq=null; S.planResume=null; S.planNext=null; S._endingExch=false;
@@ -8686,7 +8728,7 @@ function render(){
     loose.style.transition = reduced()?'none':('left '+(0.5/ANIM_RATE).toFixed(2)+'s cubic-bezier(.22,.85,.3,1), top '+(0.5/ANIM_RATE).toFixed(2)+'s cubic-bezier(.22,.85,.3,1)');   /* v463 */   // glisse decelerante, comme une vraie rondelle
     loose.style.display='block'; loose.style.left=((S.puckLoose.c+0.5)/COLS*100)+'%'; loose.style.top=((S.puckLoose.r+0.5)/ROWS*100)+'%';
   } else loose.style.display='none';
-  (function(){ var _po=S.puckOwner?byId(S.puckOwner):null; if(_po){ S._puckCell={c:_po.c,r:_po.r}; S._lastOwner=S.puckOwner; } else if(S.puckLoose) S._puckCell={c:S.puckLoose.c,r:S.puckLoose.r}; })();   // memoriser la case + le dernier porteur (recuperation du watchdog)
+  (function(){ var _po=S.puckOwner?byId(S.puckOwner):null; if(_po){ S._puckCell={c:_po.c,r:_po.r}; S._lastOwner=S.puckOwner; S._puckAt=null; }   /* v613 : quelqu'un l'a -- le point d'arret du dernier vol ne compte plus */ else if(S.puckLoose) S._puckCell={c:S.puckLoose.c,r:S.puckLoose.r}; })();   // memoriser la case + le dernier porteur (recuperation du watchdog)
   if(S.rcvPop){ sfx('catch'); var _rp=byId(S.rcvPop); var _rg=document.getElementById('rcvring');
     if(_rp&&_rg){ _rg.style.left=((_rp.c+0.5)/COLS*100)+'%'; _rg.style.top=((_rp.r+0.5)/ROWS*100)+'%'; _rg.classList.remove('go'); void _rg.offsetWidth; _rg.classList.add('go'); setTimeout(function(){ _rg.classList.remove('go'); }, 460); }
     S.rcvPop=null; }
@@ -11639,7 +11681,7 @@ document.getElementById('btnNewGame').onclick=function(){ newGame('A'); MSAVE_ON
    pratique : jamais. Page cachee -> pause automatique. Spec : docs/superpowers/specs/2026-10-11-reprendre-un-match-design.md */
 var MSAVE_KEY='hjMatchSave', MSAVE_ON=false, RA_NEXT=null;
 // les champs passagers remis a zero a la reprise (animation, sequence, plan, embuscade, visee, minuteurs, selection...)
-var MSAVE_FRESH={animating:false, paused:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
+var MSAVE_FRESH={animating:false, paused:false, stop:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
   planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, defCommit:null, aiming:null, aimClock:null, aimBeep:0, gkClock:null, gkBeep:0,
   sel:null, slides:{}, moves:[], passT:[], duelT:[], bankT:[], dumpT:[], pokeT:[], battle:null, battleOn:null, faceoff:null, lunge:null, slide:null,
   celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null, tunnelOn:null};
