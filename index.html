@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v615</title>
+<title>Deck 3D v616</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -352,6 +352,7 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .offsay{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));padding:10px 14px;background:rgba(8,16,28,.92);border:2px solid #355a86;border-radius:14px;box-shadow:0 4px 0 #000;color:#f2f7fd;font-weight:700;font-size:15px;line-height:1.35;}
 .offsay .who{font-family:'PxDisplay',monospace;font-size:14px;color:#ffd23e;letter-spacing:.06em;}
 .offsay small{display:block;font-size:12px;color:#b9cde3;margin-top:3px;font-weight:600;}
+.offsay textarea.offpaste{display:block;width:100%;height:96px;margin-top:8px;box-sizing:border-box;padding:6px 8px;font:12px/1.3 monospace;color:#15171b;background:#fbf7ea;border:2px solid #355a86;border-radius:8px;}   /* v616 : la chemise Paste a file */
 .offbar{position:absolute;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));grid-template-columns:repeat(4,1fr);gap:8px;}
 .offbar .mbtn{margin:0;padding:10px 4px;font-size:13px;}
 .offbar .mbtn.play{grid-column:1/-1;font-size:17px;color:#06121f;background:linear-gradient(180deg,#ffe46b,#ffb000);border-color:#06121f;box-shadow:0 4px 0 #06121f;}
@@ -1346,7 +1347,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v615';
+var GAME_VERSION='v616';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10461,7 +10462,7 @@ function careerSwatch(T){ return '<span class="cswatch" style="background:'+T.co
 var OFF={on:false, at:'', want:'', then:null, timer:0, seen:false, quad:null, vw:0, vh:0, sent:false, paint:{}};
 var OFF_BTNS=[['Standings','board','standings'], ['Schedule','calendar','schedule'], ['Stats','laptop','stats'], ['Lines','lines','roster'],
   ['Free agents','phone','fa'], ['Save','cabinet','save'], ['Season','trophies','season'], ['Leave','coat',null]];
-var OFF_ON_OBJ={standings:'board', schedule:'calendar', stats:'laptop', roster:'lines', lineup:'lines', player:'card', report:'sheet', fa:'phone', farelease:'lines'};   // les ecrans ecrits sur leur objet (etape 1 : le tableau ; etape 2, v610 : le calendrier, le portable ; etape 3, v611 : le tableau de l'equipe, la carte du joueur)
+var OFF_ON_OBJ={standings:'board', schedule:'calendar', stats:'laptop', roster:'lines', lineup:'lines', player:'card', report:'sheet', fa:'phone', farelease:'lines', save:'cabinet', season:'trophies', plaque:'card'};   // les ecrans ecrits sur leur objet (etape 1 : le tableau ; etape 2, v610 : le calendrier, le portable ; etape 3, v611 : le tableau de l'equipe, la carte du joueur ; v616 : le classeur, l'etagere, la plaque)
 var OFF_WAIT=1500;                    // sans reponse de la 3D, on n'attend pas plus (ms)
 var OFF_MARKER="'Marker Felt','Chalkboard SE','Segoe Print','Bradley Hand','Comic Sans MS',cursive";   // le feutre (polices du systeme)
 var OFF_SANS="'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";   // l'imprime (calendrier) et l'ecran du portable
@@ -10472,7 +10473,7 @@ function offEnter(){ if(OFF.on) return; OFF.on=true; OFF.at=''; OFF.want=''; OFF
   CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   // a chaque entree, le tableau montre ma division, a jour
   CAREER_STATDIV=CAREER_DIVTAB; CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs');   // v610 : le portable aussi (comme careerGo('stats'))
   document.body.classList.add('office'); document.getElementById('careerOverlay').classList.add('office'); hj3dFit(); }
-function offLeave(){ if(!OFF.on) return; OFF.on=false; OFF.at=''; OFF.want=''; OFF.then=null; OFF.seen=false; OFF.quad=null; clearTimeout(OFF.timer);
+function offLeave(){ if(!OFF.on) return; OFF.on=false; OFF_PASTE=false; OFF.at=''; OFF.want=''; OFF.then=null; OFF.seen=false; OFF.quad=null; clearTimeout(OFF.timer);
   document.body.classList.remove('office'); document.getElementById('careerOverlay').classList.remove('office', 'card'); hj3dFit();
   if(hj3dActive()) hj3dSend('cue', 'rise'); }
 function offGo(obj, then, extra){   // la camera glisse vers l'objet ; a l'arrivee : then() ; extra : la suite du repere (la carte : l'aimant d'ou elle sort)
@@ -10499,8 +10500,8 @@ function offRender(v, c){   // careerRender en mode bureau ; false = l'ecran d'a
   if(obj && OFF.at===obj && OFF.seen){ co.classList.remove('card'); offDraw(v, c); return true; }
   if(obj && OFF.want!==obj){ co.classList.remove('card'); offGo(obj, careerRender); offPaintAll(c); offDraw(v, c); return true; }   // v612 : un ecran ouvert d'ailleurs (la feuille de match a l'entree) : la camera y va
   co.classList.add('card'); return false; }
-function offDraw(v, c){ if(v==='standings') offBoardStandings(c); else if(v==='schedule') offCalSchedule(c); else if(v==='stats') offLaptopStats(c); else if(v==='roster') offLinesRoster(c); else if(v==='lineup') offLinesLineup(c); else if(v==='player') offCardPlayer(c); else if(v==='report') offSheetReport(c); else if(v==='fa') offPhoneFa(c); else if(v==='farelease') offLinesRelease(c); }
-function offPaintAll(c){ offPaintBoard(c); offPaintCalendar(c); offPaintLaptop(c); offPaintLines(c); offPaintSheet(c); offPaintPhone(c); }   // a l'entree : tout est deja ecrit, visible de la porte
+function offDraw(v, c){ if(v==='standings') offBoardStandings(c); else if(v==='schedule') offCalSchedule(c); else if(v==='stats') offLaptopStats(c); else if(v==='roster') offLinesRoster(c); else if(v==='lineup') offLinesLineup(c); else if(v==='player') offCardPlayer(c); else if(v==='report') offSheetReport(c); else if(v==='fa') offPhoneFa(c); else if(v==='farelease') offLinesRelease(c); else if(v==='save') offCabinetSave(c); else if(v==='season') offShelfSeason(c); else if(v==='plaque') offPlaqueShow(c); }
+function offPaintAll(c){ offPaintBoard(c); offPaintCalendar(c); offPaintLaptop(c); offPaintLines(c); offPaintSheet(c); offPaintPhone(c); offPaintCabinet(c); offSendShelf(c); }   // a l'entree : tout est deja ecrit, visible de la porte
 function offCanvas(w, h){ var cv=document.createElement('canvas'), x=null; cv.width=w; cv.height=h; try{ x=cv.getContext('2d'); }catch(e){} return x ? {cv:cv, x:x} : null; }
 function offSend(obj, sig, cv){ var url=cv.toDataURL('image/png'), k=url.indexOf(','); if(k<0) return; OFF.paint[obj]=sig; hj3dSend('paint', {obj:obj, png:url.slice(k+1)}); }
 function offBoardStandings(c){   // devant le tableau : la bulle dit le rang ; en bas D1 D2 D3 ‹ Back (un onglet reecrit le tableau)
@@ -10676,7 +10677,9 @@ function offTap(ev){
   if(!uv) return;
   if(OFF.at==='lines') offTapLines(uv[0]*800, uv[1]*1000);
   else if(OFF.at==='card') offTapCard(uv[0]*OFF_CARD.w, uv[1]*OFF_CARD.h);
-  else if(OFF.at==='sheet') offTapSheet(uv[0]*OFF_SHEET.w, uv[1]*OFF_SHEET.h); }
+  else if(OFF.at==='sheet') offTapSheet(uv[0]*OFF_SHEET.w, uv[1]*OFF_SHEET.h);
+  else if(OFF.at==='trophies') offTapShelf(uv[0]);
+  else if(OFF.at==='cabinet') offTapCabinet(uv[0]); }
 function offTapSheet(ix, iy){   // v612 (son choix) : un nom de la feuille -> sa carte sort de la feuille (la camera reste)
   var c=CAREER, R=c.report, T=c.teams[c.my], S0=OFF_SHEET, hit=null; if(!R || CAREER_VIEW!=='report' || ix<40 || ix>S0.w-40) return;
   offSheetRows(R).forEach(function(e){ if(Math.abs(iy-(e.y-6))<=S0.dy/2) hit=e; });
@@ -10841,7 +10844,7 @@ function offSheetReport(c){   // devant la feuille : la bulle (le coach, les ble
   if(R.oppInj && R.oppInj.length) sm.push(careerEsc(ro.nick)+' injured: '+R.oppInj.map(function(x){ return careerEsc(offSurname(x.name)); }).join(', '));
   document.getElementById('offSay').innerHTML='<div class="who">COACH</div>Tap a name to see the card of that player.'+(sm.length ? '<small>'+sm.join(' · ')+'</small>' : '');
   document.getElementById('offBar').innerHTML='<button class="mbtn play" id="offContinue" onclick="offContinue()">▶ Continue</button>'; }
-function offContinue(){ careerGo(CAREER.phase==='done' ? 'season' : 'hub'); }
+function offContinue(){ if(CAREER.phase==='done' && (CAREER.history||[]).length) offOpenPlaque(CAREER.history.length-1); else careerGo(CAREER.phase==='done' ? 'season' : 'hub'); }   // v616 : la saison finie -> sa plaque sort de l'etagere
 // v612 : LE ROLODEX (Free agents) : une fiche de carton par joueur autonome (0,26 x 0,18 m -> 1000 x 692), tournee avec ‹ ›
 var CAREER_FAU=null;   // la fiche devant (son uid)
 function offFaList(c){ return (c.fa||[]).slice().sort(function(a, b){ return faRating(b)-faRating(a); }); }   // le meme ordre que la liste d'aujourd'hui
@@ -10884,6 +10887,112 @@ function offPhoneFa(c){   // devant le Rolodex : la bulle (la date limite, l'equ
   document.getElementById('offBar').innerHTML='<button class="mbtn sm" onclick="offFaFlip(-1)">‹</button>'
     +(f.p ? '<button class="mbtn play one" id="offSign"'+(open ? '' : ' disabled')+' onclick="faSignClick('+f.p.uid+')">Sign</button>' : '<span></span>')
     +'<button class="mbtn sm" onclick="offFaFlip(1)">›</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+// v616 (spec 2026-10-31, etape 4b ; ses choix : l'etagere se remplit ; une statuette par trophee de mes joueurs, les autres gagnants
+// ecrits dans le bilan ; la plaque sort en grand). L'ETAGERE DES TROPHEES (Season) : une plaque par saison finie (les OFF_SHELF.n
+// dernieres, de gauche a droite), au-dessus la coupe du titre gagne (t : la division ; 1 = la coupe) et une statuette par trophee
+// individuel d'un de mes joueurs. La 3D la construit (message 'shelf') ; toucher une colonne -> sa plaque sort (peinte, comme la carte).
+var OFF_SHELF={n:6, plaqueV:0.853};   // les colonnes de l'etagere ; la hauteur des plaques dans la surface (0 = en haut, 1 = en bas)
+var OFF_AW=[['pts','Most points','PTS'],['g','Most goals','G'],['gk','Best goalie','W'],['ppts','Playoff points','PTS']];
+var OFF_BRASS={ink:'#3b2a10', hi:'rgba(255,240,190,0.6)', plate:'#c9a54a', edge:'#8a6a24', wood:'#4a2c17'};
+var OFF_SERIF="Georgia,'Times New Roman',serif";
+var CAREER_PLQ=0;   // la saison de la plaque sortie (indice dans c.history)
+function offShelfFirst(c){ return Math.max(0, (c.history||[]).length-OFF_SHELF.n); }
+function offShelfData(c){
+  return (c.history||[]).slice(offShelfFirst(c)).map(function(h){ var aw=[], A=h.awards && h.awards[h.myDiv];
+    if(A) OFF_AW.forEach(function(t){ var x=A[t[0]]; if(x && x.team===c.my) aw.push({k:t[0], nm:offSurname(x.name)}); });
+    return {n:h.season, rk:h.myRank, d:h.myDiv, mv:(h.up||[]).indexOf(c.my)>=0 ? 1 : ((h.down||[]).indexOf(c.my)>=0 ? -1 : 0), t:(h.champs && h.champs[h.myDiv]===c.my) ? h.myDiv : 0, aw:aw}; }); }
+function offSendShelf(c){ var d={s:offShelfData(c)}, sig=JSON.stringify(d); if(OFF.paint.shelf===sig) return; OFF.paint.shelf=sig; hj3dSend('shelf', d); }
+function offMoveText(h, c){ return (h.up||[]).indexOf(c.my)>=0 ? 'Promoted to Division '+(h.myDiv-1)+'!' : ((h.down||[]).indexOf(c.my)>=0 ? 'Relegated to Division '+(h.myDiv+1)+'.' : 'Stays in Division '+h.myDiv+'.'); }
+function offStartBtn(c){ return c.phase==='done' ? '<button class="mbtn play half" id="offStart" onclick="careerNextSeason()">▶ Start season '+(c.season+1)+'</button>' : ''; }
+function offShelfSeason(c){   // devant l'etagere : la bulle ; ▶ Start season (la saison finie) ; ‹ Back
+  var H=c.history||[], h=H[H.length-1];
+  offSendShelf(c);
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+(h ? 'Tap a plaque to read its season.<small>Season '+h.season+': '+careerOrd(h.myRank)+' in Division '+h.myDiv+'.</small>' : 'No season yet. Finish the season first.');
+  document.getElementById('offBar').innerHTML=offStartBtn(c)+'<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+function offTapShelf(u){ var c=CAREER, k=Math.floor(u*OFF_SHELF.n), i=offShelfFirst(c)+k;
+  if(CAREER_VIEW!=='season' || k<0 || i>=(c.history||[]).length) return;
+  offOpenPlaque(i); }
+function offOpenPlaque(i){ var c=CAREER, k=i-offShelfFirst(c);
+  CAREER_PLQ=i; offSendShelf(c); offPaintPlaque(c, i);   // ecrite avant de sortir de l'etagere
+  offGo('card', function(){ careerGo('plaque', true); }, ':'+((k+0.5)/OFF_SHELF.n).toFixed(3)+':'+OFF_SHELF.plaqueV.toFixed(3)+':trophies'); }
+function offPlaqueShow(c){   // devant la plaque : la saison en une phrase ; ▶ Start season (la saison finie) ; ‹ Back (elle retourne sur l'etagere)
+  var h=(c.history||[])[CAREER_PLQ]; if(!h){ careerGo('season'); return; }
+  offPaintPlaque(c, CAREER_PLQ);
+  var t=(h.champs && h.champs[h.myDiv]===c.my) ? (h.myDiv===1 ? ' Cup champions!' : ' Division '+h.myDiv+' champions!') : '';
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>Season '+h.season+': '+careerOrd(h.myRank)+' in Division '+h.myDiv+'. '+offMoveText(h, c)+t;
+  document.getElementById('offBar').innerHTML=offStartBtn(c)+'<button class="mbtn sm" onclick="offOpen(\'season\', \'trophies\')">‹ Back</button>'; }
+function offEngrave(x, t, cx, y, font, mw){ x.font=font; x.fillStyle=OFF_BRASS.hi; x.fillText(t, cx, y+2, mw); x.fillStyle=OFF_BRASS.ink; x.fillText(t, cx, y, mw); }   // grave : le creux, puis sa lumiere
+function offPaintPlaque(c, i){   // la plaque de laiton (800 x 1120, comme la carte) : la saison, mon equipe, les champions, les trophees
+  var h=c.history[i], T=c.teams[c.my], W=OFF_CARD.w, H=OFF_CARD.h, A=h.awards||null, B=OFF_BRASS;
+  var sig='plaque|'+i+'|'+JSON.stringify(h)+'|'+T.full+'|'+c.my;
+  if(OFF.paint.card===sig) return;
+  var o=offCanvas(W, H); if(!o) return;
+  var x=o.x, cx=W/2, mw=W-150, y;
+  var nm=function(k){ return c.teams[k] ? c.teams[k].full : String(k); }, ab=function(k){ return c.teams[k] ? c.teams[k].key : String(k); };
+  var rule=function(yy){ x.fillStyle=B.edge; x.fillRect(110, yy, W-220, 3); x.fillStyle=B.hi; x.fillRect(110, yy+3, W-220, 2); };
+  x.fillStyle=B.wood; offRRect(x, 0, 0, W, H, 30); x.fill();   // le bois
+  x.fillStyle=B.edge; offRRect(x, 42, 42, W-84, H-84, 14); x.fill();   // le laiton : son bord
+  var g=x.createLinearGradient ? x.createLinearGradient(0, 50, W, H-50) : null;
+  if(g && g.addColorStop){ g.addColorStop(0, '#e6c86f'); g.addColorStop(0.5, '#c9a54a'); g.addColorStop(1, '#a8862f'); x.fillStyle=g; } else x.fillStyle=B.plate;
+  offRRect(x, 50, 50, W-100, H-100, 10); x.fill();
+  [[72, 72], [W-72, 72], [72, H-72], [W-72, H-72]].forEach(function(s){ x.fillStyle=B.edge; x.beginPath(); x.arc(s[0], s[1], 9, 0, Math.PI*2); x.fill(); });   // les vis
+  x.textBaseline='alphabetic'; x.textAlign='center';
+  offEngrave(x, 'SEASON '+h.season, cx, 150, 'bold 80px '+OFF_SERIF, mw); rule(176);
+  offEngrave(x, T.full, cx, 240, 'bold 44px '+OFF_SERIF, mw);
+  offEngrave(x, careerOrd(h.myRank)+' in Division '+h.myDiv, cx, 294, '38px '+OFF_SERIF, mw);
+  offEngrave(x, offMoveText(h, c).replace(/[.!]$/, '').toUpperCase(), cx, 344, 'bold 34px '+OFF_SERIF, mw);
+  y=344;
+  if(h.champs && h.champs[h.myDiv]===c.my){ y=400; offEngrave(x, h.myDiv===1 ? 'CUP CHAMPIONS' : 'DIVISION '+h.myDiv+' CHAMPIONS', cx, y, 'bold 42px '+OFF_SERIF, mw); }
+  rule(y+32);
+  y+=82; offEngrave(x, 'CHAMPIONS', cx, y, 'bold 28px '+OFF_SANS, mw);
+  if(h.champs) [1, 2, 3].forEach(function(d){ y+=42; offEngrave(x, (d===1 ? 'Cup' : 'Division '+d)+': '+nm(h.champs[d]), cx, y, '30px '+OFF_SERIF, mw); });
+  if(!A){ offSend('card', sig, o.cv); return; }
+  rule(y+30); y+=80;
+  offEngrave(x, 'AWARDS · DIVISION '+h.myDiv, cx, y, 'bold 28px '+OFF_SANS, mw);
+  OFF_AW.forEach(function(t){ var a=(A[h.myDiv]||{})[t[0]], mine=a && a.team===c.my; y+=44;
+    offEngrave(x, t[1]+': '+(a ? a.name+' ('+ab(a.team)+') '+a.v+' '+t[2] : '—'), cx, y, (mine ? 'bold ' : '')+'30px '+OFF_SERIF, mw); });
+  y+=18;
+  [1, 2, 3].filter(function(d){ return d!==h.myDiv; }).forEach(function(d){ var Ad=A[d]||{};
+    var e=OFF_AW.map(function(t){ var a=Ad[t[0]]; return (t[0]==='ppts' ? 'PO' : t[2])+' '+(a ? a.name+' '+ab(a.team)+' '+a.v : '—'); });
+    y+=38; offEngrave(x, 'D'+d+': '+e[0]+' · '+e[1], cx, y, '24px '+OFF_SERIF, mw);
+    y+=32; offEngrave(x, e[2]+' · '+e[3], cx, y, '24px '+OFF_SERIF, mw); });
+  offSend('card', sig, o.cv); }
+// v616 : LE CLASSEUR (Save) : le tiroir s'ouvre sur trois chemises, leurs onglets en escalier (Export, Import, Paste a file) ; une
+// chemise touchee (sa colonne) ou son bouton fait la chose ; Paste a file : la zone de texte dans la bulle, Load.
+var OFF_FOLDER={w:1000, h:652};   // le tiroir ouvert (0,44 x 0,30 m)
+var OFF_PASTE=false;              // la chemise Paste a file est ouverte
+function offPaintCabinet(c){
+  var T=c.teams[c.my], sig=[T.full, c.season].join('|');
+  if(OFF.paint.cabinet===sig) return;
+  var o=offCanvas(OFF_FOLDER.w, OFF_FOLDER.h); if(!o) return;
+  var x=o.x, W=OFF_FOLDER.w, H=OFF_FOLDER.h, cw=(W-40)/3;
+  x.fillStyle='#2a2c30'; x.fillRect(0, 0, W, H);   // le fond du tiroir
+  [['PASTE A FILE', 2, '#d4b97f'], ['IMPORT', 1, '#dfc690'], ['EXPORT', 0, '#ead3a0']].forEach(function(f, j){ var top=40+j*60, tx=20+f[1]*cw;   // de l'arriere vers l'avant
+    x.fillStyle=f[2]; offRRect(x, tx+6, top, cw-12, 120, 14); x.fill(); x.fillRect(10, top+70, W-20, H-top-70);   // l'onglet, la chemise
+    x.fillStyle='rgba(0,0,0,0.22)'; x.fillRect(10, top+70, W-20, 5);
+    x.fillStyle=OFF_PEN; x.textAlign='center'; x.textBaseline='alphabetic'; x.font='bold '+(f[0].length>8 ? 44 : 58)+'px '+OFF_MARKER; x.fillText(f[0], tx+cw/2, top+78, cw-30); });
+  x.fillStyle='#fbfaf6'; x.fillRect(70, 320, 560, 250); x.fillStyle='#c9cdd4'; x.fillRect(70, 320, 560, 4);   // l'etiquette de la chemise du devant
+  x.textAlign='left'; x.fillStyle='#15171b'; x.font='bold 40px '+OFF_SANS; x.fillText(T.full, 96, 384, 510);
+  x.font='bold 34px '+OFF_SANS; x.fillText('Career file · Season '+c.season, 96, 444, 510);
+  x.fillStyle='#6a707b'; x.font='bold 28px '+OFF_SANS; x.fillText('Saved after each game', 96, 500, 510);
+  offSend('cabinet', sig, o.cv); }
+function offCabinetSave(c){   // devant le tiroir : la bulle ; Export Import Paste ‹ Back (ou, la chemise Paste ouverte : la zone de texte, Load)
+  offPaintCabinet(c);
+  if(OFF_PASTE){
+    document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+(CAREER_MSG || 'Paste a career file here.')+'<textarea id="offPaste" class="offpaste" placeholder="Paste here"></textarea>';
+    document.getElementById('offBar').innerHTML='<button class="mbtn play half" onclick="offPasteLoad()">Load</button><button class="mbtn sm" onclick="offPasteBack()">‹ Back</button>'; return; }
+  var cloud=CAREER_CLOUD.db ? '☁ Also saved to your Claude account: it follows you on your phone and computer.' : 'Saved in this browser only: export a file to keep a copy.';
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+(CAREER_MSG ? CAREER_MSG+'<br>' : '')+'Your career saves itself after each game. Tap a folder.<small>'+cloud+'</small>';
+  document.getElementById('offBar').innerHTML='<button class="mbtn sm" onclick="careerExport(event)">💾 Export</button><button class="mbtn sm" onclick="offImportPick()">📂 Import</button>'
+    +'<button class="mbtn sm" onclick="offPasteOpen()">📋 Paste</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'
+    +'<input type="file" id="offFile" accept=".json,.txt,application/json,text/plain" style="display:none" onchange="careerImportFile(this)">'; }
+function offImportPick(){ var f=document.getElementById('offFile'); if(f) f.click(); }
+function offPasteOpen(){ OFF_PASTE=true; CAREER_MSG=''; careerRender(); }
+function offPasteBack(){ OFF_PASTE=false; CAREER_MSG=''; careerRender(); }
+function offPasteLoad(){ var t=document.getElementById('offPaste'), v=t ? t.value : '';
+  if(!careerImport(v)){ t=document.getElementById('offPaste'); if(t) t.value=v; } }   // rate : le texte reste (le message dit pourquoi)
+function offTapCabinet(u){ if(CAREER_VIEW!=='save' || OFF_PASTE) return; var k=Math.min(2, Math.floor(u*3));
+  if(k===0) careerExport(null); else if(k===1) offImportPick(); else offPasteOpen(); }
 function offHub(c){   // la vue de la porte : la bulle du coach, la barre de boutons (memes infos et memes actions que le hub d'aujourd'hui)
   var T=c.teams[c.my], d=careerDivOf(c, c.my), st=careerStandings(c, d), me=st[0], rk=1, say='', play='';
   st.forEach(function(r, i){ if(r.key===c.my){ me=r; rk=i+1; } });
@@ -10896,7 +11005,7 @@ function offHub(c){   // la vue de la porte : la bulle du coach, la barre de bou
     if(sr){ var op2=sr.a===c.my?sr.b:sr.a, mw=sr.a===c.my?sr.wa:sr.wb, ow=sr.a===c.my?sr.wb:sr.wa;
       say=(P.final===sr?'Final':'Semi-final')+', game '+(sr.games.length+1)+': vs '+careerEsc(c.teams[op2].full)+' (series '+mw+'–'+ow+').'; play=pb; }
     else { say='Playoffs: your team is out. The others play on.'; play='<button class="mbtn play" id="offSim" onclick="careerSimDay()">⏩ Simulate the playoffs</button>'; } }
-  else if(c.phase==='done'){ say='The season is over.'; play='<button class="mbtn play" id="offSeason" onclick="offOpen(\'season\', \'trophies\')">🏆 Season summary</button>'; }
+  else if(c.phase==='done'){ say='The season is over.'; play='<button class="mbtn play" id="offSeason" onclick="offContinue()">🏆 Season summary</button>'; }
   document.getElementById('offSay').innerHTML='<div class="who">COACH '+careerEsc(String(T.coach.name).toUpperCase())+'</div>'+say+(CAREER_MSG ? '<div class="cmsg">'+CAREER_MSG+'</div>' : '')+'<small>'+sub+'</small>';
   var gold=T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); }).length;   // v611 : les aimants dores -> une pastille sur Lines
   document.getElementById('offBar').innerHTML=play+OFF_BTNS.map(function(b, i){ return '<button class="mbtn sm" data-off="'+b[1]+'"'+(b[1]==='lines' && gold ? ' data-n="'+gold+'"' : '')+' onclick="offBtn('+i+')">'+b[0]+'</button>'; }).join(''); }
@@ -10907,7 +11016,6 @@ function offBtn(i){ var b=OFF_BTNS[i]; offOpen(b[2], b[1]); }
 function offOpen(view, obj){   // un bouton du bureau : la camera glisse vers l'objet, puis son ecran
   offGo(obj, function(){
     if(view===null){ careerToMenu(); return; }
-    if(view==='season' && CAREER.phase!=='done'){ offNote('No season summary yet. Finish the season first.'); return; }
     careerGo(view); }); }
 function offNextGame(){ offGo('lines', careerPlayClick); }   // la porte : l'alignement du match d'abord (spec : la camera va au tableau de l'equipe)
 function showCareer(view){ if(view) CAREER_VIEW=view; if(!CAREER && CAREER_VIEW!=='pick' && CAREER_VIEW!=='save') CAREER_VIEW='start'; _hide('mainMenu'); careerRender(); _show('careerOverlay'); }
@@ -10922,7 +11030,7 @@ function careerNextSeason(){ careerNewSeason(CAREER); CAREER.last=null; careerSa
 function careerExport(ev){ if(CAREER) saveTextFile(careerExportText(), careerFileName(), ev); }
 function careerImport(txt){ var c=careerImportText(txt);
   if(!c){ CAREER_MSG='⚠ This file is not a valid career file. Nothing was changed.'; careerRender(); return false; }
-  CAREER=c; careerSave(); CAREER_MSG='✅ Career loaded: '+careerEsc(c.teams[c.my].full)+', season '+c.season+'.'; careerGo('hub', true); return true; }
+  CAREER=c; careerSave(); if(OFF.on) offLeave();   /* v616 : au bureau, une autre carriere -> le bureau est refait (ses couleurs, ses images) */ CAREER_MSG='✅ Career loaded: '+careerEsc(c.teams[c.my].full)+', season '+c.season+'.'; careerGo('hub', true); return true; }
 function careerImportFile(inp){ var f=inp.files && inp.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(){ careerImport(String(rd.result||'')); }; rd.readAsText(f); }
 function careerImportPaste(){ var t=document.getElementById('careerPaste'); careerImport(t ? t.value : ''); }
 function careerRender(){
@@ -10930,6 +11038,7 @@ function careerRender(){
   if(OFF.on && !offActive()) offLeave();   // v608 : la 3D est tombee -> les ecrans d'aujourd'hui
   if((v==='hub' || v==='report') && c && c.teams[c.my].coach && offActive()) offEnter();   // v612 : apres le match, le bureau s'ouvre sur la feuille de match   // v608 : le hub de carriere = le bureau du coach
   if(OFF.on && offRender(v, c)) return;
+  if(v==='plaque') v='season';   // v616 : la plaque n'existe qu'au bureau (3D) ; sans 3D, ou la 3D en retard (secours de 1,5 s) : le bilan d'aujourd'hui (la vue reste 'plaque' : l'arrivee tardive passe a l'objet)
   if(v==='start'){
     h+='<div class="mtitle">🏆 Career</div><div class="msub">Lead a Quebec team from Division 3 to the cup.</div>'; if(CAREER_MSG) h+='<div class="cmsg">'+CAREER_MSG+'</div>';
     if(c) h+='<button class="mbtn play" onclick="careerGo(\'hub\')">▶ Continue — '+careerEsc(c.teams[c.my].full)+'</button>';
@@ -11815,7 +11924,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":479420,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":489580,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
