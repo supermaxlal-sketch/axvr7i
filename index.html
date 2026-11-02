@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v619</title>
+<title>Deck 3D v620</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1349,7 +1349,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v619';
+var GAME_VERSION='v620';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8976,8 +8976,9 @@ function renderVMap(){
     s+='<circle cx="'+((q.r+0.5)*k).toFixed(1)+'" cy="'+Y(q.c+0.5)+'" r="1.6" fill="'+(q.team==='A'?'#2f5e8c':'#9a3c4f')+'"/>'; }
   var pk=S.puckOwner?byId(S.puckOwner):S.puckLoose;
   if(pk) s+='<circle cx="'+((pk.r+0.5)*k).toFixed(1)+'" cy="'+Y(pk.c+0.5)+'" r="1.3" fill="#111" stroke="#fff" stroke-width=".6"/>';
-  var f=_vfit;
-  if(f.zoom){ var vis=f.H/f.cell, topC=COLS/2+f.pan/f.cell+vis/2;   // colonne (bord) en haut de la vue
+  var f=_vfit, fr=(HJ3D.free && hj3dActive()) ? HJ3D.free : null;
+  if(fr) s+='<rect class="vmapview vmapfree" x="'+(fr.r0*k).toFixed(1)+'" y="'+Y(fr.c1)+'" width="'+((fr.r1-fr.r0)*k).toFixed(1)+'" height="'+((fr.c1-fr.c0)*k).toFixed(1)+'" rx="2" fill="rgba(255,210,62,.16)" stroke="#ffd23e" stroke-width="1.3"/>';   // v620 : la vue libre de la 3D
+  else if(f.zoom){ var vis=f.H/f.cell, topC=COLS/2+f.pan/f.cell+vis/2;   // colonne (bord) en haut de la vue
     s+='<rect class="vmapview" x=".6" y="'+Y(topC)+'" width="'+(w-1.2).toFixed(1)+'" height="'+(vis*k).toFixed(1)+'" rx="2" fill="rgba(255,210,62,.16)" stroke="#ffd23e" stroke-width="1.3"/>'; }
   else s+='<rect class="vmapview" x=".6" y=".6" width="'+(w-1.2).toFixed(1)+'" height="'+(h-1.2).toFixed(1)+'" rx="6" fill="none" stroke="#ffd23e" stroke-width="1.3" stroke-dasharray="3 2"/>';
   s+='</svg>'; if(mm._svg!==s){ mm._svg=s; mm.innerHTML=s; }
@@ -9005,6 +9006,7 @@ if(typeof window!=='undefined' && window.addEventListener){
 // Dans le fichier unique (2D), rien ne s'attache : la 2D reste intacte.
 var VIEW3D_ON=(function(){ try{ return localStorage.getItem('hjView3d')!=='0'; }catch(e){ return true; } })();
 var HJ3D={ cb:null, last:'', failed:false, k:1, title:(typeof document!=='undefined' ? document.title : '') };   // title : Godot remplace le titre de la page au demarrage
+(function(){ var c=(typeof document!=='undefined') && document.getElementById('g3d'); if(c) c.addEventListener('contextmenu', function(e){ e.preventDefault(); }); })();   // v620 : le clic droit sur la 3D deplace la camera (pas de menu du navigateur)
 function hj3dBench(){   // v505 : les joueurs hors glace de chaque equipe (pas au banc des punitions), 10 au plus
   var box={}, out={A:[], B:[]}; ((S.pen && S.pen.box) || []).forEach(function(b){ box[b.id]=1; });
   S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10) return;   // v517 : pas les places vides
@@ -9102,7 +9104,7 @@ function rpBusy(k, d){ var R=ANIM_RATE||1;   // combien de temps la 3D anime ce 
   if(d.e==='hit') return (d.ok ? 180+900 : 700)/R;
   return 0; }
 function rpKey(d){ return JSON.stringify([(d.players||[]).map(function(p){ return [p.id, p.c, p.r, p.dc, p.dr, p.st]; }), d.puck, d.slides, d.board]); }
-function hj3dRec(k, js){ if(k==='replay' || k==='paint') return;   /* v609 : les images du bureau ne servent pas a la reprise */ var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
+function hj3dRec(k, js){ if(k==='replay' || k==='paint' || (k==='cue' && js==='camhome')) return;   /* v609 : les images du bureau ne servent pas a la reprise ; v620 : camhome non plus */ var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
   while(HJ3D_REC.length>600 || (HJ3D_REC.length && now-HJ3D_REC[0].t>90000)) HJ3D_REC.shift(); }
 function rpSnap(d){ delete d.cells; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
 function replayFeed(team){
@@ -9196,6 +9198,7 @@ var hj3d={
   ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
   cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); return true; },   // v494 : la camera 3D (les bulles se placent sur la 3D)
+  free:function(on, c0, c1, r0, r1){ HJ3D.free=on ? {c0:+c0, c1:+c1, r0:+r0, r1:+r1} : null; renderVMap(); return true; },   // v620 : la vue libre de la 3D (pincer, deux doigts, molette, clic droit) -- le cadre jaune de la mini-carte la montre
   aim:function(t){   // v479 : toucher une cible du filet 3D = toucher le bouton 2D du meme coin
     if(S.so && S.so.run && S.so.run.phase==='choose' && SO_TARGETS.indexOf(t)>=0){ soPick(t); return true; }   // v541 : la fusillade
     var saim=document.getElementById('saim');
@@ -9369,7 +9372,9 @@ document.getElementById('setView3d').onclick=function(){   // v476 : Rink view 3
   if(VIEW3D_ON && window.hj3dBoot) window.hj3dBoot();   // page 3D : demarre Godot s'il ne tourne pas encore
   HJ3D.last=''; hj3dApplyView(); hj3dPush(); };
 try{ applyLayoutMode(); }catch(e){ if(window.console) console.error('applyLayoutMode', e); }   /* v388 : glace verticale des le chargement ; une erreur ici ne doit JAMAIS couper la suite du script */
-document.getElementById('vMap').onclick=function(){ VZOOM=!VZOOM; fitVRink(); hj3dPush(); if(typeof S!=='undefined' && S && S.tut) tutCheck(); };   /* v460 : une lecon voit le changement tout de suite */   /* v390 : mini-carte = glace complete <-> zoom */
+document.getElementById('vMap').onclick=function(){
+  if(HJ3D.free && hj3dActive()){ HJ3D.free=null; hj3dSend('cue', 'camhome'); renderVMap(); if(typeof S!=='undefined' && S && S.tut) tutCheck(); return; }   // v620 : vue libre -> la vue normale, sans basculer
+  VZOOM=!VZOOM; fitVRink(); hj3dPush(); if(typeof S!=='undefined' && S && S.tut) tutCheck(); };   /* v460 : une lecon voit le changement tout de suite */   /* v390 : mini-carte = glace complete <-> zoom */
 document.getElementById('setCine').onclick=function(){ CINE_ON=!CINE_ON; try{localStorage.setItem('hjCineOn',CINE_ON?'1':'0');}catch(e){} this.textContent=CINE_ON?'On':'Off'; if(!CINE_ON){ var cv=document.getElementById('cine'); if(cv) cv.classList.remove('show'); if(S) S._cineOn=false; } };
 
 // ---- EDITEUR CAMERA : l'auteur regle/sauve ses angles lui-meme, en voyant la glace ----
@@ -10344,9 +10349,9 @@ function speechDrama(o, tone){ if(dramaPostKey()!==tone) return; var cd=coachOf(
 // v618 (spec 2026-10-31, « Apres le match ») : en 3D, la convocation au bureau -- mes joueurs avec un point ou un atout en attente, et
 // ceux qui montent de niveau a ce match (l'apercu de careerXpCalc : rien n'est applique avant la fin). Personne, ou en 2D : rien.
 function careerSummoned(){ if(!CAREER || !CAREER_MATCH || !hj3dActive()) return [];
-  var T=CAREER.teams[CAREER.my], out=T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); });
+  var T=CAREER.teams[CAREER.my], out=T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return careerWaits(T, p); });   // v620 : ceux qui peuvent placer ou choisir
   if(CAREER_LOG && CAREER_LOG.st) S.pieces.forEach(function(q){ var st=CAREER_LOG.st[q.id], p=q.team==='A' ? careerPieceP(q) : null;
-    if(p && st && out.indexOf(p)<0 && careerXpCalc(p, st, q.type==='g').lvl>p.lvl) out.push(p); });
+    if(p && st && out.indexOf(p)<0 && careerWaitsAfter(p, careerXpCalc(p, st, q.type==='g'), q.type==='g')) out.push(p); });
   return out; }
 function speechSummons(lines, co){ var who=careerSummoned().map(function(p){ return offSurname(p.name); });
   if(who.length) lines.push({team:HUMAN_TEAM, co:co, tone:null, k:0, text:who.slice(0, 3).join(', ')+(who.length>3 ? '…' : ',')+' I want to see you in my office.'});
@@ -10409,6 +10414,15 @@ function careerApplyXp(p, st, goalie){   // les actions d'un match -> experience
   out.lvl=p.lvl; return out;
 }
 function careerSpendPoint(p, k){ if(!(p.pts>0) || !p.cap || !(k in p.cap) || p[k]>=p.cap[k]) return false; p[k]++; p.pts--; return true; }
+// v620 (son bug « Callaway » ; son choix : « il n'est plus convoque ») : au plafond partout, un joueur gagne encore des niveaux et des
+// points, mais aucun ne peut se placer. Il n'attend (aimant dore, ▶ Call, « still waiting », convocation) que s'il peut monter une stat
+// ou choisir un atout ; le point reste dans sa fiche, sans effet.
+function careerCanSpend(p, gk){ return !!p && p.pts>0 && !!p.cap && (gk ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return p[k]<p.cap[k]; }); }
+function careerWaits(T, p){ return !!p && (careerCanSpend(p, p===T.goalie || p===T.goalie2) || !!p.perkPick); }
+function careerWaitsAfter(p, x, gk){   // l'apercu d'un match (careerXpCalc) : apres ce match, pourra-t-il placer un point ou choisir un atout ?
+  if(x.lvl<=p.lvl) return false;
+  if(!gk && p.lvl<5 && x.lvl>=5 && !p.perk2 && !p.perkPick) return true;
+  return (gk ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return (k in x.val ? x.val[k] : p[k])<p.cap[k]; }); }
 function careerTakePerk(p, k){ if(!p.perkPick || p.perkPick.indexOf(k)<0) return false; p.perk2=k; p.perkPick=null; return true; }
 // ---- v489 : ENERGIE ET BLESSURES (spec docs/superpowers/specs/2026-10-10-carriere-3-energie-blessures-design.md) ----
 var CAREER_EN={per:20, hitR:3, hitG:2, bat:2, cells:10, goalie:15, rec:25, rest:40, gPlay:10, gRest:30, aiRest:50, aiRestMax:2, aiG2:60, simLo:20, simHi:30, restMax:3};
@@ -10640,7 +10654,7 @@ function offPaintLines(c){
   var opp=g ? (g.home===c.my ? g.away : g.home) : (sr ? (sr.a===c.my ? sr.b : sr.a) : null), at=g ? (g.home===c.my ? 'vs ' : 'at ') : 'vs ';
   var tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), dn=L.filter(function(m){ return m.k==='F' || m.k==='D'; }).length;
   var sig=c.my+'|'+T.colors.join()+'|'+(opp ? at+opp : '')+'|'+dn+'/'+tgt+'|'+L.map(function(m){ var p=m.p;
-    return p.uid+':'+m.k+':'+m.x+','+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+((p.pts>0 || p.perkPick) ? 'g' : '')+(p===cur ? 's' : '')+(offStampOf(c, p) ? 'v'+offStampOf(c, p) : ''); }).join(',');
+    return p.uid+':'+m.k+':'+m.x+','+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+(careerWaits(T, p) ? 'g' : '')+(p===cur ? 's' : '')+(offStampOf(c, p) ? 'v'+offStampOf(c, p) : ''); }).join(',');
   if(OFF.paint.lines===sig) return;
   var o=offCanvas(800, 1000); if(!o) return;
   var x=o.x;
@@ -10652,7 +10666,7 @@ function offPaintLines(c){
   x.fillStyle=OFF_INK.blue; x.textAlign='center'; x.font='bold 32px '+OFF_MARKER;
   x.fillText('Forwards', M.x0+M.sx-7, 134); x.fillText('Defense', M.x0+2*M.sx+M.w/2, 134); x.fillText('Goalies', M.x0+3*M.sx+M.w/2, 134); x.fillText('Stands', M.x0+3*M.sx+M.w/2, M.sy0-14);
   x.strokeStyle='#c9ccd2'; x.lineWidth=2; x.beginPath(); x.moveTo(M.x0+3*M.sx-8, 108); x.lineTo(M.x0+3*M.sx-8, 980); x.stroke();
-  L.forEach(function(m){ var p=m.p, gold=(p.pts>0 || !!p.perkPick), body=gold ? '#e8b730' : T.colors[0], ink=offInk(body), e=careerEn(p);
+  L.forEach(function(m){ var p=m.p, gold=careerWaits(T, p), body=gold ? '#e8b730' : T.colors[0], ink=offInk(body), e=careerEn(p);
     x.save(); x.shadowColor=gold ? 'rgba(255,200,40,0.9)' : 'rgba(0,0,0,0.35)'; x.shadowBlur=gold ? 22 : 6; x.shadowOffsetY=gold ? 0 : 4;
     x.fillStyle=body; offRRect(x, m.x, m.y, M.w, M.h, 12); x.fill(); x.restore();
     x.fillStyle='#fbfbf8'; x.fillRect(m.x+8, m.y+8, M.w-16, 40);   // la bande blanche, le nom au feutre
@@ -10773,7 +10787,8 @@ function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleur
   x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(160, 276, 2*e, 24);
   x.fillStyle=INK; x.fillText(String(e), 376, 298);
   H.forEach(function(l, i){ x.fillStyle=l[1]; x.font='bold 26px '+OFF_SANS; x.fillText(l[0], 44, 340+i*40, W-88); });
-  if(p.pts>0 || p.perkPick){ x.fillStyle=OFF_INK.red; x.font='bold 34px '+OFF_MARKER; x.fillText(p.pts>0 ? p.pts+' point'+(p.pts>1?'s':'')+' to place' : 'A perk to pick', 44, 428, W-88); }   // v618 : il les place au bureau (▶ Call)
+  var spend=careerCanSpend(p, gk);   // v620 : un point sans stat sous son plafond ne compte pas (bug Callaway)
+  if(spend || p.perkPick){ x.fillStyle=OFF_INK.red; x.font='bold 34px '+OFF_MARKER; x.fillText(spend ? p.pts+' point'+(p.pts>1?'s':'')+' to place' : 'A perk to pick', 44, 428, W-88); }   // v618 : il les place au bureau (▶ Call)
   x.fillStyle=DIM; x.font='bold 24px '+OFF_SANS; x.textAlign='right'; x.fillText('Now', 230, OFF_CARD.y0-58); x.textAlign='left'; x.fillText('Potential', 270, OFF_CARD.y0-58); x.fillText('Next +1', 420, OFF_CARD.y0-58);
   rows.forEach(function(r){ var rg=careerCapRange(p, r.k);
     x.fillStyle=INK; x.textAlign='left'; x.font='bold 34px '+OFF_SANS; x.fillText(CAREER_ABBR[r.k], 44, r.y);
@@ -10785,10 +10800,10 @@ function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleur
   stats.forEach(function(t, i){ x.fillText(t, 44, 930+i*36, W-88); });
   offSend('card', sig, o.cv); }
 function offCardPlayer(c){   // devant la carte : la bulle ; v618 : un convoque -> ▶ Call (la rencontre) ; ‹ Back (la carte rentre dans le tableau)
-  var T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID), say, call=(p && (p.pts>0 || p.perkPick));
+  var T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID), say, call=careerWaits(T, p);
   if(!p){ careerGo('roster'); return; }
   offPaintCard(c, p);
-  if(p.pts>0) say=careerEsc(p.name)+' has '+p.pts+' point'+(p.pts>1?'s':'')+' to place.';
+  if(careerCanSpend(p, offIsGk(T, p))) say=careerEsc(p.name)+' has '+p.pts+' point'+(p.pts>1?'s':'')+' to place.';
   else if(p.perkPick) say=careerEsc(p.name)+' has a perk to pick.';
   else say=careerEsc(p.name)+': level '+p.lvl+', '+Math.max(0, Math.round(careerLevelCost(p.lvl)-p.txp))+' XP to the next level.';
   document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+say;
@@ -10808,9 +10823,9 @@ var OFF_STAMP={};     // uid -> {lvl, tag} : la rencontre faite (le tampon de so
 var OFF_WAITQ=false;  // ▶ Next game avec des convoques : le coach le dit d'abord
 function offDayTag(c){ return c.season+'/'+c.day+'/'+c.phase; }
 function offStampOf(c, p){ var s=OFF_STAMP[p.uid]; return (s && s.tag===offDayTag(c)) ? s.lvl : 0; }
-function offWaiting(c){ var T=c.teams[c.my]; return T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); }); }
+function offWaiting(c){ var T=c.teams[c.my]; return T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return careerWaits(T, p); }); }
 function offMeetP(c){ return OFF_MEET ? careerPlayerByUid(c.teams[c.my], OFF_MEET.uid) : null; }
-function offMeetCanPlace(T, p){ return p.pts>0 && (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return p[k]<p.cap[k]; }); }
+function offMeetCanPlace(T, p){ return careerCanSpend(p, offIsGk(T, p)); }
 function offMeetRows(T, p){ return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ return {k:k, y:OFF_LVL.y0+i*OFF_LVL.dy}; }); }   // le meme calcul pour peindre et pour toucher
 function offMeetPerks(p){ var L=OFF_LVL; return (p.perkPick||[]).map(function(k, i){ return {k:k, x:28+i*254, y:L.py, w:236, h:L.ph}; }); }
 var OFF_FITS=['S','T','H'];   // v619 : la tenue du joueur appele (il sort de la douche) -- complet, serviette, survetement d'equipe
@@ -10820,7 +10835,7 @@ function offVisit(s, p){ var o={s:s}, T=CAREER.teams[CAREER.my];   // a la 3D : 
   if(p){ var lk=lookParse(p.look); o.uid=p.uid; o.no=lk.no; o.hc=lk.hc; o.sk=lk.sk; o.sz=p.size||'M'; o.g=offIsGk(T, p) ? 1 : 0; o.nm=offSurname(p.name);
     o.hs=lk.hs; o.bd=lk.bd; o.o=offOutfit(CAREER, p); }   // v619 : sa tete en civil (sa coupe, sa barbe) et sa tenue
   hj3dSend('visit', o); }
-function offCall(){ var c=CAREER, T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID); if(!p || !(p.pts>0 || p.perkPick)) return;
+function offCall(){ var c=CAREER, T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID); if(!careerWaits(T, p)) return;
   if(!p.look) rosterLooks(T.skaters.concat([T.goalie], T.goalie2 ? [T.goalie2] : []), c.my);   // sa recette (comme au match)
   OFF_MEET={uid:p.uid, add:{}, from:Math.max(1, p.lvl-Math.max(1, p.pts))};
   offVisit('in', p);
@@ -11119,7 +11134,7 @@ function offHub(c){   // la vue de la porte : la bulle du coach, la barre de bou
     else { say='Playoffs: your team is out. The others play on.'; play='<button class="mbtn play" id="offSim" onclick="careerSimDay()">⏩ Simulate the playoffs</button>'; } }
   else if(c.phase==='done'){ say='The season is over.'; play='<button class="mbtn play" id="offSeason" onclick="offContinue()">🏆 Season summary</button>'; }
   document.getElementById('offSay').innerHTML='<div class="who">COACH '+careerEsc(String(T.coach.name).toUpperCase())+'</div>'+say+(CAREER_MSG ? '<div class="cmsg">'+CAREER_MSG+'</div>' : '')+'<small>'+sub+'</small>';
-  var gold=T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); }).length;   // v611 : les aimants dores -> une pastille sur Lines
+  var gold=offWaiting(c).length;   // v611 : les aimants dores -> une pastille sur Lines (v620 : ceux qui peuvent placer ou choisir)
   if(OFF_WAITQ){ var wq=offWaiting(c).map(function(p){ return '<b>'+careerEsc(offSurname(p.name))+'</b>'; });   // v618 : ▶ Next game -- des convoques attendent encore
     document.getElementById('offSay').innerHTML='<div class="who">COACH '+careerEsc(String(T.coach.name).toUpperCase())+'</div>'
       +(wq.length===1 ? wq[0]+' is' : (wq.length===2 ? wq.join(' and ') : wq.slice(0, 2).join(', ')+' and '+(wq.length-2)+' more')+' are')+' still waiting.';
@@ -12046,7 +12061,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":517436,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":532764,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
