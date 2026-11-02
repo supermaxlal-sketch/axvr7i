@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v614</title>
+<title>Deck 3D v615</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1346,7 +1346,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v614';
+var GAME_VERSION='v615';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1527,7 +1527,7 @@ function resolveSeqContact(seq, df){
 function resolveSeq(seq){
   if(!seq || seq!==S.currentSeq){ return; }
   if(!seq.acted) seq.acted=false;
-  if(seq._momRank!==seq.rank){ seqStepMomentum(); seq._momRank=seq.rank; S._rankMoves={}; S._rankDuel={}; }   // v432 : nouvelle etape -> nouvelles courses   // v382 : l'elan se construit a chaque etape du plan
+  if(seq._momRank!==seq.rank){ seqStepMomentum(); seq._momRank=seq.rank; S._rankMoves={}; S._rankDuel={}; S._rankBrush={}; }   // v432 : nouvelle etape -> nouvelles courses   // v382 : l'elan se construit a chaque etape du plan
   var n=Math.max(seq.atk.length, seq.def.length);
   if(seq.rank>=n && seq.isBonus){   // v438 : fin de l echappee -> le plan reprend ou il etait (pas de glisse ici)
     var _o=seq.outer; killSeq(seq); var _own=S.puckOwner?byId(S.puckOwner):null;
@@ -1663,6 +1663,7 @@ function resolveSeq(seq){
     if(_om){ var _slO=S.slides && S.slides[p.id], _tot=_slO ? (_slO.pts ? Math.max(450, 190*(_slO.cells||_slO.pts.length)) : 1000*Math.max(0.3, 0.28*Math.max(Math.abs(_slO.dx),Math.abs(_slO.dy)))) : 450;
       _omMs=Math.round(_tot*(_om.k+0.7)/_om.n); }   // v614 : quand il passe a cote du defenseur
     S.animating=true; sfx('skate'); render();
+    brushPass(_om ? _om.d.id : null);   // v615 : les frolements de ce temps, apres l'instantane (la 3D a les glissements)
     if(_om) setTimeout(function(){ _omRes=orderMeetTry(seq, p, _om); }, _omMs);
     setTimeout(function(){
       if(_omRes && _omRes.success) return;   // v614 : le coup en route a reussi -- looseBall pilote (il tue la sequence)
@@ -4547,6 +4548,7 @@ function bypassContacts(p, path, around){
     if(o.team!==p.team){
       var ok=tutLuck(1-hookProb(p,o), p.team===HUMAN_TEAM);
       matchEv('brush', {id:p.id, on:o.id, held:!ok, at:k+1});   // at : rang de la case de cote (pas k : matchRec s'en sert)
+      if(S._rankBrush) S._rankBrush[(p.id<o.id) ? p.id+'|'+o.id : o.id+'|'+p.id]=true;   // v615 : deja frole (brushPass ne le refait pas)
       if(!ok){ held=o; path=path.slice(0, k+1); pushLog('<b>'+o.name+'</b> hooks '+p.name+' — he is held up.'); if(penTry(o, PEN_P_HOOK, 'hook')) careerContact(p.id, 'stick', o); break; }   // v516 : le coup de baton siffle peut blesser   // v497 : l'arbitre peut siffler celui qui accroche
     }
     pushLog(p.name+' skates around '+o.name+'.');
@@ -6369,6 +6371,33 @@ function orderMeetTry(seq, p, m){
   if(!(res && res.success && res.body)){ p.c=fc; p.r=fr; }   // rate, ou poke reussi : il file jusqu'au bout (sans la rondelle)
   render();
   return res;
+}
+// v615 (le concepteur, export v611 P1 2:42 : « il doit y avoir un petit contact, pas necessaire qu'il perde la rondelle mais on
+// doit voir quelque chose » ; ses choix : sans ordre -> un FROLEMENT, visuel seulement ; tous les adversaires qui se croisent a
+// moins d'une case pendant le meme mouvement, avec ou sans rondelle ; la collision v432 ne change pas) : apres l'instantane
+// qui lance les glissements de ce temps, l'evenement 3D 'brush' (celui du contournement, v492) pour chaque paire qui se croise :
+// a 2 cases ou plus au depart et a l'arrivee, a 1 case en chemin (au meme moment : une case par pas pour tous). Rien ne change
+// dans le jeu. Pas de frolement si leurs trajets se coupent net (v432), ni avec le defenseur qui tente son coup (v614 : skip).
+function brushPass(skip){
+  var L=S._rankMoves||{}, B=S._rankBrush||(S._rankBrush={}), car=S.puckOwner;
+  function at(pts, s){ var i=Math.min(pts.length-1, Math.floor(s)), f=Math.min(pts.length-1, i+1), w=Math.min(1, s-i);
+    return {c:pts[i].c+(pts[f].c-pts[i].c)*w, r:pts[i].r+(pts[f].r-pts[i].r)*w}; }
+  function cut(a, b){ for(var i=0;i<a.length-1;i++) for(var j=0;j<b.length-1;j++) if(pathsCross(a[i], a[i+1], b[j], b[j+1])) return true; return false; }
+  for(var id in L){ var p=byId(id), mp=L[id].pts; if(!p || !p.onIce || p.type!=='sk' || mp.length<2) continue;
+    for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.type!=='sk' || q.team===p.team) continue;
+      var key=(p.id<q.id) ? p.id+'|'+q.id : q.id+'|'+p.id; if(B[key]) continue;
+      if(skip && (q.id===skip || p.id===skip) && (p.id===car || q.id===car)) continue;
+      var mq=(L[q.id] && L[q.id].pts.length) ? L[q.id].pts : [{c:q.c, r:q.r}];
+      if(mq.length>1 && cut(mp, mq)) continue;   // v432 : ils se coupent net -- la collision de toujours
+      if(cheb(mp[0], mq[0])<2 || cheb(mp[mp.length-1], mq[mq.length-1])<2) continue;   // colles au depart ou a l'arrivee : pas un croisement
+      var n=Math.max(mp.length, mq.length)-1, best=1e9, bs=0;
+      for(var s=0;s<=n*8;s++){ var a=at(mp, s/8), b=at(mq, s/8), d=Math.hypot(a.c-b.c, a.r-b.r); if(d<best-1e-9){ best=d; bs=s/8; } }
+      if(best>1.45) continue;   // a plus d'une case : rien
+      B[key]=true;
+      var who=p, other=q, wp=mp, wq=mq; if(q.id===car || (p.id!==car && mq.length>mp.length)){ who=q; other=p; wp=mq; wq=mp; }   // le porteur (sinon le plus lance) s'appuie
+      if(wp.length<2){ who=p; other=q; wp=mp; wq=mq; }   // celui qui s'appuie patine (la 3D cale le frolement sur son glissement)
+      var A=at(wp, bs), O=at(wq, bs), u=Math.min(1, bs/(wp.length-1));
+      matchEv('brush', {id:who.id, on:other.id, held:false, at:Math.max(1, Math.round(bs+0.6)), u:+u.toFixed(2), side:[+(O.c-A.c).toFixed(2), +(O.r-A.r).toFixed(2)], vis:1}); } }
 }
 function lineCells(fc, fr, tc, tr){ var dx=Math.sign(tc-fc), dy=Math.sign(tr-fr), n=Math.max(Math.abs(tc-fc), Math.abs(tr-fr)), out=[];
   for(var k=1;k<=n;k++) out.push({c:fc+dx*Math.min(k,Math.abs(tc-fc)), r:fr+dy*Math.min(k,Math.abs(tr-fr))});
@@ -11786,7 +11815,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":479548,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":479420,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
