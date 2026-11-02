@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v617</title>
+<title>Deck 3D v618</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -353,6 +353,8 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .offsay .who{font-family:'PxDisplay',monospace;font-size:14px;color:#ffd23e;letter-spacing:.06em;}
 .offsay small{display:block;font-size:12px;color:#b9cde3;margin-top:3px;font-weight:600;}
 .offsay textarea.offpaste{display:block;width:100%;height:96px;margin-top:8px;box-sizing:border-box;padding:6px 8px;font:12px/1.3 monospace;color:#15171b;background:#fbf7ea;border:2px solid #355a86;border-radius:8px;}   /* v616 : la chemise Paste a file */
+.offburst{position:fixed;z-index:6;pointer-events:none;transform:translate(-50%,-50%);font-weight:900;font-size:44px;color:#ffd23e;text-shadow:0 0 6px #7a4a00,0 2px 3px #000;animation:offburst 900ms ease-out forwards;}   /* v618 : « +1 » eclate sur la carte LEVEL UP */
+@keyframes offburst{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5);}25%{opacity:1;transform:translate(-50%,-60%) scale(1.35);}100%{opacity:0;transform:translate(-50%,-160%) scale(1);}}
 .offbar{position:absolute;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));grid-template-columns:repeat(4,1fr);gap:8px;}
 .offbar .mbtn{margin:0;padding:10px 4px;font-size:13px;}
 .offbar .mbtn.play{grid-column:1/-1;font-size:17px;color:#06121f;background:linear-gradient(180deg,#ffe46b,#ffb000);border-color:#06121f;box-shadow:0 4px 0 #06121f;}
@@ -1347,7 +1349,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v617';
+var GAME_VERSION='v618';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10273,7 +10275,7 @@ function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say) return;
     var cp=coachOf(HUMAN_TEAM), ch=POST_TONES[tone].ch, kp=postRoll(cp, tone, moodWon(o.mood));
     S.speechPost={tone:ch, k:kp, post:tone}; S.speechUse[ch]=(S.speechUse[ch]||0)+1;
     pushLog('<b>'+careerEsc(cp.name)+'</b> ('+TEAM_NAME[HUMAN_TEAM]+'): “'+POST_TONES[tone].say+'”'+(kp<0 ? ' — the players don\'t buy it.' : ''));
-    render(); speechSay(o, [{team:HUMAN_TEAM, co:cp, tone:ch, k:kp, text:POST_TONES[tone].say}], 0); return; }
+    render(); speechSay(o, speechSummons([{team:HUMAN_TEAM, co:cp, tone:ch, k:kp, text:POST_TONES[tone].say}], cp), 0); return; }
   if(!SPEECH_TONES[tone]) return;
   var _in=(o.moment==='inter'), co=coachOf(HUMAN_TEAM), k=speechRoll(co, tone); if(_in && k>0) k*=sitFactor(HUMAN_TEAM, tone);   // v557 : le ton qui colle a la situation
   speechApply(HUMAN_TEAM, o.moment, tone, k, co);
@@ -10338,7 +10340,17 @@ function moodWon(m){ return m==='win' || m==='wild'; }
 function speechMood(moment){ if(moment!=='post') return ''; var won=S.score[HUMAN_TEAM]>S.score[HUMAN_TEAM==='A' ? 'B' : 'A']; return dramaEnd(HUMAN_TEAM) ? (won ? 'wild' : 'heavy') : (won ? 'win' : 'loss'); }   // v558 : wild / heavy apres une fin dramatique
 function speechDrama(o, tone){ if(dramaPostKey()!==tone) return; var cd=coachOf(HUMAN_TEAM);   // v558 : le 4e discours -- pas de report de ton, son effet a lui
   S.speechPost={tone:null, k:0, post:tone}; pushLog('<b>'+careerEsc(cd.name)+'</b> ('+TEAM_NAME[HUMAN_TEAM]+'): “'+DRAMA_TONES[tone].say+'”');
-  render(); speechSay(o, [{team:HUMAN_TEAM, co:cd, tone:null, k:0, text:DRAMA_TONES[tone].say}], 0); }
+  render(); speechSay(o, speechSummons([{team:HUMAN_TEAM, co:cd, tone:null, k:0, text:DRAMA_TONES[tone].say}], cd), 0); }
+// v618 (spec 2026-10-31, « Apres le match ») : en 3D, la convocation au bureau -- mes joueurs avec un point ou un atout en attente, et
+// ceux qui montent de niveau a ce match (l'apercu de careerXpCalc : rien n'est applique avant la fin). Personne, ou en 2D : rien.
+function careerSummoned(){ if(!CAREER || !CAREER_MATCH || !hj3dActive()) return [];
+  var T=CAREER.teams[CAREER.my], out=T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); });
+  if(CAREER_LOG && CAREER_LOG.st) S.pieces.forEach(function(q){ var st=CAREER_LOG.st[q.id], p=q.team==='A' ? careerPieceP(q) : null;
+    if(p && st && out.indexOf(p)<0 && careerXpCalc(p, st, q.type==='g').lvl>p.lvl) out.push(p); });
+  return out; }
+function speechSummons(lines, co){ var who=careerSummoned().map(function(p){ return offSurname(p.name); });
+  if(who.length) lines.push({team:HUMAN_TEAM, co:co, tone:null, k:0, text:who.slice(0, 3).join(', ')+(who.length>3 ? '…' : ',')+' I want to see you in my office.'});
+  return lines; }
 function speechRoomCue(team, angle, mood){ hj3dSend('cue', 'room:'+team+':'+angle+(mood ? ':'+mood : '')); }
 function speechAngle(a){ var o=S.speechOpen; if(!o || ROOM_ANGLES.indexOf(a)<0) return; o.angle=a; if(hj3dActive()) speechRoomCue(HUMAN_TEAM, a, o.mood); }
 function speechArt(team){   // v507 : la chambre dessinee (2D) -- casiers, joueurs assis, logo au plancher, le coach devant le tableau
@@ -10463,7 +10475,7 @@ function careerSwatch(T){ return '<span class="cswatch" style="background:'+T.co
 var OFF={on:false, at:'', want:'', then:null, timer:0, seen:false, quad:null, vw:0, vh:0, sent:false, paint:{}};
 var OFF_BTNS=[['Standings','board','standings'], ['Schedule','calendar','schedule'], ['Stats','laptop','stats'], ['Lines','lines','roster'],
   ['Free agents','phone','fa'], ['Save','cabinet','save'], ['Season','trophies','season'], ['Leave','coat',null]];
-var OFF_ON_OBJ={standings:'board', schedule:'calendar', stats:'laptop', roster:'lines', lineup:'lines', player:'card', report:'sheet', fa:'phone', farelease:'lines', save:'cabinet', season:'trophies', plaque:'card'};   // les ecrans ecrits sur leur objet (etape 1 : le tableau ; etape 2, v610 : le calendrier, le portable ; etape 3, v611 : le tableau de l'equipe, la carte du joueur ; v616 : le classeur, l'etagere, la plaque)
+var OFF_ON_OBJ={standings:'board', schedule:'calendar', stats:'laptop', roster:'lines', lineup:'lines', player:'card', report:'sheet', fa:'phone', farelease:'lines', save:'cabinet', season:'trophies', plaque:'card', meet:'door', levelup:'card'};   // les ecrans ecrits sur leur objet (etape 1 : le tableau ; etape 2, v610 : le calendrier, le portable ; etape 3, v611 : le tableau de l'equipe, la carte du joueur ; v616 : le classeur, l'etagere, la plaque)
 var OFF_WAIT=1500;                    // sans reponse de la 3D, on n'attend pas plus (ms)
 var OFF_MARKER="'Marker Felt','Chalkboard SE','Segoe Print','Bradley Hand','Comic Sans MS',cursive";   // le feutre (polices du systeme)
 var OFF_SANS="'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";   // l'imprime (calendrier) et l'ecran du portable
@@ -10474,15 +10486,15 @@ function offEnter(){ if(OFF.on) return; OFF.on=true; OFF.at=''; OFF.want=''; OFF
   CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   // a chaque entree, le tableau montre ma division, a jour
   CAREER_STATDIV=CAREER_DIVTAB; CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs');   // v610 : le portable aussi (comme careerGo('stats'))
   document.body.classList.add('office'); document.getElementById('careerOverlay').classList.add('office'); hj3dFit(); }
-function offLeave(){ if(!OFF.on) return; OFF.on=false; OFF_PASTE=false; OFF.at=''; OFF.want=''; OFF.then=null; OFF.seen=false; OFF.quad=null; clearTimeout(OFF.timer);
+function offLeave(){ if(!OFF.on) return; OFF.on=false; OFF_PASTE=false; OFF_WAITQ=false; OFF_MEET=null; OFF.at=''; OFF.want=''; OFF.then=null; OFF.seen=false; OFF.quad=null; clearTimeout(OFF.timer);
   document.body.classList.remove('office'); document.getElementById('careerOverlay').classList.remove('office', 'card'); hj3dFit();
   if(hj3dActive()) hj3dSend('cue', 'rise'); }
-function offGo(obj, then, extra){   // la camera glisse vers l'objet ; a l'arrivee : then() ; extra : la suite du repere (la carte : l'aimant d'ou elle sort)
+function offGo(obj, then, extra, wait){   // la camera glisse vers l'objet ; a l'arrivee : then() ; extra : la suite du repere (la carte : l'aimant d'ou elle sort) ; wait : le secours (v618 : il ressort par la porte)
   OFF.want=obj; OFF.then=then||null; clearTimeout(OFF.timer);
   if(OFF.at===obj && OFF.sent){ offArrived(); return; }
   var T=CAREER.teams[CAREER.my];
   hj3dSend('cue', 'office:'+obj+(OFF.sent ? (extra||'') : ':'+T.key+':'+T.colors[0]+':'+T.colors[1])); OFF.sent=true; OFF.at=''; OFF.seen=false; OFF.quad=null;
-  OFF.timer=setTimeout(function(){ if(OFF.on && OFF.want===obj && OFF.at!==obj){ OFF.at=obj; OFF.seen=false; offArrived(); } }, OFF_WAIT); }
+  OFF.timer=setTimeout(function(){ if(OFF.on && OFF.want===obj && OFF.at!==obj){ OFF.at=obj; OFF.seen=false; offArrived(); } }, wait||OFF_WAIT); }
 function offArrived(){ var f=OFF.then; OFF.then=null; if(f) f(); }
 function offMsg(o){   // la 3D : arrivee a un objet (ses 4 coins a l'ecran), glissement (obj null), ou la vue a change de taille
   if(!o || !OFF.on) return false;
@@ -10501,7 +10513,7 @@ function offRender(v, c){   // careerRender en mode bureau ; false = l'ecran d'a
   if(obj && OFF.at===obj && OFF.seen){ co.classList.remove('card'); offDraw(v, c); return true; }
   if(obj && OFF.want!==obj){ co.classList.remove('card'); offGo(obj, careerRender); offPaintAll(c); offDraw(v, c); return true; }   // v612 : un ecran ouvert d'ailleurs (la feuille de match a l'entree) : la camera y va
   co.classList.add('card'); return false; }
-function offDraw(v, c){ if(v==='standings') offBoardStandings(c); else if(v==='schedule') offCalSchedule(c); else if(v==='stats') offLaptopStats(c); else if(v==='roster') offLinesRoster(c); else if(v==='lineup') offLinesLineup(c); else if(v==='player') offCardPlayer(c); else if(v==='report') offSheetReport(c); else if(v==='fa') offPhoneFa(c); else if(v==='farelease') offLinesRelease(c); else if(v==='save') offCabinetSave(c); else if(v==='season') offShelfSeason(c); else if(v==='plaque') offPlaqueShow(c); }
+function offDraw(v, c){ if(v==='standings') offBoardStandings(c); else if(v==='schedule') offCalSchedule(c); else if(v==='stats') offLaptopStats(c); else if(v==='roster') offLinesRoster(c); else if(v==='lineup') offLinesLineup(c); else if(v==='player') offCardPlayer(c); else if(v==='report') offSheetReport(c); else if(v==='fa') offPhoneFa(c); else if(v==='farelease') offLinesRelease(c); else if(v==='save') offCabinetSave(c); else if(v==='season') offShelfSeason(c); else if(v==='plaque') offPlaqueShow(c); else if(v==='meet') offMeetDoor(c); else if(v==='levelup') offMeetCard(c); }
 function offPaintAll(c){ offPaintBoard(c); offPaintCalendar(c); offPaintLaptop(c); offPaintLines(c); offPaintSheet(c); offPaintPhone(c); offPaintCabinet(c); offSendShelf(c); }   // a l'entree : tout est deja ecrit, visible de la porte
 function offCanvas(w, h){ var cv=document.createElement('canvas'), x=null; cv.width=w; cv.height=h; try{ x=cv.getContext('2d'); }catch(e){} return x ? {cv:cv, x:x} : null; }
 function offSend(obj, sig, cv){ var url=cv.toDataURL('image/png'), k=url.indexOf(','); if(k<0) return; OFF.paint[obj]=sig; hj3dSend('paint', {obj:obj, png:url.slice(k+1)}); }
@@ -10628,7 +10640,7 @@ function offPaintLines(c){
   var opp=g ? (g.home===c.my ? g.away : g.home) : (sr ? (sr.a===c.my ? sr.b : sr.a) : null), at=g ? (g.home===c.my ? 'vs ' : 'at ') : 'vs ';
   var tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), dn=L.filter(function(m){ return m.k==='F' || m.k==='D'; }).length;
   var sig=c.my+'|'+T.colors.join()+'|'+(opp ? at+opp : '')+'|'+dn+'/'+tgt+'|'+L.map(function(m){ var p=m.p;
-    return p.uid+':'+m.k+':'+m.x+','+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+((p.pts>0 || p.perkPick) ? 'g' : '')+(p===cur ? 's' : ''); }).join(',');
+    return p.uid+':'+m.k+':'+m.x+','+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+((p.pts>0 || p.perkPick) ? 'g' : '')+(p===cur ? 's' : '')+(offStampOf(c, p) ? 'v'+offStampOf(c, p) : ''); }).join(',');
   if(OFF.paint.lines===sig) return;
   var o=offCanvas(800, 1000); if(!o) return;
   var x=o.x;
@@ -10652,7 +10664,12 @@ function offPaintLines(c){
     else { x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(m.x+70, m.y+64, 46, 20);
       x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(m.x+70, m.y+64, Math.round(46*e/100), 20);
       x.fillStyle=ink; x.textAlign='right'; x.font='bold 26px '+OFF_SANS; x.fillText(String(e), m.x+M.w-8, m.y+84); }
-    if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+M.w/2, m.y+M.h/2, M.w/2+8, M.h/2+8, 0, 0, Math.PI*2); x.stroke(); } });   // le partant, encercle
+    if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+M.w/2, m.y+M.h/2, M.w/2+8, M.h/2+8, 0, 0, Math.PI*2); x.stroke(); }   // le partant, encercle
+    var sl=offStampOf(c, p);
+    if(sl){ x.save(); x.translate(m.x+M.w/2, m.y+M.h/2+6); x.rotate(-0.18);   // v618 : la rencontre est faite -- le tampon « ✓ LVL n » (jusqu'au prochain match)
+      x.strokeStyle=OFF_INK.green; x.lineWidth=5; offRRect(x, -74, -26, 148, 52, 8); x.stroke();
+      x.fillStyle='rgba(255,255,255,0.75)'; offRRect(x, -71, -23, 142, 46, 6); x.fill();
+      x.fillStyle=OFF_INK.green; x.textAlign='center'; x.font='bold 34px '+OFF_SANS; x.fillText('✓ LVL '+sl, 0, 13); x.restore(); } });
   offSend('lines', sig, o.cv); }
 function offLinesRoster(c){ offPaintLines(c); offNote('Tap a magnet to see the card of that player.'); }
 function offLinesLineup(c){   // ▶ Next game : l'alignement se fait sur le tableau (un aimant touche passe aux gradins, ou revient)
@@ -10673,11 +10690,12 @@ function offUnquad(q, x, y){   // le point (x, y) de la vue -> [u, v] sur la sur
   return (u<0 || u>1 || v<0 || v>1) ? null : [u, v]; }
 function offTap(ev){
   var co=document.getElementById('careerOverlay');
+  if(OFF.on && ev.target===co && CAREER_VIEW==='meet' && OFF.at==='door'){ offVisit('skip'); return; }   // v618 : toucher l'ecran -- il saute la marche
   if(!OFF.on || ev.target!==co || co.classList.contains('card') || !OFF.quad || !OFF.seen || !CAREER) return;
   var W=window.innerWidth||OFF.vw, H=window.innerHeight||OFF.vh, uv=offUnquad(OFF.quad, ev.clientX*OFF.vw/W, ev.clientY*OFF.vh/H);
   if(!uv) return;
   if(OFF.at==='lines') offTapLines(uv[0]*800, uv[1]*1000);
-  else if(OFF.at==='card') offTapCard(uv[0]*OFF_CARD.w, uv[1]*OFF_CARD.h);
+  else if(OFF.at==='card' && CAREER_VIEW==='levelup') offTapMeet(uv[0]*OFF_LVL.w, uv[1]*OFF_LVL.h, ev);
   else if(OFF.at==='sheet') offTapSheet(uv[0]*OFF_SHEET.w, uv[1]*OFF_SHEET.h);
   else if(OFF.at==='trophies') offTapShelf(uv[0]);
   else if(OFF.at==='cabinet') offTapCabinet(uv[0]); }
@@ -10715,17 +10733,16 @@ function offLinesRelease(c){
 function offReleaseGo(){ var uid=CAREER_REL; CAREER_REL=null; if(uid!=null) faReleaseClick(uid); }
 function offReleaseCancel(){ CAREER_REL=null; CAREER_MSG=''; careerRender(); }
 // v611 : LA CARTE DU JOUEUR sort du tableau de l'equipe (son aimant) et vient devant la camera ; elle est peinte comme les objets.
-// Jusqu'a la rencontre au bureau (etape 5, son choix), elle garde ses +1 (on les touche sur la carte) et les atouts du niveau 5.
+// v618 (etape 5) : plus de +1 ni d'atout sur la carte -- « N point(s) to place » et ▶ Call : la rencontre au bureau (plus bas).
 var OFF_CARD={w:800, h:1120, y0:520, dy:70};
 function offOpenCard(m){ var M=OFF_MAG;
   CAREER_PUID=m.p.uid; CAREER_BACK='roster';
   offPaintCard(CAREER, m.p);   // ecrite avant de sortir du tableau
   offGo('card', function(){ careerGo('player', true); }, ':'+((m.x+M.w/2)/800).toFixed(3)+':'+((m.y+M.h/2)/1000).toFixed(3)); }
 function offIsGk(T, p){ return p===T.goalie || p===T.goalie2; }
-function offCardRows(T, p){   // [{k, y, at, plus:{x,y,w,h}|null}] : une ligne par stat, et son +1 (le meme calcul pour peindre et pour toucher)
+function offCardRows(T, p){   // [{k, y, at}] : une ligne par stat
   var C=OFF_CARD;
-  return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ var y=C.y0+i*C.dy, at=p[k]>=p.cap[k];
-    return {k:k, y:y, at:at, plus:(p.pts>0 && !at) ? {x:640, y:y-46, w:130, h:58} : null}; }); }
+  return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ return {k:k, y:C.y0+i*C.dy, at:p[k]>=p.cap[k]}; }); }
 function offCardLines(p){ var o=[];   // la sante, en mots (comme careerCardHealth)
   if(p.inj) o.push(['Injured: '+p.inj.t+' ('+CAREER_SEV[p.inj.sev]+'), out '+p.inj.left+' game'+(p.inj.left>1?'s':''), OFF_INK.red]);
   if(p.rust>0) o.push(['Rusty ('+p.rust+' game'+(p.rust>1?'s':'')+'): −5 to all', '#5a606b']);
@@ -10756,32 +10773,122 @@ function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleur
   x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(160, 276, 2*e, 24);
   x.fillStyle=INK; x.fillText(String(e), 376, 298);
   H.forEach(function(l, i){ x.fillStyle=l[1]; x.font='bold 26px '+OFF_SANS; x.fillText(l[0], 44, 340+i*40, W-88); });
-  if(p.pts>0){ x.fillStyle=OFF_INK.red; x.font='bold 34px '+OFF_MARKER; x.fillText(p.pts+' point'+(p.pts>1?'s':'')+' to place: tap +1.', 44, 428, W-88); }
+  if(p.pts>0 || p.perkPick){ x.fillStyle=OFF_INK.red; x.font='bold 34px '+OFF_MARKER; x.fillText(p.pts>0 ? p.pts+' point'+(p.pts>1?'s':'')+' to place' : 'A perk to pick', 44, 428, W-88); }   // v618 : il les place au bureau (▶ Call)
   x.fillStyle=DIM; x.font='bold 24px '+OFF_SANS; x.textAlign='right'; x.fillText('Now', 230, OFF_CARD.y0-58); x.textAlign='left'; x.fillText('Potential', 270, OFF_CARD.y0-58); x.fillText('Next +1', 420, OFF_CARD.y0-58);
   rows.forEach(function(r){ var rg=careerCapRange(p, r.k);
     x.fillStyle=INK; x.textAlign='left'; x.font='bold 34px '+OFF_SANS; x.fillText(CAREER_ABBR[r.k], 44, r.y);
     x.textAlign='right'; x.font='bold 44px '+OFF_SANS; x.fillText(String(p[r.k]), 230, r.y+2);
     x.textAlign='left'; x.font='bold 30px '+OFF_SANS; x.fillStyle=DIM; x.fillText(rg[0]+'–'+rg[1], 270, r.y);
     if(r.at) x.fillText('max', 420, r.y);
-    else { x.fillStyle='#d9dbe0'; x.fillRect(420, r.y-20, 170, 18); x.fillStyle='#3f7fd6'; x.fillRect(420, r.y-20, Math.round(170*Math.min(1, p.xp[r.k]/careerXpCost(p, r.k))), 18); }
-    if(r.plus){ var b=r.plus; x.fillStyle='#2f9e4f'; offRRect(x, b.x, b.y, b.w, b.h, 12); x.fill();
-      x.fillStyle='#ffffff'; x.textAlign='center'; x.font='bold 36px '+OFF_SANS; x.fillText('+1', b.x+b.w/2, b.y+42); } });
+    else { x.fillStyle='#d9dbe0'; x.fillRect(420, r.y-20, 170, 18); x.fillStyle='#3f7fd6'; x.fillRect(420, r.y-20, Math.round(170*Math.min(1, p.xp[r.k]/careerXpCost(p, r.k))), 18); } });
   x.textAlign='left'; x.fillStyle=INK; x.font='bold 28px '+OFF_SANS;
   stats.forEach(function(t, i){ x.fillText(t, 44, 930+i*36, W-88); });
   offSend('card', sig, o.cv); }
-function offCardPlayer(c){   // devant la carte : la bulle ; en bas les atouts du niveau 5 (s'il y en a) et ‹ Back (la carte rentre dans le tableau)
-  var T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID), say;
+function offCardPlayer(c){   // devant la carte : la bulle ; v618 : un convoque -> ▶ Call (la rencontre) ; ‹ Back (la carte rentre dans le tableau)
+  var T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID), say, call=(p && (p.pts>0 || p.perkPick));
   if(!p){ careerGo('roster'); return; }
   offPaintCard(c, p);
-  if(p.pts>0) say=careerEsc(p.name)+' has '+p.pts+' point'+(p.pts>1?'s':'')+' to place. Tap +1 on his card.';
-  else if(p.perkPick) say='Level 5: pick a second perk.<small>'+p.perkPick.map(function(k){ return careerEsc(PERK_INFO[k].n)+': '+careerEsc(PERK_INFO[k].d); }).join('<br>')+'</small>';
+  if(p.pts>0) say=careerEsc(p.name)+' has '+p.pts+' point'+(p.pts>1?'s':'')+' to place.';
+  else if(p.perkPick) say=careerEsc(p.name)+' has a perk to pick.';
   else say=careerEsc(p.name)+': level '+p.lvl+', '+Math.max(0, Math.round(careerLevelCost(p.lvl)-p.txp))+' XP to the next level.';
   document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+say;
-  document.getElementById('offBar').innerHTML=(p.perkPick ? p.perkPick.map(function(k){ return '<button class="mbtn sm cperk" data-perk="'+k+'" onclick="careerPerk(\''+k+'\')">'+careerEsc(PERK_INFO[k].n)+'</button>'; }).join('') : '')
+  document.getElementById('offBar').innerHTML=(call ? '<button class="mbtn play half" id="offCall" onclick="offCall()">▶ Call '+careerEsc(offSurname(p.name))+'</button>' : '')
     +'<button class="mbtn sm" onclick="offCardBack()">‹ Back</button>'; }
 function offCardBack(){ if(CAREER_BACK==='report') careerGo('report', true); else offOpen('roster', 'lines'); }   // v612 : la carte retourne d'ou elle est sortie (la feuille, ou le tableau)
-function offTapCard(ix, iy){ var c=CAREER, T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID); if(!p || CAREER_VIEW!=='player') return;
-  offCardRows(T, p).forEach(function(r){ var b=r.plus; if(b && ix>=b.x-20 && ix<=b.x+b.w+10 && iy>=b.y-6 && iy<=b.y+b.h+6) careerPlus(r.k); }); }
+// v618 (spec 2026-10-31, etape 5 ; la rencontre : spec du 26, partie 2 ; son choix : en complet) : LA MONTEE DE NIVEAU AU BUREAU.
+// ▶ Call : il cogne et entre par la porte (la 3D le fait marcher : message visit), « You wanted to see me, coach? » ; toucher l'ecran
+// saute la marche ; Come in : sa carte LEVEL UP sort du bureau (la camera par-dessus son epaule, la piece assombrie) ; toucher une stat :
+// +1 (careerSpendPoint), la barre et le chiffre en or, « +1 » eclate ; puis les atouts du niveau 5 sur la carte (careerTakePerk).
+// ✓ Done : il ressort (la camera a la porte), puis le tableau -- son aimant a le tampon « ✓ LVL n » ; Later : il ressort, rien n'est perdu.
+var OFF_LVL={w:800, h:1120, y0:548, dy:72, py:930, ph:170};   // la carte LEVEL UP ; les lignes des stats ; les tuiles d'atout
+var OFF_GOLD='#f2c14e';
+var OFF_LONG={tir:'SHOT', passe:'PASS', vitesse:'SPEED', physique:'PHYSICAL', defense:'DEFENSE', maniement:'HANDLING', arret100:'SAVE', couverture100:'COVERAGE'};
+var OFF_MEET=null;    // la rencontre en cours : {uid, add:{stat: +n}, from: le niveau d'avant}
+var OFF_STAMP={};     // uid -> {lvl, tag} : la rencontre faite (le tampon de son aimant, jusqu'au prochain match)
+var OFF_WAITQ=false;  // ▶ Next game avec des convoques : le coach le dit d'abord
+function offDayTag(c){ return c.season+'/'+c.day+'/'+c.phase; }
+function offStampOf(c, p){ var s=OFF_STAMP[p.uid]; return (s && s.tag===offDayTag(c)) ? s.lvl : 0; }
+function offWaiting(c){ var T=c.teams[c.my]; return T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); }); }
+function offMeetP(c){ return OFF_MEET ? careerPlayerByUid(c.teams[c.my], OFF_MEET.uid) : null; }
+function offMeetCanPlace(T, p){ return p.pts>0 && (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return p[k]<p.cap[k]; }); }
+function offMeetRows(T, p){ return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ return {k:k, y:OFF_LVL.y0+i*OFF_LVL.dy}; }); }   // le meme calcul pour peindre et pour toucher
+function offMeetPerks(p){ var L=OFF_LVL; return (p.perkPick||[]).map(function(k, i){ return {k:k, x:28+i*254, y:L.py, w:236, h:L.ph}; }); }
+function offVisit(s, p){ var o={s:s}, T=CAREER.teams[CAREER.my];   // a la 3D : {s:'in', uid, no, hc, sk, sz, g, nm} (il entre) ; skip ; out (il ressort)
+  if(p){ var lk=lookParse(p.look); o.uid=p.uid; o.no=lk.no; o.hc=lk.hc; o.sk=lk.sk; o.sz=p.size||'M'; o.g=offIsGk(T, p) ? 1 : 0; o.nm=offSurname(p.name); }
+  hj3dSend('visit', o); }
+function offCall(){ var c=CAREER, T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID); if(!p || !(p.pts>0 || p.perkPick)) return;
+  if(!p.look) rosterLooks(T.skaters.concat([T.goalie], T.goalie2 ? [T.goalie2] : []), c.my);   // sa recette (comme au match)
+  OFF_MEET={uid:p.uid, add:{}, from:Math.max(1, p.lvl-Math.max(1, p.pts))};
+  offVisit('in', p);
+  offGo('door', function(){ careerGo('meet', true); }); }
+function offMeetDoor(c){ var p=offMeetP(c); if(!p){ careerGo('roster'); return; }   // a la porte : il cogne, entre ; Come in
+  document.getElementById('offSay').innerHTML='<div class="who">'+careerEsc(offSurname(p.name).toUpperCase())+'</div>*Knock knock* You wanted to see me, coach?';
+  document.getElementById('offBar').innerHTML='<button class="mbtn play" id="offComeIn" onclick="offComeIn()">Come in</button>'; }
+function offComeIn(){ var c=CAREER, p=offMeetP(c); if(!p) return;
+  offVisit('skip'); offPaintMeet(c, p);   // ecrite avant de sortir du bureau
+  offGo('card', function(){ careerGo('levelup', true); }, ':0.500:0.500:desk'); }
+function offMeetCard(c){   // devant sa carte : la bulle du coach ; ✓ Done (tout est place) et Later
+  var T=c.teams[c.my], p=offMeetP(c), say; if(!p){ careerGo('roster'); return; }
+  offPaintMeet(c, p);
+  var can=offMeetCanPlace(T, p), done=!can && !p.perkPick;
+  if(can) say='Level '+p.lvl+'! Tap a stat to put your point'+(p.pts>1 ? 's ('+p.pts+')' : '')+'.';
+  else if(p.perkPick) say='Level '+p.lvl+'! Pick a perk on the card.';
+  else say='Good work, '+careerEsc(offSurname(p.name))+'. Now show me on the ice.';
+  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+say;
+  document.getElementById('offBar').innerHTML='<button class="mbtn play half" id="offDone" onclick="offMeetDone()"'+(done ? '' : ' disabled')+'>✓ Done</button><button class="mbtn sm" onclick="offMeetLater()">Later</button>'; }
+function offTapMeet(ix, iy, ev){ var c=CAREER, T=c.teams[c.my], p=offMeetP(c), hit=null; if(!p || CAREER_VIEW!=='levelup') return;
+  if(offMeetCanPlace(T, p)){
+    if(ix>=20 && ix<=OFF_LVL.w-20) offMeetRows(T, p).forEach(function(r){ if(Math.abs(iy-(r.y-14))<=OFF_LVL.dy/2) hit=r; });
+    if(hit && careerSpendPoint(p, hit.k)){ OFF_MEET.add[hit.k]=(OFF_MEET.add[hit.k]||0)+1; careerSave(); careerRender(); offBurst(ev); }
+    return; }
+  offMeetPerks(p).forEach(function(t){ if(ix>=t.x && ix<=t.x+t.w && iy>=t.y && iy<=t.y+t.h) hit=t; });
+  if(hit && careerTakePerk(p, hit.k)){ careerSave(); careerRender(); } }
+function offBurst(ev){ var co=document.getElementById('careerOverlay'), b=document.createElement('div');   // « +1 » eclate la ou on a touche
+  b.className='offburst'; b.textContent='+1'; b.style.left=(ev ? ev.clientX : 0)+'px'; b.style.top=(ev ? ev.clientY : 0)+'px'; co.appendChild(b);
+  setTimeout(function(){ if(b.parentNode) b.parentNode.removeChild(b); }, 1000); }
+function offMeetLeave(stamp){ var c=CAREER, p=offMeetP(c);   // il ressort par la porte (la camera y va), puis le tableau de l'equipe
+  if(p && stamp) OFF_STAMP[p.uid]={lvl:p.lvl, tag:offDayTag(c)};
+  offVisit('out');
+  offGo('door', function(){ OFF_MEET=null; offOpen('roster', 'lines'); }, '', 9000); }   // le secours : sa marche (~3,8 s) ; setTimeout est divise par ANIM_RATE (1,5) -> 6 s
+function offMeetDone(){ var c=CAREER, p=offMeetP(c); if(!p || offMeetCanPlace(c.teams[c.my], p) || p.perkPick) return; offMeetLeave(true); }
+function offMeetLater(){ offMeetLeave(false); }
+function offPaintMeet(c, p){   // la carte LEVEL UP (800 x 1120, la maquette 5A) : le numero, LVL n -> n+1, le total, ses stats en barres ; le +1 de la visite en or
+  var T=c.teams[c.my], L=OFF_LVL, gk=offIsGk(T, p), lk=lookParse(p.look), rows=offMeetRows(T, p), can=offMeetCanPlace(T, p), add=(OFF_MEET && OFF_MEET.add)||{}, from=OFF_MEET ? OFF_MEET.from : p.lvl;
+  var perks=can ? [] : offMeetPerks(p), rr=(c.report && c.report.rows||[]).filter(function(r){ return r.uid===p.uid; })[0], ups=[];
+  if(rr && rr.up) for(var k in rr.up) ups.push('▲ '+(CAREER_ABBR[k]||k)+' '+rr.up[k][0]+'→'+rr.up[k][1]);
+  var sub=gk ? 'GOALIE · '+String(gkStyleLabel(p)).toUpperCase()+' · '+p.age+' YRS' : String((ARCH_INFO[p.archetype]||{}).n||p.archetype).toUpperCase()+' · '+p.age+' YRS'+(p.hand ? ' · '+(p.hand==='R' ? 'RIGHT' : 'LEFT')+' SHOT' : '');
+  var status=can ? (p.pts>1 ? 'TAP A STAT: '+p.pts+' POINTS TO PUT' : 'TAP A STAT TO PUT YOUR POINT') : (p.perkPick ? 'PICK A PERK' : 'ALL DONE');
+  var sig='meet|'+p.uid+'|'+T.colors.join()+'|'+from+'>'+p.lvl+'|'+p.pts+'|'+(p.perkPick||[]).join()+'|'+rows.map(function(r){ return r.k+':'+p[r.k]+':'+(add[r.k]||0); }).join(',')+'|'+ups.join();
+  if(OFF.paint.card===sig) return;
+  var o=offCanvas(L.w, L.h); if(!o) return;
+  var x=o.x, W=L.w, NAVY='#16233a', FG='#eef3fa', DIM='#9fb0c6', band=T.colors[0], bink=offInk(band);
+  x.fillStyle=OFF_GOLD; offRRect(x, 0, 0, W, L.h, 40); x.fill();   // le cadre dore
+  x.fillStyle=NAVY; offRRect(x, 12, 12, W-24, L.h-24, 30); x.fill();
+  x.textBaseline='alphabetic'; x.textAlign='center'; x.fillStyle=OFF_GOLD; x.font='bold 84px '+OFF_SANS; x.fillText('LEVEL UP!', W/2, 104);
+  x.fillStyle=band; x.fillRect(12, 128, W-24, 78);
+  x.fillStyle=bink; x.textAlign='left'; x.font='bold 44px '+OFF_SANS; x.fillText('#'+lk.no+' · '+(gk ? 'G' : p.pos), 40, 182);
+  x.textAlign='right'; x.fillText('LVL '+from+' → '+p.lvl, W-40, 182);
+  x.textAlign='left'; x.fillStyle=FG; x.font='bold 150px '+OFF_SANS; x.fillText(String(offRating(T, p)), 34, 356);
+  x.font='bold 58px '+OFF_SANS; x.fillText(offSurname(p.name).toUpperCase(), 296, 282, W-330);
+  x.fillStyle=DIM; x.font='bold 24px '+OFF_SANS; x.fillText(sub, 298, 326, W-330);
+  x.fillStyle=OFF_GOLD; x.font='bold 24px '+OFF_SANS; ups.slice(0, 3).forEach(function(t, i){ x.fillText(t, 298+i*160, 366, 150); });   // les +1 gagnes en jouant ce match
+  x.fillStyle='rgba(242,193,78,0.16)'; x.fillRect(12, 400, W-24, 70);
+  x.fillStyle=OFF_GOLD; x.beginPath(); x.arc(64, 435, 24, 0, Math.PI*2); x.fill();
+  x.fillStyle=NAVY; x.textAlign='center'; x.font='bold 26px '+OFF_SANS; x.fillText('+1', 64, 444);
+  x.fillStyle=OFF_GOLD; x.textAlign='left'; x.font='bold 30px '+OFF_SANS; x.fillText(status, 104, 446, W-140);
+  rows.forEach(function(r){ var v=p[r.k], a=add[r.k]||0, bx=250, bw=380;
+    x.fillStyle=DIM; x.textAlign='left'; x.font='bold 28px '+OFF_SANS; x.fillText(OFF_LONG[r.k]||r.k, 40, r.y, 200);
+    x.fillStyle='#0c1424'; x.fillRect(bx, r.y-26, bw, 22);
+    x.fillStyle='#3f7fd6'; x.fillRect(bx, r.y-26, Math.round(bw*Math.min(1, (v-a)/100)), 22);
+    if(a) { x.fillStyle=OFF_GOLD; x.fillRect(bx+Math.round(bw*Math.min(1, (v-a)/100)), r.y-26, Math.max(6, Math.round(bw*a/100)), 22); }   // le +1 de la visite : en or
+    x.fillStyle=a ? OFF_GOLD : FG; x.textAlign='right'; x.font='bold 46px '+OFF_SANS; x.fillText(String(v), W-40, r.y+2); });
+  perks.forEach(function(t){ var I=PERK_INFO[t.k]||{n:t.k, d:''}, words=String(I.d).split(' '), ln='', n=0;
+    x.fillStyle='#fff6dc'; offRRect(x, t.x, t.y, t.w, t.h, 16); x.fill(); x.strokeStyle=OFF_GOLD; x.lineWidth=5; offRRect(x, t.x, t.y, t.w, t.h, 16); x.stroke();
+    x.fillStyle=NAVY; x.textAlign='center'; x.font='bold 30px '+OFF_SANS; x.fillText(I.n, t.x+t.w/2, t.y+42, t.w-20);
+    x.font='20px '+OFF_SANS; x.fillStyle='#3a4a63';
+    words.forEach(function(w){ var tt=ln ? ln+' '+w : w; if(x.measureText(tt).width>t.w-24 && ln){ if(n<4) x.fillText(ln, t.x+t.w/2, t.y+78+n*24, t.w-20); n++; ln=w; } else ln=tt; });
+    if(ln && n<4) x.fillText(ln, t.x+t.w/2, t.y+78+n*24, t.w-20); });
+  offSend('card', sig, o.cv); }
 // v612 : LA FEUILLE DE MATCH sur le bureau (0,30 x 0,40 m -> 900 x 1200) : le formulaire imprime, rempli au stylo bille ;
 // le tampon WIN / LOSS ; une ligne par joueur qui a joue ; le gardien en bas. Toucher un nom -> sa carte.
 var OFF_SHEET={w:900, h:1200, y0:398, dy:46, cols:[['G',300],['A',345],['SOG',410],['HIT',468],['TK',518],['⚡',572]], xp:[596, 864]};   // son choix : l'XP gagnee aussi (une colonne a droite)
@@ -11009,16 +11116,25 @@ function offHub(c){   // la vue de la porte : la bulle du coach, la barre de bou
   else if(c.phase==='done'){ say='The season is over.'; play='<button class="mbtn play" id="offSeason" onclick="offContinue()">🏆 Season summary</button>'; }
   document.getElementById('offSay').innerHTML='<div class="who">COACH '+careerEsc(String(T.coach.name).toUpperCase())+'</div>'+say+(CAREER_MSG ? '<div class="cmsg">'+CAREER_MSG+'</div>' : '')+'<small>'+sub+'</small>';
   var gold=T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return p && (p.pts>0 || p.perkPick); }).length;   // v611 : les aimants dores -> une pastille sur Lines
+  if(OFF_WAITQ){ var wq=offWaiting(c).map(function(p){ return '<b>'+careerEsc(offSurname(p.name))+'</b>'; });   // v618 : ▶ Next game -- des convoques attendent encore
+    document.getElementById('offSay').innerHTML='<div class="who">COACH '+careerEsc(String(T.coach.name).toUpperCase())+'</div>'
+      +(wq.length===1 ? wq[0]+' is' : (wq.length===2 ? wq.join(' and ') : wq.slice(0, 2).join(', ')+' and '+(wq.length-2)+' more')+' are')+' still waiting.';
+    document.getElementById('offBar').innerHTML='<button class="mbtn play half" id="offSeeHim" onclick="offWaitSee()">'+(wq.length===1 ? 'See him' : 'See them')+'</button><button class="mbtn sm" id="offPlayAnyway" onclick="offWaitPlay()">Play anyway</button>';
+    return; }
   document.getElementById('offBar').innerHTML=play+OFF_BTNS.map(function(b, i){ return '<button class="mbtn sm" data-off="'+b[1]+'"'+(b[1]==='lines' && gold ? ' data-n="'+gold+'"' : '')+' onclick="offBtn('+i+')">'+b[0]+'</button>'; }).join(''); }
 function offNote(text){   // une phrase du coach devant l'objet, et ‹ Back
   document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+text;
   document.getElementById('offBar').innerHTML='<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
-function offBtn(i){ var b=OFF_BTNS[i]; offOpen(b[2], b[1]); }
+function offBtn(i){ var b=OFF_BTNS[i]; OFF_WAITQ=false; offOpen(b[2], b[1]); }
 function offOpen(view, obj){   // un bouton du bureau : la camera glisse vers l'objet, puis son ecran
   offGo(obj, function(){
     if(view===null){ careerToMenu(); return; }
     careerGo(view); }); }
-function offNextGame(){ offGo('lines', careerPlayClick); }   // la porte : l'alignement du match d'abord (spec : la camera va au tableau de l'equipe)
+function offNextGame(){   // la porte : l'alignement du match d'abord (spec : la camera va au tableau de l'equipe) ; v618 : des convoques attendent -> le coach le dit
+  if(!matchSaveIsToday(matchSaveRead()) && offWaiting(CAREER).length){ OFF_WAITQ=true; careerRender(); return; }
+  offGo('lines', careerPlayClick); }
+function offWaitSee(){ OFF_WAITQ=false; offOpen('roster', 'lines'); }
+function offWaitPlay(){ OFF_WAITQ=false; offGo('lines', careerPlayClick); }
 function showCareer(view){ if(view) CAREER_VIEW=view; if(!CAREER && CAREER_VIEW!=='pick' && CAREER_VIEW!=='save') CAREER_VIEW='start'; _hide('mainMenu'); careerRender(); _show('careerOverlay'); }
 function careerGo(v, keepMsg){ if(v===null || v===undefined){ careerToMenu(); return; } if(v==='hub' && CAREER && !CAREER.teams[CAREER.my].coach) v='coach';   /* v503 : ton coach d'abord */ if(!keepMsg) CAREER_MSG=''; if(v==='standings' && CAREER && !OFF.on) CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   /* v609 : au bureau, le tableau garde ce qui y est ecrit */ if(v==='stats' && CAREER && !OFF.on){ CAREER_STATDIV=careerDivOf(CAREER, CAREER.my); CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs'); }   /* v579 ; v580 ; v610 : au bureau, le portable garde ce qui y est ecrit */ showCareer(v); }
 function careerToMenu(){ _hide('careerOverlay'); showMainMenu(); }
@@ -11039,6 +11155,7 @@ function careerRender(){
   if(OFF.on && !offActive()) offLeave();   // v608 : la 3D est tombee -> les ecrans d'aujourd'hui
   if((v==='hub' || v==='report') && c && c.teams[c.my].coach && offActive()) offEnter();   // v612 : apres le match, le bureau s'ouvre sur la feuille de match   // v608 : le hub de carriere = le bureau du coach
   if(OFF.on && offRender(v, c)) return;
+  if(v==='meet' || v==='levelup') v='player';   // v618 : la rencontre n'existe qu'au bureau (3D) ; la 3D en retard : la fiche d'aujourd'hui (l'arrivee tardive passe a l'objet)
   if(v==='plaque') v='season';   // v616 : la plaque n'existe qu'au bureau (3D) ; sans 3D, ou la 3D en retard (secours de 1,5 s) : le bilan d'aujourd'hui (la vue reste 'plaque' : l'arrivee tardive passe a l'objet)
   if(v==='start'){
     h+='<div class="mtitle">🏆 Career</div><div class="msub">Lead a Quebec team from Division 3 to the cup.</div>'; if(CAREER_MSG) h+='<div class="cmsg">'+CAREER_MSG+'</div>';
@@ -11925,7 +12042,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":489580,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":499836,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
