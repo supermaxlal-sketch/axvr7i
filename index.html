@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v623</title>
+<title>Deck 3D v624</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1349,7 +1349,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v623';
+var GAME_VERSION='v624';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2700,11 +2700,12 @@ function applyMoveKinematics(p, fromC, fromR, toC, toR){
 // v552 : l'IA patine de l'avant -- elle pivote juste avant de reculer avec la rondelle (elle ne s'expose pas) ou sur 3 cases
 // et plus (un long retour) ; sur 1 ou 2 cases elle recule encore (un defenseur qui garde son ecart face au jeu). Ton equipe :
 // c'est toi qui pivotes (retaper le joueur). Hors lecons.
+var AI_PIVOT_BACK=3;   // v624 : son choix v552 (« 3 cases et plus ») garde -- n'est plus lie a BACK_MAX (passe a 4)
 function aiTurnAround(p, fromC, fromR, toC, toR){
   if(!p || p.type!=='sk' || p.team!==AI_TEAM || S.tut) return;
   var dc=Math.sign(toC-fromC), f=facingOf(p);
   if(!dc || dc!==-f.dc) return;
-  if(S.puckOwner!==p.id && Math.max(Math.abs(toC-fromC), Math.abs(toR-fromR))<BACK_MAX) return;
+  if(S.puckOwner!==p.id && Math.max(Math.abs(toC-fromC), Math.abs(toR-fromR))<AI_PIVOT_BACK) return;
   p.facing={dc:dc, dr:0};
   pushLog('<b>'+p.name+'</b> turns around.');
 }
@@ -3273,7 +3274,7 @@ function planActed(id){ if(!id || !S.planning || !S.atkPlan) return false;
 // v396 ACTION COMPOSEE (decision du concepteur) : un joueur dont la SEULE action est un patinage de
 // <= PLAY_SKATE_MAX cases (coude compris) peut y attacher UN jeu depuis sa case d'arrivee (passe, tir, feinte,
 // dump, cycle, protect...). Ce jeu est marque `att` et ne compte pas dans les PLAN_N actions.
-var PLAY_SKATE_MAX=3;
+var PLAY_SKATE_MAX=4;   // v624 (« Toutes +1 ») : etait 3
 function planSkateLen(a){ var p=byId(a.id); if(!p) return 99;
   if(a.path) return a.n||a.path.length;   // v408 courbe / v410 : part de ce tour
   if(a.viaC!=null && a.viaR!=null) return cheb(p,{c:a.viaC,r:a.viaR})+cheb({c:a.viaC,r:a.viaR},{c:a.toC,r:a.toR});
@@ -3774,11 +3775,11 @@ function gainPuck(team){ S._hitRecover=null;   /* v468 : le bonus du plaqueur ne
    tout plan d'IA en attente. S'il survit, la seule branche de secours du chien
    de garde quand l'IA a la rondelle (gardee par !S.aiPlan) refuse de relancer
    le jeu, et la partie gele definitivement. Verrouille par 18-gel-aiplan.mjs. */
-var MAX_STEP=5;   // grille 32x13 : proportionnel x1.68 (etait 3 en 19x9)
+var MAX_STEP=6;   // grille 32x13 : proportionnel x1.68 (etait 3 en 19x9) ; v624 (« Toutes +1 ») : 6 -- aussi la portee pour couper une passe
 function stepMax(p){ return (p && p.type==='g') ? 1 : MAX_STEP; }   // patineurs : 3 (perk Vitesse reste a 3). GARDIEN : 1 seule case -- il ne sort plus de sa crease chercher/geler une rondelle au fond (fini le filet desert) ; un dump dans le coin reste vivant.
 // ELAN / INERTIE (v378) : la portee de PATINAGE depend de l'elan mom (separe du speed tir/contact).
-function accelStep(p){ return ((p && p.acceleration100) || 55) >= 70 ? 3 : 2; }   // pas d'accel : 2 ou 3 (v416 : +1 pour tous, etait 1 ou 2 -- plus de mouvement, plus de tirs)
-function ceilingMom(p){ return ((p && p.spd) || 4) >= 5 ? 5 : 4; }                 // plafond de portee = vitesse de pointe (jamais > 5)
+function accelStep(p){ return ((p && p.acceleration100) || 55) >= 70 ? 4 : 3; }   // pas d'accel : 3 ou 4 (v416 : +1 pour tous, etait 1 ou 2 ; v624 : encore +1, « 1 case de plus de mouvement minimum a tout le monde »)
+function ceilingMom(p){ return ((p && p.spd) || 4) >= 5 ? 6 : 5; }                 // plafond de portee = vitesse de pointe (v624 : 5 ou 6, son choix « Max +1 aussi »)
 function moveBudget(p){ if(p && p.type==='g') return 1; var _b=Math.min(ceilingMom(p), ((p&&p.mom)||0) + accelStep(p)); return _b-stStep(p, _b); }   /* v559 : sonne, 1 case de moins */   // cases atteignables ce tour (TOUT DROIT : le max)
 // v384 LIGNE DE COURSE : l'elan garde depend de l'angle avec la direction du dernier deplacement (p.vel).
 // 0 ou 1 cran de 45 (tout droit / virage doux) = tout ; 2 crans (angle droit) = moitie ; 3-4 (serre / demi-tour) = rien.
@@ -3788,19 +3789,20 @@ function turnSteps(v, dc, dr){ if(!v || (!v.dc && !v.dr) || (!dc && !dr)) return
 function keptMom(mom, v, dc, dr){ var t=turnSteps(v,dc,dr); return t<=1 ? mom : (t===2 ? Math.floor(mom/2) : 0); }
 // v552 (le concepteur : « je ne veux pas qu'on patine toute la patinoire de reculons ») : a reculons (oppose a l'orientation),
 // 3 cases au plus par tour, meme lance ; de l'avant, rien ne change. Pour aller plus loin : pivoter (gratuit).
-var BACK_MAX=3;
+var BACK_MAX=4;   // v624 (« Toutes +1 ») : etait 3
 function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); _b=(p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; _b-=stStep(p, _b); return (p && S && S._huntSlow===p.id && _b>1) ? _b-1 : _b; }   /* v559 : sonne ; v560 : le chasseur seme par un plus rapide */
 function dirBudget0(p, dc, dr, st){ if(p && p.type==='g') return 1; var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
   if(p && turnSteps(v, dc, dr)>=3){ var _fo=facingOf(p);
     // v409 : RECUL FACE AU JEU -- il reculait en regardant le jeu (patin arriere) et remonte la ou il regarde :
     // arret-depart, pas un demi-tour -> il garde la moitie de son elan (comme un virage a 90 deg)
     if(turnSteps(_fo, v.dc, v.dr)>=3 && turnSteps(_fo, dc, dr)<=1) return Math.min(ceilingMom(p), Math.floor(m/2) + accelStep(p));
-    if(m>=BRAKE_MOM) return 1; }   // v408 : FREINAGE -- lance, un demi-tour en ligne droite = 1 case (il derape) ; pour garder l'elan : la COURBE
+    if(m>=BRAKE_MOM) return BRAKE_STEP; }   // v408 : FREINAGE -- lance, un demi-tour en ligne droite = BRAKE_STEP case(s) (il derape) ; pour garder l'elan : la COURBE
   return Math.min(ceilingMom(p), keptMom(m, v, dc, dr) + accelStep(p)); }
 // v408 : COURBE (virage serre) -- un joueur LANCE qui veut aller vers l'arriere peut tourner de 45 deg par case
 // (avant-cote, cote, arriere-cote, puis arriere) sans perdre son elan : il paie en detour, pas en vitesse.
 // Les arrivees proposees sont celles qu'il n'atteint PAS en ligne droite (derriere lui). Les deux equipes.
 var BRAKE_MOM=3;
+var BRAKE_STEP=2;   // v624 (« Toutes +1 ») : le derapage, 2 cases (etait 1)
 function curvePaths(p, fc, fr, st, busy){
   var out=[]; if(!p || p.type!=='sk') return out;
   if(fc==null){ fc=p.c; fr=p.r; }
@@ -11525,11 +11527,11 @@ var TUT_LESSONS=[
       skip:function(){ return !tutMapCan(); }, until:function(){ return !VZOOM; }},   // v460 : le zoom de la glace
     {say:"Whole ice! Tap the map again to zoom back in on the play. You can switch at any time.", hl:['b:vmap'], allow:['b:vmap'],
       skip:function(){ return !tutMapCan(); }, until:function(){ return VZOOM; }},
-    {say:"Tap Roy. Standing still, a player reaches 2 or 3 squares (Roy: 3). The lit squares show where he can go.", hl:['p:A_RO'], allow:['p:A_RO'], until:function(){ return S.sel==='A_RO'; }},
-    {say:"Move Roy to the square 3 ahead (tap it, or drag Roy there), then tap GO.", hl:['c:7,5','b:go'], allow:['c:7,5','r:A_RO','b:go'],
-      reject:function(){ return tutMovedWrong('A_RO',7,5); }, until:function(){ return tutBackToPlan(1); }},
-    {say:"He kept his speed: now he reaches 5 squares. Move Roy to the square 5 ahead (tap or drag), then GO.", hl:['p:A_RO','c:12,5','b:go'], allow:['p:A_RO','c:12,5','r:A_RO','b:go'],
-      reject:function(){ return tutMovedWrong('A_RO',12,5); }, until:function(){ return tutBackToPlan(2); }},
+    {say:"Tap Roy. Standing still, a player reaches 3 or 4 squares (Roy: 4). The lit squares show where he can go.", hl:['p:A_RO'], allow:['p:A_RO'], until:function(){ return S.sel==='A_RO'; }},   // v624 : +1 case (etait 2 ou 3)
+    {say:"Move Roy to the square 4 ahead (tap it, or drag Roy there), then tap GO.", hl:['c:8,5','b:go'], allow:['c:8,5','r:A_RO','b:go'],
+      reject:function(){ return tutMovedWrong('A_RO',8,5); }, until:function(){ return tutBackToPlan(1); }},
+    {say:"He kept his speed: now he reaches 6 squares. Move Roy to the square 6 ahead (tap or drag), then GO.", hl:['p:A_RO','c:14,5','b:go'], allow:['p:A_RO','c:14,5','r:A_RO','b:go'],
+      reject:function(){ return tutMovedWrong('A_RO',14,5); }, until:function(){ return tutBackToPlan(2); }},
     {say:"You can also draw a path: press on Roy and drag your finger, then tap GO. A sharp turn costs speed.", hl:['p:A_RO','b:go'], allow:['r:A_RO','b:go'], until:function(){ return tutBackToPlan(3) && S.tut.lastPath; }},
     {say:"A player who does not skate keeps gliding on his speed. Move only Belanger to the lit square, tap GO, and watch Roy glide.", hl:['p:A_BE','c:6,8','b:go'], allow:['p:A_BE','c:6,8','b:go'], until:function(){ return tutBackToPlan(4); }},
     {say:"See? Roy glided on his speed, then slowed down. A player who stops skating loses 2 of speed each plan. Now your turn.", next:true}
@@ -11539,7 +11541,7 @@ var TUT_LESSONS=[
     reset:function(){ tutPlace({A:[['A_RO',4,5,'AG'],['A_BE',4,8,'AD']], B:[], puck:'A_RO', mirror:false}); },
     check:function(){ var p=byId('A_RO'); return !!p && cheb(p,{c:21,r:2})<=1 && !S.currentSeq && !S.animating; },
     fail:function(){ return (S.tut.freePlans||0)>=4 && S.planning && !S.currentSeq; },
-    why:"Not there yet. Skate in straight lines to build speed: 3 squares, then 5. A turn of 90 degrees costs half your speed.",
+    why:"Not there yet. Skate in straight lines to build speed: 4 squares, then 6. A turn of 90 degrees costs half your speed.",
     won:"Speed builds up when you skate straight." } },
 { id:'plan', n:3, title:'The plan', blurb:'The mirror, ghosts, Undo, and a free play after a short skate.',
   setup:function(){ tutPlace({A:[['A_BO',11,5,'C'],['A_RO',11,2,'AG'],['A_BE',11,8,'AD']], B:[], puck:'A_BO', mirror:true}); },
@@ -11548,7 +11550,7 @@ var TUT_LESSONS=[
     {say:"The light figures are ghosts: where each player will be. One action per player: Roy has acted, and Belanger moved as his mirror.", next:true},
     {say:"Undo takes back the last action. Tap Undo.", hl:['b:undo'], allow:['b:undo'], until:function(){ return !S.atkPlan.length; }},
     {say:"Do it again: Roy to the lit square.", hl:['p:A_RO','c:13,2'], allow:['p:A_RO','c:13,2'], until:function(){ return tutPlanHas('A_RO','move'); }},
-    {say:"A player who skates 3 squares or less can still make one play, for free. Move Boucher to the lit square, then tap Roy's ghost to pass to him.", hl:['p:A_BO','c:13,5','c:13,2'], allow:['p:A_BO','c:13,5','c:13,2'], until:function(){ return tutPlanHas('A_BO','pass',function(a){ return a.att; }); }},
+    {say:"A player who skates 4 squares or less can still make one play, for free. Move Boucher to the lit square, then tap Roy's ghost to pass to him.", hl:['p:A_BO','c:13,5','c:13,2'], allow:['p:A_BO','c:13,5','c:13,2'], until:function(){ return tutPlanHas('A_BO','pass',function(a){ return a.att; }); }},
     {say:"Two actions moved all three forwards, and Boucher made a free pass. Tap GO.", hl:['b:go'], allow:['b:go'], until:function(){ return tutBackToPlan(1); }},
     {say:"All three forwards crossed the red line, and Roy has the puck. Two actions did it: the mirror and the free pass. Now your turn.", next:true}
   ],
@@ -11556,7 +11558,7 @@ var TUT_LESSONS=[
     reset:function(){ tutPlace({A:[['A_BO',11,5,'C'],['A_RO',11,2,'AG'],['A_BE',11,8,'AD']], B:[], puck:'A_BO', mirror:true}); },
     check:function(){ return (S.tut.freePlans||0)>=1 && !S.currentSeq && !S.animating && S.tut.lastCount<=2 && ['A_BO','A_RO','A_BE'].every(function(id){ return byId(id).c>=13; }); },
     fail:function(){ return (S.tut.freePlans||0)>=1 && S.planning && !S.currentSeq; },
-    why:function(){ return S.tut.lastCount>2 ? "You used 3 actions. Move one winger: the mirror moves the other one for free." : "Not all three crossed the red line. From a stop, a player skates 2 or 3 squares."; },
+    why:function(){ return S.tut.lastCount>2 ? "You used 3 actions. Move one winger: the mirror moves the other one for free." : "Not all three crossed the red line. From a stop, a player skates 3 or 4 squares."; },
     won:"The mirror moves two players with one action." } },
 { id:'pass', n:4, title:'Pass', blurb:'Read the % before you pass. Call for the puck in stride.',
   setup:function(){ tutPlace({A:[['A_BE',9,5,'C'],['A_RO',12,2,'AG'],['A_BO',12,8,'AD']], B:[['B_PA',11,7]], puck:'A_BE', mirror:false}); },
@@ -11662,7 +11664,7 @@ var TUT_LESSONS=[
   steps:[
     {say:"In the zone, keep the puck moving. A cycle: pass to a teammate close by. He takes your spot and you curl behind him. Each cycle adds +10% to your next shot.", next:true},
     {say:"Tap Boucher, tap Cycle, then tap Savard.", hl:['p:A_BO','b:cycle','p:A_SA'], allow:['p:A_BO','b:cycle','p:A_SA'], until:function(){ return tutPlanHas('A_BO','cycle'); }},
-    {say:"Savard gets the puck on Boucher's spot (his ghost). Tap Savard, then the lit square in front of the net: 3 squares or less, so he can still shoot.", hl:['p:A_SA','c:22,5'], allow:['p:A_SA','c:22,5','r:A_SA'],
+    {say:"Savard gets the puck on Boucher's spot (his ghost). Tap Savard, then the lit square in front of the net: 4 squares or less, so he can still shoot.", hl:['p:A_SA','c:22,5'], allow:['p:A_SA','c:22,5','r:A_SA'],
       reject:function(){ return tutMovedWrong('A_SA',22,5); }, until:function(){ return tutMovedTo('A_SA',22,5); }},
     {say:"Tap SHOT, then GO.", hl:['b:shoot','b:go'], allow:['b:shoot','b:go'], until:function(){ return S.aiming==='A_SA'; }},
     {say:"Pick a corner. The cycle bonus is already in the %.", hl:['b:corner:BL','b:corner:BR','b:corner:5H','b:corner:TL','b:corner:TR'], allow:['b:corner:BL','b:corner:BR','b:corner:5H','b:corner:TL','b:corner:TR'],
