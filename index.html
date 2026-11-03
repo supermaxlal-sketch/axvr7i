@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v624</title>
+<title>Deck 3D v625</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -292,6 +292,11 @@
 .dslot{flex:1;min-width:54px;text-align:center;border:2px solid #2b4a6b;border-radius:7px;padding:5px 4px;cursor:pointer;background:#0e1e30;}
 .dslot.active{border-color:#ffd23e;box-shadow:0 0 0 2px rgba(255,210,62,.35);}
 .dslot.filled{background:#13355a;}
+.dlines{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0 0 10px;}   /* v625 : les boutons de ses lignes (carriere) */
+.dlines[hidden]{display:none;}
+.dline{flex:1 1 auto;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:2px solid #2b4a6b;border-radius:7px;padding:7px 8px;background:#0e1e30;color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer;}   /* la largeur suit le nom (16 lettres) ; trop long : une 2e rangee */
+.dline.on{border-color:#ffd23e;background:#13355a;box-shadow:0 0 0 2px rgba(255,210,62,.35);}
+.dline:disabled{opacity:.45;cursor:default;}
 .dslot.wait{border-style:dashed;}   /* v600 : le poste qui attend la fin de la penalite */
 .dslot .dslot-w{font-size:9px;font-weight:800;color:#ffb36b;}
 .dslot .dslot-r{font-size:10px;font-weight:900;color:#9fc3ea;}
@@ -359,6 +364,7 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .offbar .mbtn{margin:0;padding:10px 4px;font-size:13px;}
 .offbar .mbtn.play{grid-column:1/-1;font-size:17px;color:#06121f;background:linear-gradient(180deg,#ffe46b,#ffb000);border-color:#06121f;box-shadow:0 4px 0 #06121f;}
 .offbar .mbtn.play.half{grid-column:span 3;font-size:15px;}
+.offbar .offname{grid-column:span 2;min-width:0;padding:8px 10px;font-size:16px;border-radius:10px;border:2px solid #06121f;background:#fffdf4;color:#16181d;}   /* v625 : le nom d'une ligne (16px : le telephone ne zoome pas) */
 .offbar .mbtn.play.one{grid-column:auto;font-size:14px;}   /* v612 : Sign, entre ‹ et › (le Rolodex) */   /* v611 : l'alignement -- ▶ Play et ‹ Back sur une ligne (le tableau de l'equipe est grand) */
 .offbar .mbtn[data-n]{position:relative;}
 .offbar .mbtn[data-n]::after{content:attr(data-n);position:absolute;top:-8px;right:-6px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:#ffd23e;color:#06121f;font-size:12px;line-height:20px;box-shadow:0 2px 0 #06121f;}   /* v611 : les aimants dores (points a placer) */
@@ -1061,7 +1067,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov whistle" id="whistleOverlay"><div class="wcard"><div class="wicon" id="wIcon">⛔</div><div class="wbig" id="wBig">OFFSIDE</div><div class="wsub" id="wSub">Neutral zone faceoff</div></div></div>
 
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
-<div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
+<div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dlines" id="draftLines" hidden></div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
 <div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm dauto" id="soPickHelp">❔ Moves</button><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
 <div class="ov draft" id="soHelp"><div class="dcard"><div class="dtitle">🥅 Shootout moves</div><div class="dsub">Your turn: <b>draw your shooter's path</b> on the ice — slide your finger from him (or tap where he stops: a straight line). He skates it at the speed you drew it.</div><div class="sohelp-list"><div><b>Where the path ends</b> is where you shoot or deke: 3-4 squares from the net is best. Farther: the goalie has not moved. 2 squares: he may poke the puck away.</div><div><b>Shoot</b>: tap a corner (the buttons, or the targets on the net).</div><div><b>Deke</b>: tap one of the 8 moves — forehand–backhand, backhand–forehand, fake shot, Datsyuk, Forsberg, Nielsen, Kane, between the legs. Each shows its chance.</div><div><b>Kane</b> likes a slow approach: draw your path slowly.</div></div><div class="dsub">The same move twice: the goalie reads it.</div><button class="dconfirm" id="soHelpOk">Got it</button></div></div>
 <!-- v541 : hors de la patinoire (en 3D, la patinoire est tournee et le canevas 3D la recouvre) -->
@@ -1349,7 +1355,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v624';
+var GAME_VERSION='v625';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7776,11 +7782,11 @@ function ambStop(){ if(!AMB) return; var a=AMB; AMB=null; if(a.timer) clearInter
   try{ var t=AC?AC.currentTime:0; a.g.gain.cancelScheduledValues(t); a.g.gain.setValueAtTime(Math.max(0.0002,a.g.gain.value||0.01),t); a.g.gain.exponentialRampToValueAtTime(0.0001,t+0.6); }catch(e){}
   setTimeout(function(){ try{ a.src.stop(); }catch(e){} }, 700); }
 function teamSkaters(team){ var a=[]; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk'&&q.team===team) a.push(q); } return a; }
-function availFor(team){ var u=S.draftUsed[team]||{}, ok=teamSkaters(team).filter(function(p){ return !p.vacant && !penInBox(p.id) && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[p.id]); }), av=ok.filter(function(p){ return !u[p.id]; });
-  if(CAREER_MATCH) [['F', 3], ['D', 2]].forEach(function(x){ if(av.filter(function(p){ return p.pos===x[0]; }).length>=x[1]) return;   // v489 : il manque des joueurs frais -> ceux qui ont joue (2e periode, fatigues)
+function availFor(team){ var u=S.draftUsed[team]||{}, ok=teamSkaters(team).filter(function(p){ return !p.vacant && !penInBox(p.id) && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[p.id]); }), av=S.otDraft ? ok.slice() : ok.filter(function(p){ return !u[p.id]; });   // v625 : la prolongation -- tous les joueurs du match (sauf blesses et punis)
+  if(CAREER_MATCH && !S.otDraft) [['F', 3], ['D', 2]].forEach(function(x){ if(av.filter(function(p){ return p.pos===x[0]; }).length>=x[1]) return;   // v489 : il manque des joueurs frais -> ceux qui ont joue (2e periode, fatigues)
     ok.forEach(function(p){ if(p.pos===x[0] && u[p.id]) av.push(p); }); });
   return av; }
-function draftFreshFirst(team, best){ var u=S.draftUsed[team]||{}; return function(a, b){ var ua=u[a.id]?1:0, ub=u[b.id]?1:0; return (ua-ub) || (ua ? careerLiveEn(b)-careerLiveEn(a) : best(a, b)); }; }   // v489 : les frais d'abord, puis les plus frais
+function draftFreshFirst(team, best){ var u=S.otDraft ? {} : (S.draftUsed[team]||{}); return function(a, b){ var ua=u[a.id]?1:0, ub=u[b.id]?1:0; return (ua-ub) || (ua ? careerLiveEn(b)-careerLiveEn(a) : best(a, b)); }; }   // v489 : les frais d'abord, puis les plus frais
 function aiDraft(team){
   var av=availFor(team);
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(draftFreshFirst(team, function(a,b){return (b.off+b.pass)-(a.off+a.pass);}));
@@ -7843,11 +7849,34 @@ function draftSlotsForType(pos){ return pos==='D' ? DRAFT_DSLOTS : DRAFT_FSLOTS;
 function draftRoleOf(id){ for(var r in S.draftRoles){ if(S.draftRoles[r]===id) return r; } return null; }
 function draftWaits(r){ return penWaitSlots(HUMAN_TEAM).indexOf(r)>=0; }   // v600 : « After the penalty »
 function openDraft(dotC,dotR){
-  S.draftCtx={dotC:dotC,dotR:dotR}; S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; S.draftActiveSlot=null;
-  document.getElementById('draftTitle').textContent='Period '+S.period+' — your lineup';
-  renderDraftCards();
+  S.draftCtx={dotC:dotC,dotR:dotR}; S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; S.draftActiveSlot=null; S.draftLine=null;
+  document.getElementById('draftTitle').textContent=S.otDraft ? 'Overtime — your lineup' : 'Period '+S.period+' — your lineup';
+  draftLinesInit(); if(S.lines) draftApplyLine(draftNextLine()); else renderDraftCards();   // v625 : sa prochaine ligne deja en place
+  var _dc=document.querySelector('#draftOverlay .dcard'); if(_dc) _dc.scrollTop=0;   // v625 : l'ecran s'ouvre en haut (ses lignes), pas ou Confirm l'a laisse
   document.getElementById('draftOverlay').classList.add('show'); tipTrigger('draft'); tipFlush();   // v456
 }
+// v625 : LES LIGNES DU BUREAU EN MATCH (ses choix : la prochaine ligne pas encore jouee est deja en place ; les boutons de ses lignes ;
+// une ligne jouee est grisee ; un joueur qui ne peut pas jouer -> le reserviste, sinon le meilleur disponible du poste). S.otDraft (son
+// choix : un ecran avant la prolongation, tous les joueurs du match, l'IA aussi).
+function draftLinesInit(){ if(S.lines || !CAREER_MATCH || !CAREER || S.tut) return; var T=CAREER.teams[CAREER_MATCH.my]; if(!T || !T.lines) return;
+  S.lines={names:T.lines.names.slice(), s:T.lines.s.map(function(a){ return a.slice(); }), x:T.lines.x}; S.linesPlayed=[false, false, false]; }
+function draftPieceOfUid(uid){ if(uid==null) return null; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.team===HUMAN_TEAM && q.type==='sk' && q.uid===uid && !q.vacant) return q; } return null; }
+function draftNextLine(){ if(S.otDraft) return 3; for(var i=0;i<3;i++){ if(!S.linesPlayed[i]) return i; } return 0; }
+function draftApplyLine(i){
+  var av=availFor(HUMAN_TEAM), u=S.otDraft ? {} : (S.draftUsed[HUMAN_TEAM]||{}), taken={}, roles=DRAFT_FSLOTS.concat(DRAFT_DSLOTS);
+  var ok=function(q, pos){ return !!q && q.pos===pos && av.indexOf(q)>=0 && !taken[q.id]; };
+  S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; S.draftActiveSlot=null; S.draftLine=i;
+  roles.forEach(function(r, k){ var pos=LINE_POS[k], q=draftPieceOfUid(S.lines.s[i][k]);
+    if(!ok(q, pos) || u[q.id]) q=null;                                                  // deja joue, blesse, puni : remplace
+    if(!q){ var x=draftPieceOfUid(S.lines.x); if(ok(x, pos) && !u[x.id]) q=x; }         // le reserviste
+    if(!q) q=av.filter(function(p){ return ok(p, pos); }).sort(draftFreshFirst(HUMAN_TEAM, function(a, b){ return overall(b)-overall(a); }))[0]||null;
+    if(q){ S.draftRoles[r]=q.id; taken[q.id]=1; } });
+  renderDraftCards(); }
+function renderDraftLines(){ var el=document.getElementById('draftLines'); if(!el) return;
+  if(!S.lines){ el.innerHTML=''; el.hidden=true; return; } el.hidden=false;
+  el.innerHTML=(S.otDraft ? [3, 0, 1, 2] : [0, 1, 2]).map(function(i){ var used=!S.otDraft && S.linesPlayed[i];
+    return '<button type="button" class="dline'+(S.draftLine===i ? ' on' : '')+'" data-line="'+i+'"'+(used ? ' disabled' : '')+'>'+careerEsc(S.lines.names[i])+(used ? ' · played' : '')+'</button>'; }).join('');
+  var bs=el.querySelectorAll('.dline'); for(var b=0;b<bs.length;b++){ (function(x){ x.onclick=function(){ draftApplyLine(+x.getAttribute('data-line')); }; })(bs[b]); } }
 function draftSlotTap(role){
   if(S.draftRoles[role]){ S.draftRoles[role]=null; S.draftActiveSlot=role; }   // taper un poste rempli le vide
   else { S.draftActiveSlot=(S.draftActiveSlot===role?null:role); }
@@ -7870,7 +7899,7 @@ function autoFillDraft(){
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(HUMAN_TEAM, function(a,b){return overall(b)-overall(a);}));
   var fs=DRAFT_FSLOTS, ds=DRAFT_DSLOTS;
   if(fwd.length<fs.length || def.length<ds.length) return;
-  S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; fs.forEach(function(r, i){ S.draftRoles[r]=fwd[i].id; }); ds.forEach(function(r, i){ S.draftRoles[r]=def[i].id; }); S.draftActiveSlot=null;
+  S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; fs.forEach(function(r, i){ S.draftRoles[r]=fwd[i].id; }); ds.forEach(function(r, i){ S.draftRoles[r]=def[i].id; }); S.draftActiveSlot=null; S.draftLine=null;   // v625 : plus une de ses lignes
   renderDraftCards();
 }
 // La carte de hockey d'un joueur (composition de la periode ; v604 : aussi l'ecran du remplacant d'un blesse, cls = sa classe en plus)
@@ -7889,7 +7918,7 @@ function draftCardHtml(p, cls){ var role=draftRoleOf(p.id), sel=!!role;
     + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+stTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
   + '</div>'; }
 function renderDraftCards(){
-  var order=['C','AG','AD','DG','DD'];
+  var order=['C','AG','AD','DG','DD']; renderDraftLines();
   document.getElementById('draftSlots').innerHTML = order.map(function(r){
     var id=S.draftRoles[r], nm=id?byId(id).name:'—';
     var wt=draftWaits(r);   // v600 : il attend la fin de la penalite au banc
@@ -7914,6 +7943,7 @@ function confirmDraft(){
   if(!order.every(function(r){ return !!S.draftRoles[r]; })) return;
   var pick=order.map(function(r){ return S.draftRoles[r]; });
   S.lineup[HUMAN_TEAM]=pick; for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[HUMAN_TEAM][pick[i]]=true; }
+  if(S.lines && !S.otDraft && S.draftLine!=null && S.draftLine<3) S.linesPlayed[S.draftLine]=true;   // v625 : cette ligne est jouee
   var other=HUMAN_TEAM==='A'?'B':'A'; S.lineup[other]=aiDraft(other);
   S.lineupPeriod=S.period; S.needDraft=false; deployLineup();
   document.getElementById('draftOverlay').classList.remove('show');
@@ -7996,7 +8026,8 @@ function endPeriod(){
     if(S.score.A!==S.score.B){ gameOver(S.score.A>S.score.B?'A':'B'); return; }
     if(S.overtime && !S.tut && !(CAREER_MATCH && CAREER_MATCH.po)){ shootoutStart(); return; }   // v536 : une seule prolongation, puis la fusillade (en series : jusqu'au but)
     var _wasOT=S.overtime; S.overtime=true; pushLog(_wasOT ? 'Overtime continues — still '+S.score.A+'–'+S.score.B+' !' : ('End of the 3rd — tied '+S.score.A+'–'+S.score.B+' ! OVERTIME: next goal wins.'));
-    endsSwap(); faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); return;   // v606 : la prolongation aussi change de cote
+    endsSwap(); if(!S.tut){ S.otDraft=true; S.needDraft=true; }   // v625 (son choix) : l'ecran d'alignement avant la prolongation, tous les joueurs du match
+    faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); return;   // v606 : la prolongation aussi change de cote
   }
   S.period++;
   S.coachPeriodUsed={A:false,B:false};   // le verrou "1 strategie/periode" se remet a zero
@@ -9599,13 +9630,58 @@ applyTeamLooks();   // au chargement : les Caribous en blanc (partie rapide)
 function careerPlayClick(){   // v517 : Play -> l'ecran Match lineup (pre-rempli une fois par match) ; un match sauvegarde se reprend tout de suite
   if(CAREER && !CAREER.teams[CAREER.my].coach){ careerGo('coach'); return; }
   if(matchSaveIsToday(matchSaveRead())){ careerStartMatch(); return; }
-  careerDressPrep(); careerGo('lineup'); }
-function careerDressPrep(){ var T=CAREER.teams[CAREER.my], tag=CAREER.season+'/'+CAREER.day+'/'+CAREER.phase;   // l'alignement pre-rempli une fois par match ; v611 : au bureau, des le hub (il est ecrit sur le tableau de l'equipe)
-  if(T.dressTag!==tag){ careerAutoDress(T); T.dressTag=tag; careerSave(); } }
-function careerDress(uid){ var T=CAREER.teams[CAREER.my], p=careerPlayerByUid(T, uid); if(!p || p.inj) return; p.rest=!p.rest; CAREER_MSG=''; careerSave(); careerRender(); }
-function careerLineupGo(){ var T=CAREER.teams[CAREER.my], tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), n=T.skaters.filter(function(p){ return !p.inj && !p.rest; }).length;
+  CAREER_LSEL=null; CAREER_LNAME=null; careerDressPrep(); careerGo('lineup'); }
+// v625 (sa demande : « Pouvoir preparer des lignes avant le match des presets, et pouvoir nomme la ligne pour s'en rappeler ... prevoir
+// aussi une ligne pour la prolongation » ; ses choix : 3 lignes + 1 de prolongation, au bureau dans ▶ Next game) : LES LIGNES DE LA
+// CARRIERE. T.lines = {names, s:[ligne 1, 2, 3, prolongation] (5 uid : C AG AD DG DD), x: le reserviste}. Les habilles = lignes 1-3 +
+// le reserviste (p.rest en decoule) ; la prolongation prend des habilles (un joueur y est en plus de sa ligne). Elles restent d'un
+// match a l'autre ; un blesse ou un parti laisse sa place au reserviste (bon poste), sinon au meilleur des gradins (son choix).
+var LINE_POS=['F','F','F','D','D'], LINE_ROLE=['C','LW','RW','LD','RD'], LINE_DEF=['Line 1','Line 2','Line 3','Overtime'], CAREER_LMSG='', CAREER_LFREE=[];
+function careerLuDressed(T, uid){ if(uid==null || !T.lines) return false; if(T.lines.x===uid) return true; for(var i=0;i<3;i++){ if(T.lines.s[i].indexOf(uid)>=0) return true; } return false; }
+function careerLinesBuild(T){   // la premiere fois : le choix d'aujourd'hui (careerDressKey), range en lignes ; la prolongation = la ligne 1
+  var ok=T.skaters.filter(function(p){ return !p.inj; }), F=ok.filter(function(p){ return p.pos==='F'; }).sort(careerDressKey), D=ok.filter(function(p){ return p.pos==='D'; }).sort(careerDressKey);
+  var s=[0,1,2].map(function(i){ return [F[3*i], F[3*i+1], F[3*i+2], D[2*i], D[2*i+1]].map(function(p){ return p ? p.uid : null; }); });
+  var x=ok.filter(function(p){ return s.every(function(a){ return a.indexOf(p.uid)<0; }); }).sort(careerDressKey)[0];
+  T.lines={names:LINE_DEF.slice(), s:s.concat([s[0].slice()]), x:x ? x.uid : null}; }
+function careerLinesEnsure(T){ if(!T.lines) careerLinesBuild(T); }
+function careerLinesSync(T){ T.skaters.forEach(function(p){ p.rest=!p.inj && !careerLuDressed(T, p.uid); }); }
+function careerLinesOut(T, uid){ for(var i=0;i<4;i++){ var k=T.lines.s[i].indexOf(uid); if(k>=0) T.lines.s[i][k]=null; } if(T.lines.x===uid) T.lines.x=null; }
+function careerLuGet(T, key){ if(key==='X') return T.lines.x; if(key.charAt(0)==='L'){ var a=key.slice(1).split('.'); return T.lines.s[+a[0]][+a[1]]; } if(key.charAt(0)==='S') return +key.slice(1); return null; }
+function careerLuSet(T, key, uid){ if(key==='X') T.lines.x=uid; else if(key.charAt(0)==='L'){ var a=key.slice(1).split('.'); T.lines.s[+a[0]][+a[1]]=uid; } }
+function careerLuNeed(key){ return key.charAt(0)==='L' ? LINE_POS[+key.split('.')[1]] : null; }
+function careerLuBad(T, u){ var q=u!=null ? careerPlayerByUid(T, u) : null; return !q || !!q.inj || T.skaters.indexOf(q)<0; }   // place libre : vide, blesse ou parti
+function careerLinesPlace(T, p, keys){   // une place libre de son poste (d'abord keys, puis lignes 1-3, puis le reserviste) ; false = aucune
+  var all=(keys||[]).concat(['L0', 'L1', 'L2'].reduce(function(a, l){ return a.concat([0, 1, 2, 3, 4].map(function(r){ return l+'.'+r; })); }, []), ['X']);
+  for(var k=0;k<all.length;k++){ var key=all[k], need=careerLuNeed(key);
+    if((!need || need===p.pos) && careerLuBad(T, careerLuGet(T, key))){ careerLuSet(T, key, p.uid); return true; } }
+  return false; }
+function careerLinesFix(T){   // idempotent : un blesse ou un parti laisse sa place ; une place de prolongation vide -> le meilleur habille du poste
+  var msgs=[], here=function(u){ return careerLuBad(T, u) ? null : careerPlayerByUid(T, u); };
+  var stands=function(pos){ return T.skaters.filter(function(p){ return !p.inj && (!pos || p.pos===pos) && !careerLuDressed(T, p.uid); }).sort(careerDressKey)[0]||null; };
+  var xGone=false;
+  if(T.lines.x!=null && !here(T.lines.x)){ T.lines.x=null; xGone=true; }
+  for(var i=0;i<3;i++) for(var r=0;r<5;r++){ var u=T.lines.s[i][r]; if(u!=null && here(u)) continue;   // une place vide aussi (un joueur parti, des blesses de retour)
+    var gone=u!=null ? careerPlayerByUid(T, u) : null, x=here(T.lines.x), nb=null; T.lines.s[i][r]=null;
+    if(x && x.pos===LINE_POS[r]){ nb=x; T.lines.x=null; xGone=true; } else nb=stands(LINE_POS[r]);
+    if(nb) T.lines.s[i][r]=nb.uid;
+    if(gone && nb) msgs.push(careerEsc(gone.name)+(gone.inj ? ' is injured' : ' is gone')+': '+careerEsc(nb.name)+' takes his spot on '+careerEsc(T.lines.names[i])+'.'); }
+  if(xGone && T.lines.x==null){ var nx=stands(null); if(nx) T.lines.x=nx.uid; }
+  for(var o=0;o<5;o++){ var ou=T.lines.s[3][o]; if(ou!=null && here(ou) && careerLuDressed(T, ou)) continue;
+    var cand=T.skaters.filter(function(p){ return !p.inj && p.pos===LINE_POS[o] && careerLuDressed(T, p.uid) && T.lines.s[3].indexOf(p.uid)<0; }).sort(function(a, b){ return overall(b)-overall(a); })[0];
+    T.lines.s[3][o]=cand ? cand.uid : null; }
+  return msgs; }
+function careerDressPrep(){ var T=CAREER.teams[CAREER.my], sig=function(){ return JSON.stringify([T.lines||null, T.skaters.map(function(p){ return !!p.rest; })]); }, s0=sig();   // v611 : au bureau, des le hub (le tableau le montre de la porte) ; v625 : les lignes (plus d'alignement refait a chaque match)
+  careerLinesEnsure(T); var m=careerLinesFix(T); if(m.length) CAREER_LMSG=m.join(' '); careerLinesSync(T);
+  if(sig()!==s0) careerSave(); }
+function careerDress(uid){ var T=CAREER.teams[CAREER.my], p=careerPlayerByUid(T, uid); if(!p || p.inj) return;   // v625 : habiller = une place libre de son poste dans les lignes ; aux gradins = hors des lignes
+  careerLinesEnsure(T);
+  if(careerLuDressed(T, uid)) careerLinesOut(T, uid);
+  else if(!careerLinesPlace(T, p)){ CAREER_MSG='No open spot: send a player to the stands first.'; careerRender(); return; }
+  careerLinesSync(T); CAREER_MSG=''; careerSave(); careerRender(); }
+function careerLineupGo(){ var T=CAREER.teams[CAREER.my]; careerLinesEnsure(T); careerLinesSync(T);
+  var tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), n=T.skaters.filter(function(p){ return !p.inj && !p.rest; }).length;
   if(n!==tgt){ CAREER_MSG='Dress exactly '+tgt+' players ('+n+' now).'; careerRender(); return; }
-  CAREER_MSG=''; careerStartMatch(); }
+  CAREER_MSG=''; CAREER_LMSG=''; CAREER_LSEL=null; careerStartMatch(); }
 // v556 (le moral et le momentum, morceau 2 : le moral entre les matchs ; choix du concepteur : l'equipe ET les joueurs, d'apres les
 // derniers resultats, vu au hub et au debut du match ; « juste en saison, pas en serie ») : le moral d'equipe = ses 5 derniers matchs
 // de saison (victoire +12, defaite en prolongation / fusillade -4, defaite -12 : -60..+60) ; un match de saison commence avec la jauge
@@ -10105,10 +10181,18 @@ function faJoin(c, T, p, slot){   // il signe : il quitte la banque, arrive repo
   var labs={}; T.skaters.concat(faGoalies(T)).forEach(function(q){ labs[q.label]=1; });
   p.label=faLabel(p.name, labs); delete p.look; delete p.fa; p.en=100; p.rest=false; p.mor=0; p.inj=null; p.rust=0; p.seq=null;
   if(p.pos==='G'){ if(slot==='goalie') T.goalie=p; else T.goalie2=p; }
+  else if(CAREER && T.key===CAREER.my && T.lines){ T.skaters.push(p);   // v625 : une place libre dans tes lignes (celle de celui qui part d'abord), sinon les gradins
+    var fk=CAREER_LFREE.concat(['L0', 'L1', 'L2'].reduce(function(a, l){ return a.concat([0, 1, 2, 3, 4].map(function(r){ return l+'.'+r; })); }, [])).filter(function(k){ return k!=='X' && careerLuBad(T, careerLuGet(T, k)); })[0];   // la place liberee, sinon une place vide ou d'un blesse
+    if(!careerLinesPlace(T, p, CAREER_LFREE) && fk){   // il part un avant (ou un avant est blesse), il signe un defenseur (ou l'inverse) : le nouveau est le reserviste ; le reserviste prend la place (son poste), sinon le meilleur des gradins
+      var ox=careerPlayerByUid(T, T.lines.x); T.lines.x=p.uid;
+      if(ox && ox.pos===careerLuNeed(fk)) careerLuSet(T, fk, ox.uid);
+      careerLinesFix(T); }
+    p.rest=!careerLuDressed(T, p.uid); CAREER_LFREE=[]; careerLinesSync(T); }
   else { p.rest=T.skaters.filter(function(q){ return !q.inj && !q.rest; }).length>=DRESS_N; T.skaters.push(p); } }   // v617 : 16 deja habilles -> il commence aux gradins (avant : 17/16)
 function faRelease(c, T, p){   // il part dans la banque
   if(p===T.goalie){ T.goalie=T.goalie2; T.goalie2=null; T.gStart=1; } else if(p===T.goalie2){ T.goalie2=null; T.gStart=1; }
-  else T.skaters=T.skaters.filter(function(q){ return q!==p; });
+  else { if(CAREER && T.key===CAREER.my && T.lines){ CAREER_LFREE=['L0', 'L1', 'L2'].reduce(function(a, l){ return a.concat([0, 1, 2, 3, 4].map(function(r){ return l+'.'+r; })); }, ['X']).filter(function(k){ return careerLuGet(T, k)===p.uid; }); careerLinesOut(T, p.uid); }   // v625 : ses places, pour celui qui signe
+    T.skaters=T.skaters.filter(function(q){ return q!==p; }); }
   if(T.goalie!==p && T.goalie2!==p && p.arret100!=null) p.pos='G';
   p.fa='released'; p.rest=false; (c.fa=c.fa||[]).push(p); }
 function faWeek(c){   // chaque semaine : 3 departs, 3 arrivees ; l'IA avec des blesses et une place signe le meilleur a la position
@@ -10756,10 +10840,117 @@ function offPaintLines(c){
       x.fillStyle=OFF_INK.green; x.textAlign='center'; x.font='bold 34px '+OFF_SANS; x.fillText('✓ LVL '+sl, 0, 13); x.restore(); } });
   offSend('lines', sig, o.cv); }
 function offLinesRoster(c){ offPaintLines(c); offNote('Tap a magnet to see the card of that player.'); }
-function offLinesLineup(c){   // ▶ Next game : l'alignement se fait sur le tableau (un aimant touche passe aux gradins, ou revient)
-  offPaintLines(c);
-  document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+(CAREER_MSG || 'Tap a magnet to dress or rest a player.');   // court : la bulle ne cache pas le titre du tableau
-  document.getElementById('offBar').innerHTML='<button class="mbtn play half" id="offLineupPlay" onclick="careerLineupGo()">▶ Play</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+// v625 (son choix) : ▶ NEXT GAME, LE TABLEAU EN RANGEES -- Line 1, 2, 3, Overtime (5 aimants : C LW RW LD RD), puis Extra et Goalies,
+// puis Stands. Toucher un aimant le prend (contour jaune) ; toucher une place ou un autre aimant : ils s'echangent ; toucher le nom
+// d'une ligne : le clavier, pour la nommer. Le meme calcul place les aimants pour peindre et pour toucher (offLineupLayout).
+var OFF_LU={w:148, h:84, sx:156, x0:12, hdr:118, top:128, ry:122, bot:616, st:744, sy:92, end:992}, CAREER_LSEL=null, CAREER_LNAME=null;
+function offLineupLayout(c){   // {spots:[{key, k:'L'|'X'|'G'|'S', li, ri, p, x, y}], names:[{i, x, y, w, h}]}
+  var T=c.teams[c.my], U=OFF_LU, spots=[], names=[]; careerLinesEnsure(T);
+  var pl=function(u){ return u!=null ? careerPlayerByUid(T, u) : null; };
+  for(var i=0;i<4;i++){ var y=U.top+i*U.ry; names.push({i:i, x:U.x0, y:y, w:800-2*U.x0, h:30});
+    for(var r=0;r<5;r++) spots.push({key:'L'+i+'.'+r, k:'L', li:i, ri:r, p:pl(T.lines.s[i][r]), x:U.x0+r*U.sx, y:y+32}); }
+  spots.push({key:'X', k:'X', p:pl(T.lines.x), x:U.x0, y:U.bot+32});
+  var cur=careerGoalieOf(T), G=[cur].concat([T.goalie, T.goalie2].filter(function(g){ return g && g!==cur; }));
+  G.forEach(function(g, k){ spots.push({key:'G'+(g===T.goalie ? 1 : 2), k:'G', p:g, x:U.x0+(3+k)*U.sx, y:U.bot+32}); });
+  var St=T.skaters.filter(function(p){ return !careerLuDressed(T, p.uid); }).sort(function(a, b){ return (!!a.inj - !!b.inj) || (overall(b)-overall(a)); });
+  var rows=Math.ceil(St.length/5), sy=rows>1 ? Math.min(U.sy, (U.end-U.h-U.st-32)/(rows-1)) : U.sy;   // beaucoup dans les gradins : les rangees se serrent
+  St.forEach(function(p, k){ spots.push({key:'S'+p.uid, k:'S', p:p, x:U.x0+(k%5)*U.sx, y:U.st+32+Math.floor(k/5)*sy}); });
+  return {spots:spots, names:names}; }
+function offLuMag(x, T, p, m, cur){ var U=OFF_LU, gold=careerWaits(T, p), body=gold ? '#e8b730' : T.colors[0], ink=offInk(body), e=careerEn(p);   // un aimant (comme offPaintLines, plus petit)
+  x.save(); x.shadowColor=gold ? 'rgba(255,200,40,0.9)' : 'rgba(0,0,0,0.35)'; x.shadowBlur=gold ? 18 : 6; x.shadowOffsetY=gold ? 0 : 4;
+  x.fillStyle=body; offRRect(x, m.x, m.y, U.w, U.h, 10); x.fill(); x.restore();
+  x.fillStyle='#fbfbf8'; x.fillRect(m.x+6, m.y+6, U.w-12, 34);
+  x.fillStyle='#16181d'; x.textAlign='center'; x.font='bold 26px '+OFF_MARKER; x.fillText(offSurname(p.name), m.x+U.w/2, m.y+32, U.w-18);
+  x.fillStyle=ink; x.textAlign='left'; x.font='bold 32px '+OFF_SANS; x.fillText(String(offRating(T, p)), m.x+10, m.y+76);
+  if(p.inj){ x.textAlign='right'; x.font='bold 24px '+OFF_SANS; x.fillText('Out '+p.inj.left, m.x+U.w-8, m.y+75);
+    x.fillStyle='#ffffff'; offRRect(x, m.x+U.w-32, m.y-10, 38, 38, 7); x.fill(); x.fillStyle='#d42a2a'; offRRect(x, m.x+U.w-29, m.y-7, 32, 32, 5); x.fill();
+    x.fillStyle='#ffffff'; x.fillRect(m.x+U.w-17, m.y-2, 8, 22); x.fillRect(m.x+U.w-24, m.y+5, 22, 8); }
+  else { x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(m.x+58, m.y+56, 40, 18);
+    x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(m.x+58, m.y+56, Math.round(40*e/100), 18);
+    x.fillStyle=ink; x.textAlign='right'; x.font='bold 22px '+OFF_SANS; x.fillText(String(e), m.x+U.w-6, m.y+74); }
+  if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+U.w/2, m.y+U.h/2, U.w/2+7, U.h/2+7, 0, 0, Math.PI*2); x.stroke(); } }
+function offPaintLineup(c){
+  var T=c.teams[c.my], Lo=offLineupLayout(c), U=OFF_LU, cur=careerGoalieOf(T), g=careerMyGame(c), sr=(c.phase==='playoffs') ? careerMySeries(c) : null;
+  var opp=g ? (g.home===c.my ? g.away : g.home) : (sr ? (sr.a===c.my ? sr.b : sr.a) : null), at=g ? (g.home===c.my ? 'vs ' : 'at ') : 'vs ';
+  var tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), dn=T.skaters.filter(function(p){ return !p.inj && !p.rest; }).length;
+  var sig='lu|'+c.my+'|'+T.colors.join()+'|'+(opp ? at+opp : '')+'|'+dn+'/'+tgt+'|'+T.lines.names.join('/')+'|'+CAREER_LSEL+'|'+Lo.spots.map(function(m){ var p=m.p;
+    return m.key+':'+(p ? p.uid+':'+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+(careerWaits(T, p) ? 'g' : '')+(p===cur ? 's' : '') : '-'); }).join(',');
+  if(OFF.paint.lines===sig) return;
+  var o=offCanvas(800, 1000); if(!o) return;
+  var x=o.x;
+  x.fillStyle='#f4f5f2'; x.fillRect(0, 0, 800, 1000);
+  x.fillStyle=T.colors[0]; x.fillRect(0, 0, 800, 18);
+  x.textBaseline='alphabetic'; x.textAlign='left'; x.fillStyle=OFF_INK.blue; x.font='bold 52px '+OFF_MARKER;
+  x.fillText(opp ? at+c.teams[opp].nick : 'Lines', 24, 84, 520);
+  x.textAlign='right'; x.font='bold 34px '+OFF_MARKER; x.fillStyle=(dn===tgt) ? OFF_INK.blue : OFF_INK.red; x.fillText('Dressed '+dn+'/'+tgt, 776, 80);
+  x.fillStyle='#8a8f98'; x.textAlign='center'; x.font='bold 20px '+OFF_SANS;
+  LINE_ROLE.forEach(function(r, k){ x.fillText(r, U.x0+k*U.sx+U.w/2, U.hdr); });   // les postes, une fois pour les 4 rangees
+  Lo.names.forEach(function(n){ x.fillStyle=n.i===3 ? OFF_INK.red : OFF_INK.blue; x.textAlign='left'; x.font='bold 28px '+OFF_MARKER;
+    x.fillText(T.lines.names[n.i]+'  ✎', n.x+2, n.y+26, 560); });
+  x.fillStyle=OFF_INK.blue; x.font='bold 28px '+OFF_MARKER; x.textAlign='left';
+  x.fillText('Extra', U.x0+2, U.bot+26); x.fillText('Goalies', U.x0+3*U.sx+2, U.bot+26); x.fillText('Stands', U.x0+2, U.st+26);
+  x.strokeStyle='#c9ccd2'; x.lineWidth=2; x.beginPath(); x.moveTo(U.x0, U.bot-6); x.lineTo(800-U.x0, U.bot-6); x.moveTo(U.x0, U.st-6); x.lineTo(800-U.x0, U.st-6); x.stroke();
+  Lo.spots.forEach(function(m){
+    if(m.p) offLuMag(x, T, m.p, m, cur);
+    else { x.save(); x.strokeStyle='#9aa0aa'; x.lineWidth=3; if(x.setLineDash) x.setLineDash([10, 8]); offRRect(x, m.x+2, m.y+2, U.w-4, U.h-4, 10); x.stroke(); x.restore();
+      x.fillStyle='#9aa0aa'; x.textAlign='center'; x.font='bold 30px '+OFF_SANS; x.fillText(m.k==='L' ? LINE_ROLE[m.ri] : 'F / D', m.x+U.w/2, m.y+U.h/2+11); }
+    if(CAREER_LSEL===m.key){ x.save(); x.strokeStyle='#ffc400'; x.lineWidth=7; offRRect(x, m.x-5, m.y-5, U.w+10, U.h+10, 14); x.stroke(); x.restore(); } });
+  offSend('lines', sig, o.cv); }
+function offLinesLineup(c){   // ▶ Next game : les lignes sur le tableau (v625) ; en bas ▶ Play et ‹ Back, ou le nom d'une ligne
+  var T=c.teams[c.my]; careerLinesEnsure(T); offPaintLineup(c);
+  var sayEl=document.getElementById('offSay'), bar=document.getElementById('offBar');
+  if(CAREER_LNAME!=null){
+    sayEl.innerHTML='<div class="who">COACH</div>Name of this line:';
+    bar.innerHTML='<input id="offLineName" class="offname" type="text" maxlength="16" autocomplete="off" value="'+careerEsc(T.lines.names[CAREER_LNAME])+'"><button class="mbtn sm" id="offLineNameOk" onclick="careerLineNameOk()">OK</button><button class="mbtn sm" onclick="careerLineNameCancel()">Cancel</button>';
+    var f=document.getElementById('offLineName'); if(f) f.onkeydown=function(ev){ if(ev.key==='Enter') careerLineNameOk(); };
+    return; }
+  var su=CAREER_LSEL!=null ? careerLuGet(T, CAREER_LSEL) : null, sp=su!=null ? careerPlayerByUid(T, su) : null;
+  var say=CAREER_MSG || CAREER_LMSG || (CAREER_LSEL!=null ? (sp ? '<b>'+careerEsc(sp.name)+'</b>: tap a spot.' : 'Tap a player for this spot.') : 'Tap a magnet, then a spot. Tap a line name to rename it.');
+  sayEl.innerHTML='<div class="who">COACH</div>'+say;   // court : la bulle ne cache pas le titre du tableau
+  bar.innerHTML='<button class="mbtn play half" id="offLineupPlay" onclick="careerLineupGo()">▶ Play</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+function offTapLineup(ix, iy){ var c=CAREER, U=OFF_LU, Lo=offLineupLayout(c), hit=null;
+  if(CAREER_LNAME!=null) return;   // on nomme une ligne : le tableau attend
+  Lo.names.forEach(function(n){ if(ix>=n.x && ix<=n.x+n.w && iy>=n.y && iy<=n.y+n.h) hit=n; });
+  if(hit){ careerLineNameOpen(hit.i); return; }
+  Lo.spots.forEach(function(m){ if(ix>=m.x && ix<=m.x+U.w && iy>=m.y && iy<=m.y+U.h) hit=m; });
+  if(hit) careerLinesTap(hit.key); }
+function careerLinesTap(key){ var T=CAREER.teams[CAREER.my]; CAREER_MSG=''; CAREER_LMSG='';
+  if(key.charAt(0)==='G'){ CAREER_LSEL=null; var g=careerPlayerByUid(T, careerGoalieUid(T, +key.slice(1)));
+    if(g && g.inj){ CAREER_MSG=careerEsc(g.name)+' is injured: out '+g.inj.left+' game'+(g.inj.left>1?'s':'')+'.'; careerRender(); return; }
+    careerSetGoalie(+key.slice(1)); return; }
+  if(CAREER_LSEL==null || CAREER_LSEL===key){ CAREER_LSEL=(CAREER_LSEL===key) ? null : key; careerRender(); return; }
+  var msg=careerLinesMove(T, CAREER_LSEL, key); CAREER_LSEL=null;
+  if(msg){ CAREER_MSG=msg; careerRender(); return; }
+  careerLinesSync(T); careerSave(); careerRender(); }
+function careerGoalieUid(T, n){ var g=n===2 ? T.goalie2 : T.goalie; return g ? g.uid : null; }
+function careerLinesMove(T, a, b){   // la place prise (a) et la place touchee (b) : '' = fait, sinon ce que dit le coach
+  var ua=careerLuGet(T, a), ub=careerLuGet(T, b), pa=ua!=null ? careerPlayerByUid(T, ua) : null, pb=ub!=null ? careerPlayerByUid(T, ub) : null;
+  var injMsg=function(p){ return careerEsc(p.name)+' is injured: out '+p.inj.left+' game'+(p.inj.left>1?'s':'')+'.'; };
+  var posMsg=function(p){ return p.pos==='F' ? 'A forward plays C, LW or RW.' : 'A defenseman plays LD or RD.'; };
+  var ot=function(k){ return k.charAt(0)==='L' && k.charAt(1)==='3'; };
+  if(ot(a) && ot(b)){ careerLuSet(T, a, ub); careerLuSet(T, b, ua); return ''; }   // dans la prolongation : ils echangent
+  if(ot(a) || ot(b)){   // la prolongation : un habille, en plus de sa ligne (deja en prolongation ailleurs : ils echangent)
+    var dst=ot(a) ? a : b, u=ot(a) ? ub : ua, p=ot(a) ? pb : pa;
+    if(!p) return 'Tap a player.';
+    if(!careerLuDressed(T, u)) return 'Overtime: pick a dressed player.';
+    if(p.pos!==careerLuNeed(dst)) return posMsg(p);
+    var di=+dst.split('.')[1], j=T.lines.s[3].indexOf(u); if(j>=0 && j!==di) T.lines.s[3][j]=T.lines.s[3][di];
+    T.lines.s[3][di]=u; return ''; }
+  var sa=a.charAt(0)==='S', sb=b.charAt(0)==='S';
+  if(sa && sb) return '';
+  if(pa && pa.inj && !sb) return injMsg(pa);
+  if(pb && pb.inj && !sa) return injMsg(pb);
+  var na=careerLuNeed(a), nb=careerLuNeed(b);
+  if(pa && nb && pa.pos!==nb) return posMsg(pa);
+  if(pb && na && pb.pos!==na) return posMsg(pb);
+  if(!sa) careerLuSet(T, a, ub); if(!sb) careerLuSet(T, b, ua);   // l'echange (les gradins = hors des lignes)
+  [ua, ub].forEach(function(u2){ if(u2!=null && !careerLuDressed(T, u2)){ var k=T.lines.s[3].indexOf(u2); if(k>=0) T.lines.s[3][k]=null; } });   // aux gradins : il quitte aussi la prolongation
+  return ''; }
+function careerLineNameOpen(i){ CAREER_LSEL=null; CAREER_LNAME=i; CAREER_MSG=''; CAREER_LMSG=''; careerRender();
+  var f=document.getElementById('offLineName'); if(f){ try{ f.focus(); f.select(); }catch(e){} } }
+function careerLineNameOk(){ var T=CAREER.teams[CAREER.my], i=CAREER_LNAME, f=document.getElementById('offLineName'); if(i==null) return;
+  var v=f ? String(f.value).replace(/\s+/g, ' ').trim().slice(0, 16) : ''; T.lines.names[i]=v || LINE_DEF[i]; CAREER_LNAME=null; careerSave(); careerRender(); }
+function careerLineNameCancel(){ CAREER_LNAME=null; careerRender(); }
 // v611 : TOUCHER L'OBJET. La 3D donne les 4 coins de la surface a l'ecran (hj3d.office, pixels de la vue) ; un toucher sur le
 // bureau revient a un point (u, v) de la surface (l'inverse de la projection), puis a l'aimant ou au +1 qui y est dessine.
 function offUnquad(q, x, y){   // le point (x, y) de la vue -> [u, v] sur la surface (0..1, du haut-gauche) ; dehors : null
@@ -10793,13 +10984,10 @@ function offTapSheet(ix, iy){   // v612 (son choix) : un nom de la feuille -> sa
   offPaintCard(c, p);   // ecrite avant de sortir de la feuille
   offGo('card', function(){ careerGo('player', true); }, ':'+(150/S0.w).toFixed(3)+':'+((hit.y-6)/S0.h).toFixed(3)+':sheet'); }
 function offTapLines(ix, iy){ var c=CAREER, T=c.teams[c.my], M=OFF_MAG, hit=null;
+  if(CAREER_VIEW==='lineup'){ offTapLineup(ix, iy); return; }   // v625 : le tableau en rangees
   offLinesLayout(c).forEach(function(m){ if(ix>=m.x && ix<=m.x+M.w && iy>=m.y && iy<=m.y+M.h) hit=m; });   // le dernier dessine est dessus
   if(!hit) return;
   var p=hit.p;
-  if(CAREER_VIEW==='lineup'){
-    if(p.inj){ CAREER_MSG=careerEsc(p.name)+' is injured: out '+p.inj.left+' game'+(p.inj.left>1?'s':'')+'.'; careerRender(); return; }
-    if(hit.k==='G') careerSetGoalie(p===T.goalie ? 1 : 2); else careerDress(p.uid);
-    return; }
   if(CAREER_VIEW==='farelease'){ var np=faFind(c, CAREER_FA_PICK), isG=!!np && np.pos==='G';   // v612 : l'equipe est pleine -- l'aimant de celui qui part
     if(isG!==(hit.k==='G')){ CAREER_MSG=isG ? 'Tap a goalie.' : 'Tap a skater.'; careerRender(); return; }
     CAREER_MSG=''; CAREER_REL=p.uid; careerRender(); return; }
