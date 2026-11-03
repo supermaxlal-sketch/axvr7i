@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v625</title>
+<title>Deck 3D v626</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -247,6 +247,8 @@
 .dcp-role{display:inline-block;font-size:9px;font-weight:900;color:#fff;background:#2b6cb0;border-radius:4px;padding:1px 5px;margin-right:5px;}
 .dcp-hand{display:inline-block;font-size:9px;font-weight:900;border-radius:4px;padding:1px 5px;margin-right:5px;color:#0c1a2b;}
 .dcp-hand.lh{background:#f2b84b;} .dcp-hand.rh{background:#8fb8e6;}
+.dcp-spot{display:inline-block;font-size:9px;font-weight:900;border-radius:4px;padding:1px 5px;margin-right:5px;background:#e8eef6;color:#0c1a2b;}
+.dcp-spot.off{background:#f08a1c;color:#fff;}
 .dcp-arch{display:inline-block;font-size:9px;font-weight:800;color:#0c1a2b;background:#7fd1d1;border-radius:4px;padding:1px 6px;margin-top:3px;}
 /* --- carte de hockey (draft) --- */
 .dcardp.hcard{width:172px;min-width:172px;padding:0;overflow:hidden;background:linear-gradient(165deg,#17293c 0%,#0d1a29 100%);border:2px solid #26435f;border-radius:11px;box-shadow:0 3px 9px rgba(0,0,0,.4);}
@@ -301,6 +303,7 @@
 .dslot .dslot-w{font-size:9px;font-weight:800;color:#ffb36b;}
 .dslot .dslot-r{font-size:10px;font-weight:900;color:#9fc3ea;}
 .dslot .dslot-p{font-size:10px;color:#fff;margin-top:2px;min-height:12px;}
+.dslot .dslot-s{font-weight:900;color:#9fc3ea;} .dslot .dslot-s.off{color:#f08a1c;}
 .dconfirm{display:block;width:100%;background:#1f8a8a;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:14px;cursor:pointer;margin-top:4px;}
 .dconfirm.dauto{background:#2b6cb0;}
 /* --- menu principal / settings --- */
@@ -1355,7 +1358,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v625';
+var GAME_VERSION='v626';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1954,7 +1957,7 @@ function deriveLegacy(p){
     if(typeof p.arret100==='number') p.arret = q(p.arret100);
   }
 }
-function applyPerks(arr){ for(var i=0;i<arr.length;i++){ if(arr[i].type==='sk'){ arr[i].perk=PERKS[arr[i].id]||null; arr[i].pos=POS[arr[i].id]||'F'; } deriveLegacy(arr[i]); } careerSkin(arr); return arr; }   // v483 : match de carriere
+function applyPerks(arr){ for(var i=0;i<arr.length;i++){ if(arr[i].type==='sk'){ arr[i].perk=PERKS[arr[i].id]||null; arr[i].pos=POS[arr[i].id]||'F'; } deriveLegacy(arr[i]); } ['A', 'B'].forEach(function(t){ spotTeam(arr.filter(function(q){ return q.team===t && q.type==='sk'; })); }); careerSkin(arr); return arr; }   // v483 : match de carriere
 // Cote globale /100 ponderee par poste (attaquant : tir/passe pesent plus ; defenseur : defense/physique).
 function overall(p){
   var w = (p.pos==='D')
@@ -7908,19 +7911,20 @@ function draftCardHtml(p, cls){ var role=draftRoleOf(p.id), sel=!!role;
   function bar(lbl,v){ return '<div class="dcard-bar"><i class="bl">'+lbl+'</i><i class="trk"><i class="fil t-'+attrTier(v)+'" style="width:'+Math.max(5,Math.min(100,v))+'%"></i></i><i class="bv">'+v+'</i></div>'; }
   var roleLbl = sel ? ('<span class="dcp-role">'+role+'</span>') : '';
   var pk=p.perk?('<span class="dcp-perk">'+PERK_INFO[p.perk].n+'</span>'):'';
+  var sp='<span class="dcp-spot'+(role && role!==spotOf(p) ? ' off' : '')+'">'+SPOT_SHORT[spotOf(p)]+'</span>';   // v626 : sa position (orange s'il est place hors poste), sous le nom
   var hd='<span class="dcp-hand '+(p.hand==='G'?'lh':'rh')+'">'+(p.hand==='G'?'L':'R')+'</span>';
   var ai=ARCH_INFO[p.archetype]||{n:(p.archetype||''),e:''};
   return '<div class="dcardp hcard '+p.team+(sel?' sel':'')+(cls?' '+cls:'')+'" data-pid="'+p.id+'">'
     + '<div class="dcard-hd"><span class="dcp-ovr">'+overall(p)+'</span>'
       + '<span class="dcard-id"><span class="dcp-name">'+roleLbl+hd+p.name+'</span>'
-      + '<span class="dcp-arch">'+ai.e+' '+ai.n+'</span></span></div>'
+      + '<span class="dcp-arch">'+sp+ai.e+' '+ai.n+'</span></span></div>'
     + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
     + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+stTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
   + '</div>'; }
 function renderDraftCards(){
   var order=['C','AG','AD','DG','DD']; renderDraftLines();
   document.getElementById('draftSlots').innerHTML = order.map(function(r){
-    var id=S.draftRoles[r], nm=id?byId(id).name:'—';
+    var id=S.draftRoles[r], sp=id ? spotOf(byId(id)) : null, nm=id ? '<span class="dslot-s'+(sp!==r ? ' off' : '')+'">'+SPOT_SHORT[sp]+'</span> '+byId(id).name : '—';   // v626 : la position du joueur place
     var wt=draftWaits(r);   // v600 : il attend la fin de la penalite au banc
     return '<div class="dslot'+(wt?' wait':'')+(S.draftActiveSlot===r?' active':'')+(id?' filled':'')+'" data-slot="'+r+'"><div class="dslot-r">'+DRAFT_SLOTLBL[r]+'</div><div class="dslot-p">'+nm+'</div>'+(wt?'<div class="dslot-w">After the penalty</div>':'')+'</div>';
   }).join('');
@@ -9553,7 +9557,7 @@ function careerSkin(arr){   // match de carriere : chaque joueur prend une place
       for(var i=0;i<slots.length;i++){ var q=slots[i], p=pl[i];
         if(!p){ q.vacant=true; q.onIce=false; q.name='—'; q.label='—'; q.uid=null; continue; }   // v489 : place vide -- un joueur du banc jouera 2 periodes
         q.name=p.name; q.label=p.label; q.tir=p.tir; q.passe=p.passe; q.vitesse=p.vitesse; q.physique=p.physique; q.defense=p.defense; q.maniement=p.maniement;
-        q.size=p.size; q.cm=p.cm; q.hand=p.hand; q.archetype=p.archetype; q.perk=p.perk||null; q.perk2=p.perk2||null; q.uid=p.uid; q.look=p.look; delete q.acceleration100; deriveLegacy(q); } });
+        q.size=p.size; q.cm=p.cm; q.hand=p.hand; q.archetype=p.archetype; q.perk=p.perk||null; q.perk2=p.perk2||null; q.uid=p.uid; q.spot=spotOf(p); q.look=p.look; delete q.acceleration100; deriveLegacy(q); } });
     var g=arr.filter(function(q){ return q.team===team && q.type==='g'; })[0], G=careerGoalieOf(T);   // v489 : le gardien partant
     if(g){ g.name=G.name; g.label=G.label; g.arret100=G.arret100; g.couverture100=G.couverture100; g.size=G.size; g.cm=G.cm; g.hand=G.hand; g.uid=G.uid; g.look=G.look; deriveLegacy(g); } });
 }
@@ -9636,6 +9640,16 @@ function careerPlayClick(){   // v517 : Play -> l'ecran Match lineup (pre-rempli
 // CARRIERE. T.lines = {names, s:[ligne 1, 2, 3, prolongation] (5 uid : C AG AD DG DD), x: le reserviste}. Les habilles = lignes 1-3 +
 // le reserviste (p.rest en decoule) ; la prolongation prend des habilles (un joueur y est en plus de sa ligne). Elles restent d'un
 // match a l'autre ; un blesse ou un parti laisse sa place au reserviste (bon poste), sinon au meilleur des gradins (son choix).
+// v626 : LA POSITION DE CHAQUE JOUEUR (ses choix : par ses stats, une fois puis elle reste ; 4 centres par equipe = les 4 meilleurs aux mises au jeu ;
+// les autres par la main ; hors poste : permis, montre en orange, aucun effet au jeu). p.spot = un code de LINEUP_ROLES.
+var SPOT_SHORT={C:'C', AG:'LW', AD:'RW', DG:'LD', DD:'RD'}, SPOT_LONG={C:'Center', AG:'Left wing', AD:'Right wing', DG:'Left D', DD:'Right D'}, SPOT_NC=4, SPOT_OFF='#f08a1c';
+function spotByHand(p){ return p.pos==='D' ? (p.hand==='G' ? 'DG' : 'DD') : (p.hand==='G' ? 'AG' : 'AD'); }
+function spotFoKey(a, b){ return (foRating(b)-foRating(a)) || (overall(b)-overall(a)); }
+function spotTeam(list){ list.forEach(function(p){ p.spot=spotByHand(p); }); list.filter(function(p){ return p.pos!=='D'; }).sort(spotFoKey).slice(0, SPOT_NC).forEach(function(p){ p.spot='C'; }); }   // la regle d'equipe
+function careerSpotsEnsure(T){ var sk=(T && T.skaters) || []; if(!sk.some(function(p){ return p.spot; })){ spotTeam(sk); return; }   // une equipe sans positions : la regle d'equipe
+  sk.forEach(function(p){ if(p.spot) return; var Cs=sk.filter(function(q){ return q.spot==='C'; }).sort(spotFoKey);   // un nouveau : centre s'il bat le 4e centre, sinon sa main
+    p.spot=(p.pos!=='D' && (Cs.length<SPOT_NC || foRating(p)>foRating(Cs[SPOT_NC-1]))) ? 'C' : spotByHand(p); }); }
+function spotOf(p){ return p ? (p.spot || spotByHand(p)) : null; }
 var LINE_POS=['F','F','F','D','D'], LINE_ROLE=['C','LW','RW','LD','RD'], LINE_DEF=['Line 1','Line 2','Line 3','Overtime'], CAREER_LMSG='', CAREER_LFREE=[];
 function careerLuDressed(T, uid){ if(uid==null || !T.lines) return false; if(T.lines.x===uid) return true; for(var i=0;i<3;i++){ if(T.lines.s[i].indexOf(uid)>=0) return true; } return false; }
 function careerLinesBuild(T){   // la premiere fois : le choix d'aujourd'hui (careerDressKey), range en lignes ; la prolongation = la ligne 1
@@ -10179,7 +10193,7 @@ function faInit(c){ var R=careerRng((c.seed||20261021)+68); c.fa=[];
 function faJoin(c, T, p, slot){   // il signe : il quitte la banque, arrive repose, moral neutre, une etiquette et un numero a lui dans l'equipe
   c.fa=(c.fa||[]).filter(function(q){ return q!==p; });
   var labs={}; T.skaters.concat(faGoalies(T)).forEach(function(q){ labs[q.label]=1; });
-  p.label=faLabel(p.name, labs); delete p.look; delete p.fa; p.en=100; p.rest=false; p.mor=0; p.inj=null; p.rust=0; p.seq=null;
+  p.label=faLabel(p.name, labs); delete p.look; delete p.fa; delete p.spot; p.en=100; p.rest=false; p.mor=0; p.inj=null; p.rust=0; p.seq=null;
   if(p.pos==='G'){ if(slot==='goalie') T.goalie=p; else T.goalie2=p; }
   else if(CAREER && T.key===CAREER.my && T.lines){ T.skaters.push(p);   // v625 : une place libre dans tes lignes (celle de celui qui part d'abord), sinon les gradins
     var fk=CAREER_LFREE.concat(['L0', 'L1', 'L2'].reduce(function(a, l){ return a.concat([0, 1, 2, 3, 4].map(function(r){ return l+'.'+r; })); }, [])).filter(function(k){ return k!=='X' && careerLuBad(T, careerLuGet(T, k)); })[0];   // la place liberee, sinon une place vide ou d'un blesse
@@ -10188,7 +10202,8 @@ function faJoin(c, T, p, slot){   // il signe : il quitte la banque, arrive repo
       if(ox && ox.pos===careerLuNeed(fk)) careerLuSet(T, fk, ox.uid);
       careerLinesFix(T); }
     p.rest=!careerLuDressed(T, p.uid); CAREER_LFREE=[]; careerLinesSync(T); }
-  else { p.rest=T.skaters.filter(function(q){ return !q.inj && !q.rest; }).length>=DRESS_N; T.skaters.push(p); } }   // v617 : 16 deja habilles -> il commence aux gradins (avant : 17/16)
+  else { p.rest=T.skaters.filter(function(q){ return !q.inj && !q.rest; }).length>=DRESS_N; T.skaters.push(p); }
+  if(p.pos!=='G') careerSpotsEnsure(T); }   // v626 : sa position dans sa nouvelle equipe ; v617 : 16 deja habilles -> il commence aux gradins (avant : 17/16)
 function faRelease(c, T, p){   // il part dans la banque
   if(p===T.goalie){ T.goalie=T.goalie2; T.goalie2=null; T.gStart=1; } else if(p===T.goalie2){ T.goalie2=null; T.gStart=1; }
   else { if(CAREER && T.key===CAREER.my && T.lines){ CAREER_LFREE=['L0', 'L1', 'L2'].reduce(function(a, l){ return a.concat([0, 1, 2, 3, 4].map(function(r){ return l+'.'+r; })); }, ['X']).filter(function(k){ return careerLuGet(T, k)===p.uid; }); careerLinesOut(T, p.uid); }   // v625 : ses places, pour celui qui signe
@@ -10291,6 +10306,7 @@ function careerUpgrade(c){   // v1 (v483) -> v2 : age, plafonds, experience pour
       [['F', 11], ['D', 7]].forEach(function(x){ while(T.skaters.filter(function(p){ return p.pos===x[0]; }).length<x[1]) T.skaters.push(careerMakeDepth(T, x[0], R5, ++c.uid)); }); });
     c.v=5; }
   if(c && !c.fa) faInit(c);   // v568 : la banque de joueurs autonomes
+  if(c) Object.keys(c.teams).forEach(function(k){ careerSpotsEnsure(c.teams[k]); });   // v626 : les positions (une carriere deja commencee les recoit ; ses lignes ne bougent pas)
   return c;
 }
 var CAREER_DEPTH_NAMES={fr:['Bergeron','Cloutier','Dube','Fortier','Girard','Hamel','Jobin','Lacasse','Lemay','Mathieu','Nadeau','Ouellet','Poirier','Quintal','Racine','Savard','Turcotte','Veilleux','Allard','Boucher','Caron','Demers','Emond','Frechette'],
@@ -10861,20 +10877,23 @@ function offLuMag(x, T, p, m, cur){ var U=OFF_LU, gold=careerWaits(T, p), body=g
   x.fillStyle=body; offRRect(x, m.x, m.y, U.w, U.h, 10); x.fill(); x.restore();
   x.fillStyle='#fbfbf8'; x.fillRect(m.x+6, m.y+6, U.w-12, 34);
   x.fillStyle='#16181d'; x.textAlign='center'; x.font='bold 26px '+OFF_MARKER; x.fillText(offSurname(p.name), m.x+U.w/2, m.y+32, U.w-18);
-  x.fillStyle=ink; x.textAlign='left'; x.font='bold 32px '+OFF_SANS; x.fillText(String(offRating(T, p)), m.x+10, m.y+76);
-  if(p.inj){ x.textAlign='right'; x.font='bold 24px '+OFF_SANS; x.fillText('Out '+p.inj.left, m.x+U.w-8, m.y+75);
+  var gk=m.k==='G', sp=gk ? null : spotOf(p), off=!gk && m.k==='L' && LINEUP_ROLES[m.ri]!==sp;   // v626 : la position en gros (orange hors poste, jamais aux gradins), la note, FO des avants
+  if(!p.inj){ x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(m.x+6, m.y+43, U.w-12, 6);   // l'energie : une fine barre sous le nom
+    x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(m.x+6, m.y+43, Math.round((U.w-12)*e/100), 6); }
+  x.fillStyle='#fbfbf8'; offRRect(x, m.x+5, m.y+52, 44, 28, 6); x.fill();
+  x.fillStyle=off ? SPOT_OFF : '#16181d'; x.textAlign='center'; x.font='bold 26px '+OFF_SANS; x.fillText(gk ? 'G' : SPOT_SHORT[sp], m.x+27, m.y+75, 40);
+  x.fillStyle=ink; x.textAlign='left'; x.font='bold 25px '+OFF_SANS; x.fillText(String(offRating(T, p)), m.x+55, m.y+76);
+  if(p.inj){ x.textAlign='right'; x.font='bold 20px '+OFF_SANS; x.fillText('Out '+p.inj.left, m.x+U.w-6, m.y+75);
     x.fillStyle='#ffffff'; offRRect(x, m.x+U.w-32, m.y-10, 38, 38, 7); x.fill(); x.fillStyle='#d42a2a'; offRRect(x, m.x+U.w-29, m.y-7, 32, 32, 5); x.fill();
     x.fillStyle='#ffffff'; x.fillRect(m.x+U.w-17, m.y-2, 8, 22); x.fillRect(m.x+U.w-24, m.y+5, 22, 8); }
-  else { x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(m.x+58, m.y+56, 40, 18);
-    x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(m.x+58, m.y+56, Math.round(40*e/100), 18);
-    x.fillStyle=ink; x.textAlign='right'; x.font='bold 22px '+OFF_SANS; x.fillText(String(e), m.x+U.w-6, m.y+74); }
+  else if(!gk && p.pos!=='D'){ x.textAlign='right'; x.font='bold 18px '+OFF_SANS; x.fillText('FO '+foRating(p), m.x+U.w-6, m.y+74, 52); }
   if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+U.w/2, m.y+U.h/2, U.w/2+7, U.h/2+7, 0, 0, Math.PI*2); x.stroke(); } }
 function offPaintLineup(c){
   var T=c.teams[c.my], Lo=offLineupLayout(c), U=OFF_LU, cur=careerGoalieOf(T), g=careerMyGame(c), sr=(c.phase==='playoffs') ? careerMySeries(c) : null;
   var opp=g ? (g.home===c.my ? g.away : g.home) : (sr ? (sr.a===c.my ? sr.b : sr.a) : null), at=g ? (g.home===c.my ? 'vs ' : 'at ') : 'vs ';
   var tgt=Math.min(DRESS_N, T.skaters.filter(function(p){ return !p.inj; }).length), dn=T.skaters.filter(function(p){ return !p.inj && !p.rest; }).length;
   var sig='lu|'+c.my+'|'+T.colors.join()+'|'+(opp ? at+opp : '')+'|'+dn+'/'+tgt+'|'+T.lines.names.join('/')+'|'+CAREER_LSEL+'|'+Lo.spots.map(function(m){ var p=m.p;
-    return m.key+':'+(p ? p.uid+':'+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+(careerWaits(T, p) ? 'g' : '')+(p===cur ? 's' : '') : '-'); }).join(',');
+    return m.key+':'+(p ? p.uid+':'+Math.round(m.y)+':'+offRating(T, p)+':'+careerEn(p)+':'+(p.inj ? 1 : 0)+(careerWaits(T, p) ? 'g' : '')+(p===cur ? 's' : '')+':'+spotOf(p)+':'+foRating(p) : '-'); }).join(',');
   if(OFF.paint.lines===sig) return;
   var o=offCanvas(800, 1000); if(!o) return;
   var x=o.x;
@@ -11026,10 +11045,10 @@ function offCardLines(p){ var o=[];   // la sante, en mots (comme careerCardHeal
   return o; }
 function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleurs de l'equipe, la fiche sur carton
   var T=c.teams[c.my], gk=offIsGk(T, p), need=careerLevelCost(p.lvl), rows=offCardRows(T, p), H=offCardLines(p), e=careerEn(p);
-  var sub=gk ? 'Goalie · '+gkStyleLabel(p)+' · age '+p.age : (p.pos==='D' ? 'Defense' : 'Forward')+' · age '+p.age+' · '+((ARCH_INFO[p.archetype]||{}).n||p.archetype);
+  var sub=gk ? 'Goalie · '+gkStyleLabel(p)+' · age '+p.age : SPOT_LONG[spotOf(p)]+' · age '+p.age+' · '+((ARCH_INFO[p.archetype]||{}).n||p.archetype)+' · '+(p.hand==='G' ? 'Left shot' : 'Right shot');   // v626 : sa position, sa main
   var stats=careerCardStats(p, gk).split('<br>');
   var sig=p.uid+'|'+T.colors.join()+'|'+p.lvl+'|'+Math.round(p.txp)+'|'+p.pts+'|'+(p.perkPick||[]).join()+'|'+[p.perk, p.perk2].join()+'|'+e+'|'+H.map(function(l){ return l[0]; }).join()+'|'
-    +rows.map(function(r){ return r.k+':'+p[r.k]+'/'+careerCapRange(p, r.k).join('-')+'/'+(r.at ? 'max' : Math.round(100*p.xp[r.k]/careerXpCost(p, r.k))); }).join(',')+'|'+stats.join();
+    +rows.map(function(r){ return r.k+':'+p[r.k]+'/'+careerCapRange(p, r.k).join('-')+'/'+(r.at ? 'max' : Math.round(100*p.xp[r.k]/careerXpCost(p, r.k))); }).join(',')+'|'+stats.join()+'|'+sub;
   if(OFF.paint.card===sig) return;
   var o=offCanvas(OFF_CARD.w, OFF_CARD.h); if(!o) return;
   var x=o.x, W=OFF_CARD.w, INK='#15171b', DIM='#6a707b', hd=offInk(T.colors[0]);
@@ -11671,6 +11690,7 @@ function careerNewSeason(c){   // les nouvelles divisions, un nouveau calendrier
   c.divs={1:[],2:[],3:[]}; Object.keys(c.teams).forEach(function(k){ c.divs[c.teams[k].div].push(k); });
   c.season++; careerNewSchedules(c);
   Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl){ pl.mor=0; delete pl.ss; delete pl.ps; } }); });   // v556 : une nouvelle saison, un moral neuf ; v579 : les stats de la saison repartent a zero
+  Object.keys(c.teams).forEach(function(k){ careerSpotsEnsure(c.teams[k]); });   // v626 : un nouveau recoit sa position
   (c.fa||[]).forEach(function(pl){ delete pl.ss; delete pl.ps; });   // v579 : les agents libres aussi ; v580 : les series aussi
 }
 /* ===== v451 : TUTORIEL (spec docs/superpowers/specs/2026-10-02-tutoriel-design.md) =====
