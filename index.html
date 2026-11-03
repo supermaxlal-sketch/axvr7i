@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v621</title>
+<title>Deck 3D v622</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1349,7 +1349,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v621';
+var GAME_VERSION='v622';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1483,8 +1483,18 @@ function resolveSeqDefStepCore(seq){
   if(seq.defDone===seq.rank) return null;   // ce rang a deja glisse : jamais deux fois
   seq.defDone=seq.rank;
   S._tempoCheck=null;   // trajet du checkeur pour CE temps (croisement) : remis a zero, rempli si un checkeur bouge
-  var dMove=seq.def[seq.rank], df=dMove?byId(dMove.defId):null;
-  if(!df || !df.onIce) return null;
+  var dMove=seq.def[seq.rank]; if(!dMove) return null;
+  var df=byId(dMove.defId), r=(df && df.onIce) ? defStepMove(seq, dMove, df) : null;
+  if(r==='takeover' || !dMove.mate) return r;
+  var _cr=S.checkRun, mf=byId(dMove.mate.defId), r2=(mf && mf.onIce) ? defStepMove(seq, dMove.mate, mf) : null;   // v622 : Back up -- le partenaire de ce temps (2, 2, 1)
+  if(r2==='takeover') return r2;
+  var car=S.puckOwner?byId(S.puckOwner):null;
+  if(r2 && car && cheb(r2, car)===1 && !(r && cheb(r, car)===1)) return r2;   // celui qui touche le porteur a la priorite
+  if(r) S.checkRun=_cr;
+  return r || r2;
+}
+// un coup d'embuscade : le joueur glisse vers sa case (meme chemin pour le partenaire de Back up) ; null s'il ne bouge pas
+function defStepMove(seq, dMove, df){
   if(dMove.role){ var _rt=defRoleTarget(dMove.role); if(_rt){ dMove.toC=_rt.c; dMove.toR=_rt.r; } }   // v383 : cible recalculee au moment du coup
   var pb=dMove.path ? {blocker:null} : pathBlocked(df, dMove.toC, dMove.toR);   // v410 : un trace se revalide case par case
   var _ddt=(!dMove.path && (pb.blocker||pb.mate)) ? detourPath(df, df.c, df.r, dMove.toC, dMove.toR, whoAt(df.id)) : null;   // v492 : la defense contourne aussi
@@ -1504,7 +1514,7 @@ function resolveSeqDefStepCore(seq){
   // Un checkeur en mouvement ce temps : on garde son trajet pour le test de croisement. Un GROS gabarit
   // (def>=4) met en echec automatiquement au contact (l'ordre explicite est optionnel), donc son trajet
   // compte aussi ; un petit (poke-checkeur) a besoin de l'adjacence, il n'arme pas le croisement.
-  if((dMove.order==='check') || hasOrder(df.id,'check') || (df.def>=4)){ S._tempoCheck={id:df.id, from:{c:oc,r:orr}, to:{c:df.c,r:df.r}, rank:seq.rank}; }
+  if(!S._tempoCheck && ((dMove.order==='check') || hasOrder(df.id,'check') || (df.def>=4))){ S._tempoCheck={id:df.id, from:{c:oc,r:orr}, to:{c:df.c,r:df.r}, rank:seq.rank}; }   // v622 : deux joueurs au meme temps -> le 1er garde le croisement
   var _ot=pickupAlongPath(df, oc, orr, df.c, df.r);
   if(_ot || S.puckOwner===df.id){
     if(S.puckOwner===df.id){
@@ -4396,6 +4406,7 @@ function ghostAt(c,r){
     var pk=S.defCommit.picks;
     for(var i=0;i<pk.length;i++){ var d=byId(pk[i].defId);
       if(d && pk[i].toC===c && pk[i].toR===r) return d;
+      if(pk[i].mate && pk[i].mate.toC===c && pk[i].mate.toR===r){ var _mq=byId(pk[i].mate.defId); if(_mq) return _mq; }   // v622 : Back up -- le partenaire de ce temps
       var mg=defMirrorCellFor(d, pk[i].toC, pk[i].toR);   // fantome MIROIR du partenaire de ce defenseur commande
       if(mg && mg.c===c && mg.r===r) return mg.mp;
     }
@@ -4645,7 +4656,7 @@ function mirrorPartnerOf(p){
 }
 function seqCommands(seq, id){ if(!seq) return false;
   if(seq.atk){ for(var i=0;i<seq.atk.length;i++){ if(seq.atk[i] && seq.atk[i].id===id) return true; } }
-  if(seq.def){ for(var j=0;j<seq.def.length;j++){ if(seq.def[j] && seq.def[j].defId===id) return true; } }   // le partenaire deja commande en defense ne se re-mirrore pas
+  if(seq.def){ for(var j=0;j<seq.def.length;j++){ if(seq.def[j] && (seq.def[j].defId===id || (seq.def[j].mate && seq.def[j].mate.defId===id))) return true; } }   // le partenaire deja commande en defense ne se re-mirrore pas (v622 : le partenaire Back up aussi)
   return false; }
 // v493 (choix du concepteur) : toucher (ou tracer depuis) le partenaire MIROIR le libere -- il ne suit plus, il redevient
 // selectionnable et recoit sa propre action (elle compte dans les 3) ; le joueur qu'il suivait garde son deplacement.
@@ -4753,7 +4764,7 @@ function tbEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(ch){ 
 var TB_VERB={bank:'Bank pass',bankgo:'Bank & go',move:'Skate',pass:'Pass',cycle:'Cycle',shoot:'Shoot',wrap:'Wrap',dump:'Dump',dangle:'Deke',deke:'Deke',protect:'Protect',pivot:'Pivot',hold:'Hold',zoneout:'Out of the zone'};   // v578 : sortie de zone
 var TB_ORDER={check:'Check',block:'Block pass',poke:'Poke',sblock:'Block shot',mark:'Mark'};
 function tbAtkVerb(a){ if(a.cont) return 'Route'; if(a.go) return 'Go'; if(a.stride) return 'In stride'; return TB_VERB[a.kind]||a.kind; }   // v419 : passe dans la course
-function tbDefVerb(k){ if(k.cont) return 'Route'; if(k.kind==='order') return TB_ORDER[k.order]||k.order; return 'Move'+(k.order?(' + '+(TB_ORDER[k.order]||k.order)):''); }
+function tbDefVerb(k){ if(k.backup) return 'Back up'; if(k.cont) return 'Route'; if(k.kind==='order') return TB_ORDER[k.order]||k.order; return 'Move'+(k.order?(' + '+(TB_ORDER[k.order]||k.order)):''); }
 function tbSlot(i, id, what, st){
   var p=id?byId(id):null;
   return '<div class="tbslot '+st+'"><span class="tbn">'+(i+1)+'</span>'+(p?'<span class="tbchip '+p.team+'">'+tbEsc(p.label)+'</span>':'<span class="tbchip"></span>')+'<span class="tbw">'+tbEsc(what)+'</span></div>';
@@ -4818,6 +4829,7 @@ function renderThumbBar(){
   if(atk){ g+='<button class="tbmirror'+(S.mirror?' on':'')+'" onclick="toggleMirror()">Mirror<br>'+(S.mirror?'ON':'OFF')+'</button>';
     g+='<button class="tbgobtn" onclick="resolvePlan()"'+(n?'':' disabled')+'><span class="tbring"></span><span>GO</span><span class="tbsec"></span></button>'; }
   else if(S.tut) g+='<button class="tbgobtn" onclick="confirmDefCommit(true)"><span>OK '+n+'/'+maxn+'</span></button>';   // v451 : lecon -- pas de minuteur, on confirme
+  else if(dc.backup) g+='<button class="tbgobtn" onclick="confirmDefCommit(true)"><span class="tbring"></span><span>Confirm</span><span class="tbsec"></span></button>';   // v622 : Back up -- tu vois, puis Confirm (la minuterie tourne dans le bouton)
   else g+='<div class="tbtimer"><span class="tbring"></span><span>'+n+'/'+maxn+' picks</span><span class="tbsec"></span></div>';
   go.innerHTML=g; go.style.display='flex'; if(S.tut) tutDecorateButtons();   // v451
   updateThumbTimer();
@@ -4946,12 +4958,64 @@ function endExchange(){ S._lateDef=null;   // v524
   S.seqDef=null; S.aiPlan=null; S.planNext=null; S.planResume=null; S.stepDone=null; S.lunge=null; S.slide=null;
   S._faceoffFresh=false;   // le 1er echange post-mise au jeu est passe : les strategies redeviennent possibles
   if(S.puckOwner){ decaySpeed(S.turn); startExchange(); } else { passTurn(); } }
+// v622 (le concepteur, ses notes du 2026-10-30, point 22 : « un bouton Back up (repli defensif) » ; ses choix du 2026-11-02 :
+// « tes 5 joueurs », « leur patin d'aujourd'hui », « entre la rondelle et ton filet », « rondelle en zone neutre », « tout le
+// tour », « l'IA aussi », « sans limite », « porteur + les passes », « tu vois, puis Confirm », « 2, 2, 1 (comme le miroir) »).
+// Les 2 D sur la ligne porteur -> ton filet (au tiers, aux deux tiers) ; chaque avant 2 cases cote filet d'un autre attaquant.
+function backupSituation(team){   // l'equipe team defend ; le porteur adverse est un patineur en zone neutre
+  if(!S || S.tut || S.so) return false;
+  var car=S.puckOwner ? byId(S.puckOwner) : null;
+  return !!(car && car.team!==team && car.type==='sk' && car.onIce && car.c>BLUE_B && car.c<BLUE_A);
+}
+function backupLine(a, b, t){ return {c:Math.round(a.c+(b.c-a.c)*t), r:Math.round(a.r+(b.r-a.r)*t)}; }
+// les cases visees, dans l'ordre ou ils bougent : les 2 postes D (le plus pres du porteur au tiers), puis les avants
+function backupTargets(team){
+  var car=byId(S.puckOwner), N={c:ownGoalCol(team), r:CTR_R}, sk=onIceSkaters(team), out=[], i;
+  var byN=function(x, y){ return cheb(x, N)-cheb(y, N); };
+  var ds=sk.filter(function(q){ return q.pos==='D'; }).sort(byN), fs=sk.filter(function(q){ return q.pos!=='D'; }).sort(byN);
+  var posts=ds.slice(0, 2); fs=fs.concat(ds.slice(2));   // un D en trop fait comme un avant
+  while(posts.length<2 && fs.length) posts.push(fs.shift());   // pas assez de D : le plus pres de ton filet prend le poste
+  posts.sort(function(x, y){ return cheb(x, car)-cheb(y, car); });   // le plus pres du porteur au tiers (egalite : le plus pres de ton filet)
+  for(i=0;i<posts.length;i++){ var t=backupLine(car, N, (i+1)/3); out.push({id:posts[i].id, c:t.c, r:t.r}); }
+  var cells=[];
+  for(i=0;i<S.pieces.length;i++){ var a=S.pieces[i]; if(!(a.onIce && a.type==='sk' && a.team!==team && a.id!==car.id)) continue;
+    var d=cheb(a, N), k=Math.min(2, d-1); cells.push(k>0 ? backupLine(a, N, k/d) : {c:a.c, r:a.r}); }   // 2 cases cote filet (la case juste devant s'il est a 2 cases ; jamais la case du filet)
+  while(fs.length && cells.length){ var bf=0, bc=0, bd=1e9;   // au plus proche d'abord : la paire avant-case la plus courte
+    for(var f=0;f<fs.length;f++) for(var c=0;c<cells.length;c++){ var dd=cheb(fs[f], cells[c]); if(dd<bd){ bd=dd; bf=f; bc=c; } }
+    out.push({id:fs[bf].id, c:cells[bc].c, r:cells[bc].r}); fs.splice(bf, 1); cells.splice(bc, 1); }
+  for(i=0;i<fs.length;i++){ var m=backupLine(car, N, 0.5); out.push({id:fs[i].id, c:m.c, r:m.r}); }   // un avant en trop : a mi-chemin
+  return out;
+}
+// les coups d'embuscade : 2, 2, 1 (un partenaire bouge au meme temps) ; chacun au plus loin vers sa case (portee d'aujourd'hui)
+function backupPicks(team){
+  var tg=backupTargets(team), taken={}, mv=[], out=[], i;
+  for(i=0;i<tg.length;i++){ var q=byId(tg[i].id), l=slideToward(q, tg[i].c, tg[i].r, taken); taken[l.c+','+l.r]=1; mv.push({defId:q.id, toC:l.c, toR:l.r}); }
+  var pairs=Math.max(0, mv.length-PLAN_N);
+  while(mv.length){ var a=mv.shift(), k={defId:a.defId, kind:'move', toC:a.toC, toR:a.toR, order:null, backup:true};
+    if(pairs>0 && mv.length){ k.mate=mv.shift(); pairs--; }
+    out.push(k); }
+  return out;
+}
+function backupOK(){ var dc=S.defCommit; return !!(dc && !dc.markMode && backupSituation(HUMAN_TEAM)); }
+function backupGo(){   // le bouton : les 3 coups remplacent ceux deja choisis ; tu vois les fantomes, puis Confirm
+  if(!backupOK()) return; var dc=S.defCommit;
+  for(var i=0;i<dc.picks.length;i++){ if(dc.picks[i].cont){ var q=byId(dc.picks[i].defId); if(q) q.route=null; } }   // un trace deja pose s'efface
+  dc.picks=backupPicks(HUMAN_TEAM); dc.backup=true; dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; dc.markMode=false;
+  S.moves=[]; S.ghost={}; render(); renderDefBar();
+}
+// l'IA se replie quand ton porteur est en zone neutre et qu'au moins 2 de ses patineurs sont pris en avant (plus loin de son filet que lui)
+function aiWantsBackup(team){
+  if(!backupSituation(team)) return false;
+  var car=byId(S.puckOwner), g=ownGoalCol(team), sk=onIceSkaters(team), n=0;
+  for(var i=0;i<sk.length;i++){ if(Math.abs(sk[i].c-g)>Math.abs(car.c-g)) n++; }
+  return n>=2;
+}
 function openDefCommit(){
   if(S.defCommit) return;   // une embuscade est deja ouverte : on nefface PAS tes choix
   cineExit();   // CINE : pose de defense = phase de CHOIX -> la camera remonte
   var _gh=S.puckOwner?byId(S.puckOwner):null;
   tipTrigger('ambush');   /* v456 */ S.planClock=(_gh&&_gh.type==='g')?GK_SECS:PLAN_SECS; S.planBeep=0; S.defCommit={picks:[], selDef:null, lastIdx:null}; S.moves=[]; S.ghost={}; setHint('AMBUSH: tap one of your players, then a square (slide) OR post him on Body check / Block the pass. The mirror partner follows (highlighted square).'); renderDefBar(); }
-function defCommittedPawn(id){ if(!S.defCommit) return false; if(S.defCommit.selDef===id) return true; for(var i=0;i<S.defCommit.picks.length;i++){ if(S.defCommit.picks[i].defId===id) return true; } return false; }
+function defCommittedPawn(id){ if(!S.defCommit) return false; if(S.defCommit.selDef===id) return true; for(var i=0;i<S.defCommit.picks.length;i++){ var _k=S.defCommit.picks[i]; if(_k.defId===id || (_k.mate && _k.mate.defId===id)) return true; } return false; }   // v622 : le partenaire (Back up) est commande aussi
 function defMovesFor(p, oc, orr){
   if(oc===undefined||oc===null) oc=p.c; if(orr===undefined||orr===null) orr=p.r;   // origine : la position reelle, ou la derniere cible quand on enchaine les coups d'un meme defenseur
   var out=[], seen={}; seen[oc+','+orr]=1; var front=[{c:oc,r:orr}], _pk=(S.defCommit && S.defCommit.picks) || [];   // v480 : aussi hors embuscade (portee du chasseur de l'IA)
@@ -5062,7 +5126,7 @@ function finalizeDefPick(order){
   dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; render(); renderDefBar();
   defAutoConfirm();   // v386
 }
-function undoDefPick(){ var dc=S.defCommit; if(!dc) return; if(dc.extend){ dc.extend=false; S.moves=[]; render(); renderDefBar(); return; } if(dc.pendingMove){ dc.pendingMove=null; dc.selDef=null; S.moves=[]; render(); renderDefBar(); return; }
+function undoDefPick(){ var dc=S.defCommit; if(!dc) return; if(dc.backup){ dc.backup=false; dc.picks=[]; dc.selDef=null; S.moves=[]; render(); renderDefBar(); return; }   /* v622 : Undo apres Back up -> defense vide */ if(dc.extend){ dc.extend=false; S.moves=[]; render(); renderDefBar(); return; } if(dc.pendingMove){ dc.pendingMove=null; dc.selDef=null; S.moves=[]; render(); renderDefBar(); return; }
   var _lp=dc.picks[dc.picks.length-1]; if(dc.selDef && !(_lp && _lp.defId===dc.selDef)){ dc.selDef=null; dc.markMode=false; S.moves=[]; render(); renderDefBar(); return; }   // v407 : defenseur choisi sans rien faire -> Undo le deselectionne (le choix precedent reste)
   var _pp=dc.picks.pop(); if(_pp && _pp.cont){ var _pq=byId(_pp.defId); if(_pq) _pq.route=null; }   // v410 : Undo sur une suite annule le trace
   dc.selDef=null; S.moves=[]; render(); renderDefBar(); }
@@ -5195,7 +5259,8 @@ function blockOrderCheck(p,t){
   return null;
 }
 function confirmDefCommit(force){ var dc=S.defCommit; if(!dc) return;
-  var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); if(!force && dc.picks.length<maxn) return; if(S.tut) S.tut.ambushes=(S.tut.ambushes||0)+1;   /* v451 */ S.hiddenDef=[]; S.defOrders=[]; for(var _pi=0;_pi<dc.picks.length;_pi++){ var _pk=dc.picks[_pi]; if(_pk.kind==='order'){ S.defOrders.push({defId:_pk.defId, order:_pk.order, markId:_pk.markId||null, used:false}); } else { S.hiddenDef.push({defId:_pk.defId, toC:_pk.toC, toR:_pk.toR, order:_pk.order||null, path:_pk.path||null}); } }
+  var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); if(!force && dc.picks.length<maxn) return; if(S.tut) S.tut.ambushes=(S.tut.ambushes||0)+1;   /* v451 */ S.hiddenDef=[]; S.defOrders=[]; for(var _pi=0;_pi<dc.picks.length;_pi++){ var _pk=dc.picks[_pi]; if(_pk.kind==='order'){ S.defOrders.push({defId:_pk.defId, order:_pk.order, markId:_pk.markId||null, used:false}); } else { var _hd={defId:_pk.defId, toC:_pk.toC, toR:_pk.toR, order:_pk.order||null, path:_pk.path||null}; if(_pk.mate) _hd.mate={defId:_pk.mate.defId, toC:_pk.mate.toC, toR:_pk.mate.toR}; if(_pk.backup) _hd.backup=true; S.hiddenDef.push(_hd); } }   /* v622 : Back up -- le partenaire de ce temps */
+  if(dc.backup) pushLog('<b>Back up!</b> Your players head back on defense.');   // v622
   if(S.hiddenDef.length<PLAN_N && !S.tut) pushLog('<span style="color:#9fb6cd">'+(force==='time' ? 'Time up — only ' : 'Only ')+S.hiddenDef.length+' defensive move'+(S.hiddenDef.length===1?' was':'s were')+' set.</span>');
   S.defRevealIdx=0; S.defCommit=null; S.planClock=null; S.moves=[]; S.ghost={}; clearSel();
   if(S.activeStrat && S.activeStrat.team===AI_TEAM){   // l'IA joue sa strategie : TA defense (hiddenDef) bouge en meme temps via stratDefMove
@@ -5265,7 +5330,7 @@ function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) retur
   var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
-  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')) : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'; } if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
+  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
 // v474 : telephone -- si un ordre de l'embuscade reste sous la barre GO, le panneau defile pour le montrer
 function showDefOrders(){
   if(!isVRink() || !S.defCommit) return;
@@ -5647,6 +5712,9 @@ function commitHiddenDefense(){
   var defTeam=carrier.team==='A'?'B':'A';
   var _gk1=(carrier.type==='g');   // v462 : gardien porteur -> la defense ne pose qu'un coup
   if(defTeam===AI_TEAM && !_gk1){ var _aiDef=aiMaybeStrategy(AI_TEAM); if(_aiDef && STRATS[_aiDef].side==='def'){ callStrategyDef(AI_TEAM,_aiDef); pushLog('<b>'+TEAM_NAME[AI_TEAM]+'</b> set a grouped ambush: '+STRATS[_aiDef].name+'.'); return; } }
+  if(defTeam===AI_TEAM && !_gk1 && aiWantsBackup(AI_TEAM)){   // v622 : prise en avant -> le repli, a la place du chasseur et des postes
+    S.hiddenDef=backupPicks(AI_TEAM).map(function(k){ var h={defId:k.defId, toC:k.toC, toR:k.toR, order:null, role:null, backup:true}; if(k.mate) h.mate={defId:k.mate.defId, toC:k.mate.toC, toR:k.mate.toR}; return h; });
+    pushLog('<b>Back up!</b> The '+TEAM_NAME[AI_TEAM]+' head back on defense.'); return; }
   var defs=onIceSkaters(defTeam).slice().sort(function(a,b){ return cheb(a,carrier)-cheb(b,carrier); });
   if(!defs.length) return;
   var behind = (S.score[defTeam] < S.score[carrier.team]);   // SYMETRIQUE : toute equipe qui defend en etant menee presse (avant : IA seulement) — jeu equitable + reflexe de remontee des deux cotes
@@ -8547,7 +8615,7 @@ function matchPts(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.cei
 function matchRoster(){ var out=[]; for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     out.push({id:p.id, team:p.team, type:p.type, name:p.name, label:p.label, hand:p.hand||null, size:p.size||'M', pos:p.pos||null}); } return out; }
 function matchActs(list){ var out=[]; for(var i=0;i<(list||[]).length;i++){ var a=list[i]; if(!a){ out.push('-'); continue; }
-    if(a.defId){ out.push('def:'+a.defId+(a.toC!=null?'@'+a.toC+','+a.toR:'')+(a.path?'~'+a.path.length:'')+(a.order?'!'+a.order:'')+(a.role?'#'+a.role:'')); continue; }
+    if(a.defId){ out.push('def:'+a.defId+(a.toC!=null?'@'+a.toC+','+a.toR:'')+(a.path?'~'+a.path.length:'')+(a.order?'!'+a.order:'')+(a.role?'#'+a.role:'')+(a.mate?'+'+a.mate.defId+'@'+a.mate.toC+','+a.mate.toR:'')+(a.backup?'/backup':'')); continue; }   // v622
     out.push(a.kind+':'+a.id+(a.target?'>'+a.target:'')+(a.toC!=null?'@'+a.toC+','+a.toR:'')+(a.path?'~'+a.path.length:'')+(a.feint?'/'+a.feint:'')+(a.stride?'/stride':'')+(a.routeK?'/k'+a.routeK:'')+(a.go?'/go':'')+(a.att?'/att':'')); }
   return out; }
 function hasPos(q){ return typeof q.c==='number' && typeof q.r==='number' && !isNaN(q.c) && !isNaN(q.r); }   // v515 : une position definie (avant l'alignement, certains n'en ont pas)
@@ -8704,7 +8772,7 @@ function render(){
     if(S.cycleAim){ var _cap=byId(S.cycleAim); if(_cap && p && cycleTargets(_cap).indexOf(p.id)>=0){ cell.className+=' cyct'; clickable=true; } }
     if(S.dangle && isDekeTarget(c,r)){ cell.className+=' dkt'; clickable=true; }
     if(S.planning||S.defCommit){ for(var _gk in S.ghost){ var _g=S.ghost[_gk]; if(_g&&_g.c===c&&_g.r===r) cell.className+=' ghostc'; if(_g&&_g.viaC!=null&&_g.viaC===c&&_g.viaR===r) cell.className+=' ghostvia'; if(_g&&_g.path){ for(var _gp=0;_gp<_g.path.length-1;_gp++){ if(_g.path[_gp].c===c&&_g.path[_gp].r===r){ cell.className+=' ghostvia'; break; } } } if(_g&&_g.rest){ for(var _gq=0;_gq<_g.rest.length;_gq++){ if(_g.rest[_gq].c===c&&_g.rest[_gq].r===r){ cell.className+=' ghostrest'; break; } } } } }   /* v408 : l'arc d'une courbe planifiee */
-    if(S.defCommit){ for(var _di=0;_di<S.defCommit.picks.length;_di++){ if(S.defCommit.picks[_di].toC===c&&S.defCommit.picks[_di].toR===r){ cell.className+=' dcm'; cell.setAttribute('data-dn',String(_di+1)); } }
+    if(S.defCommit){ for(var _di=0;_di<S.defCommit.picks.length;_di++){ if(S.defCommit.picks[_di].toC===c&&S.defCommit.picks[_di].toR===r){ cell.className+=' dcm'; cell.setAttribute('data-dn',String(_di+1)); } if(S.defCommit.picks[_di].mate&&S.defCommit.picks[_di].mate.toC===c&&S.defCommit.picks[_di].mate.toR===r){ cell.className+=' dcm'; cell.setAttribute('data-dn',String(_di+1)); }   /* v622 : le partenaire, meme numero */ }
       if(S.defCommit.pendingMove && S.defCommit.pendingMove.toC===c && S.defCommit.pendingMove.toR===r){ cell.className+=' dcm pend'; cell.setAttribute('data-dn',String(S.defCommit.picks.length+1)); } }
     if(S.planning && routePassAt(c,r)){ cell.className+=' pt rpt'; clickable=true; }
     if(S.planning && bankGoAt(c,r)){ cell.className+=' pt rpt'; clickable=true; }   // v457   // v428 : case-cible d un trajet
