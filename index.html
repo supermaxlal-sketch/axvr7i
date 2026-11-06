@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v632</title>
+<title>Deck 3D v633</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v632';
+var GAME_VERSION='v633';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1680,6 +1680,7 @@ function resolveSeq(seq){
       if(_bend) markSkated(p, oc, orr, a.viaC, a.viaR);   // v384 : 1er segment du coude (son virage compte pour l'elan)
       applyMoveKinematics(p, _bend?a.viaC:oc, _bend?a.viaR:orr, sp.c, sp.r);
     }
+    raceShowLate(p);   // v633 : le retardataire arrive apres lui (affichage)
     if(!a.cont) mirrorMoveNow(seq, p, oc, orr, sp.c, sp.r);   // le partenaire miroir suit gratuitement ; v410 : jamais sur une suite de trace
     var _mv=[]; for(var _mid in (S._rankMoves||{})){ var _mq=byId(_mid); if(_mq && _mq.team===p.team) _mv.push(_mid); } resolveCrossDuels(_mv);   // v432 : contact au croisement (sans rondelle)
     if(S.diag) pushLog(p.name+' : '+oc+','+orr+(_bend?(' \u2192 '+a.viaC+','+a.viaR):'')+(_crv?' (curve)':'')+' \u2192 '+p.c+','+p.r);
@@ -4517,6 +4518,12 @@ function raceSetup(seq, p, pre, cells){
 function raceBump(d, w){ var best=null, bd=1e9;
   for(var k=0;k<DIRS8.length;k++){ var x=d.c+DIRS8[k][0], y=d.r+DIRS8[k][1]; if(!onIce(x,y) || pieceAt(x,y)) continue; var dd=cheb({c:x, r:y}, w); if(dd<bd){ bd=dd; best={c:x, r:y}; } }
   if(best){ d.c=best.c; d.r=best.r; } }
+// v633 (son match TRV, P3 0:48 : Simard « passe au travers » de Hebert ; son choix « montrer qu'il est en retard ») : le
+// retardataire (course : le porteur a passe la case avant lui) finit son patin APRES le porteur -- 2D et 3D ; le jeu ne change pas
+function slideMs(s){ if(!s) return 0; if(s.ms) return s.ms; if(s.pts) return Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE; return (s.dx||s.dy) ? 1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx||0),Math.abs(s.dy||0)))/ANIM_RATE : 0; }   // la duree du glissement (2D et 3D), ms reelles
+function raceShowLate(p){ var R=raceOn(); if(!R || !p || !S.slides) return; var cm=slideMs(S.slides[p.id]); if(!cm) return;
+  for(var id in R.late){ var s=S.slides[id], d=byId(id); if(!s || !d || s.late) continue; s.ms=Math.max(slideMs(s), cm+150); s.late=true;
+    pushLog('<b>'+d.name+'</b> arrives too late — '+p.name+' is already past.'); } }
 function raceOn(){ var R=S._race; return !!(R && S.currentSeq===R.seq && R.seq.rank===R.rank) ? R : null; }
 function raceLate(id){ var R=raceOn(); return !!(R && R.late[id]); }   // arrive trop tard : transparent, pas de contact
 function raceCut(id){ var R=raceOn(); return !!(R && R.cut[id]); }     // arrive le premier, sur le chemin : la rencontre
@@ -8871,9 +8878,9 @@ function render(){
       if(_sl && _sl.pts && pawn.animate){   // v408 : COURBE -- le pion suit l'arc case par case (Web Animations)
         var _kf=[]; for(var _ki=0;_ki<_sl.pts.length;_ki++) _kf.push({transform:'translate('+(_sl.pts[_ki].dx*122)+'%,'+(_sl.pts[_ki].dy*122)+'%)'});
         _kf.push({transform:'translate(0,0)'});
-        try{ pawn.style.zIndex=6; pawn.animate(_kf, {duration:Math.max(450, 190*(_sl.cells||_sl.pts.length))/ANIM_RATE, easing:'ease-out'});   /* v463 */ }catch(e){}   /* v411 : duree selon les cases (les points sont echantillonnes) */
+        try{ pawn.style.zIndex=6; pawn.animate(_kf, {duration:(_sl.late ? _sl.ms : Math.max(450, 190*(_sl.cells||_sl.pts.length))/ANIM_RATE), easing:(_sl.late ? 'linear' : 'ease-out')});   /* v633 : le retardataire arrive apres le porteur */   /* v463 */ }catch(e){}   /* v411 : duree selon les cases (les points sont echantillonnes) */
         _sl=null; }
-      if(_sl){ pawn.classList.add('sliding'); pawn.style.setProperty('--sx',(_sl.dx*122)+'%'); pawn.style.setProperty('--sy',(_sl.dy*122)+'%'); var _sd=Math.max(Math.abs(_sl.dx),Math.abs(_sl.dy)); pawn.style.setProperty('--slidedur', (Math.max(0.3, 0.28*_sd)/ANIM_RATE).toFixed(2)+'s'); }   /* v463 : ANIM_RATE */   /* glissement plus long quand la distance est grande (3 cases = plus lent, visible) */
+      if(_sl){ pawn.classList.add('sliding'); pawn.style.setProperty('--sx',(_sl.dx*122)+'%'); pawn.style.setProperty('--sy',(_sl.dy*122)+'%'); var _sd=Math.max(Math.abs(_sl.dx),Math.abs(_sl.dy)); pawn.style.setProperty('--slidedur', (_sl.late ? _sl.ms/1000 : Math.max(0.3, 0.28*_sd)/ANIM_RATE).toFixed(2)+'s'); }   /* v633 : le retardataire */   /* v463 : ANIM_RATE */   /* glissement plus long quand la distance est grande (3 cases = plus lent, visible) */
       if(S.rcvPop===p.id){ pawn.classList.add('rcvpop'); }
       if(_sl) pawn.classList.add('landed');
       pawn.innerHTML='<img class="simg" src="'+(p.type==='g'?SPRITES_G:SPRITES)[p.team+spriteKeyHand(p)]+'" alt="">';
@@ -9183,7 +9190,7 @@ function hj3dSlides(sl){   // glissements de ce render (S.slides : decalage depa
   for(var id in sl){ var s=sl[id], p=byId(id); if(!s || !p) continue;
     if(s.pts){ var pts=[]; for(var i=0;i<s.pts.length;i++) pts.push([p.c+s.pts[i].dx, p.r+s.pts[i].dy]); pts.push([p.c, p.r]);
       out[id]={pts:pts, ms:s.ms || Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE}; }   // v537 : une duree imposee (l'approche de la fusillade)   // courbe : duree du pion 2D (v411, v463)
-    else if(s.dx || s.dy) out[id]={pts:[[p.c+s.dx, p.r+s.dy],[p.c, p.r]], ms:1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE};   // --slidedur de la 2D
+    else if(s.dx || s.dy) out[id]={pts:[[p.c+s.dx, p.r+s.dy],[p.c, p.r]], ms:s.ms || 1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE};   // --slidedur de la 2D ; v633 : le retardataire (s.ms)
   }
   return out;
 }
