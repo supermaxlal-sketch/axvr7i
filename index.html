@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v629</title>
+<title>Deck 3D v630</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v629';
+var GAME_VERSION='v630';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1566,7 +1566,8 @@ function resolveSeq(seq){
     S.currentSeq=null; if(S.puckLoose && !S.puckOwner){ looseBall(_o?(_o.team==='A'?'B':'A'):S.turn); return; } endExchange(); return;
   }
   if(seq.rank>=n){
-    S._acting=null;   // fin de sequence : plus de halo
+    S._acting=null;
+    S.oneTimer=null;   // v630 : un one-timer arme et pas servi ne survit pas au plan   // fin de sequence : plus de halo
     var _eg=seqEndGlide();   // v382 : fin du plan -> UNE glisse des pieces non commandees a la derniere etape
     if(_eg){ killSeq(seq); S.currentSeq=null; glidePickupTakeover(_eg); return; }
     // une sequence ou RIEN ne sest passe : on ne recommence pas en boucle
@@ -2693,7 +2694,7 @@ function passRolls(p,t){ return !!(t && t.type==='sk' && (cheb(p,t)>5 || passFac
 function passCatchProb(p,t){   // reception d'une passe longue / dos au jeu : 60 + 0,5 x (passe - 60) - 7 / case au-dela de 6 ; face +15 / dos -35
   var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con') + MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'pass');   /* v559 */ // v504 ; v554 : le momentum ; v555 : son moral
   return Math.max(0.05, Math.min(0.95, pr)); }
-function recvBackDrop(p,t){ if(!p||!t||t.type!=='sk') return 0; var tc=Math.sign(p.c-t.c), f=facingOf(t).dc; if(!(tc && f && f!==tc)) return 0;   // v628 : receveur de dos au porteur (passe courte)
+function recvBackDrop(p,t){ if(!p||!t||t.type!=='sk' || S.tut) return 0;   /* v630 : pas dans les lecons (la passe du cycle de la lecon 8 ratait 1 fois sur 5) */ var tc=Math.sign(p.c-t.c), f=facingOf(t).dc; if(!(tc && f && f!==tc)) return 0;   // v628 : receveur de dos au porteur (passe courte)
   return (f===dir(t.team) && (t.mom||0)>0) ? 0.10 : 0.20; }   // son choix : -10 s'il file vers le filet adverse (la passe dans sa course), -20 s'il est arrete ou recule
 function passCatch(p,t){ if(passRolls(p,t)) return passCatchProb(p,t); return 1-recvBackDrop(p,t); }   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
@@ -6022,7 +6023,7 @@ function doPass(p,targetId){
   S.cycleSwap=null;   // consomme : jamais de fuite du marqueur sur une passe suivante (interception/rate compris)
   if(isCycle){ applyCycleEffects(p, targetId); pushLog('<b>Cycle</b> — '+p.name+' works it to '+t.name+' and swings behind; the mark loses a step.'); }
   else { resetCycle(); }
-  var isOneTimer=(S.oneTimer && S.oneTimer===targetId && t && t.type==='sk' && canShootFrom(t)); S.oneTimer=null;
+  var isOneTimer=(S.oneTimer && S.oneTimer===targetId && t && t.type==='sk' && canShootFrom(t)); if(S.oneTimer===targetId) S.oneTimer=null;   // v630 (match RIM, P2 2:30) : seule la passe vers le joueur arme consomme le one-timer (avant : la 1re passe du plan l'effacait)
   if(isOneTimer) S.otFrom={c:p.c, r:p.r};
 
   var pc=p.c, pr=p.r, team=p.team, tid=t.id, tname=t.name, pname=p.name, tc=t.c, tr=t.r, ttype=t.type;
