@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v630</title>
+<title>Deck 3D v631</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v630';
+var GAME_VERSION='v631';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6580,7 +6580,7 @@ function bodyCheckOutcome(checker, C, cc, cr, run){
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
 var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_P_ROUGH=0.10, PEN_MAX=2;   /* v581 : rudesse (fache, mise en echec propre) */   // v497 : accrochage (choix du concepteur, 30 %)
 // v563 (le concepteur : « penalites plus longues, fini trop rapide » ; choix : 36 s, environ 6 jeux) : PEN_SECS 18 -> 36
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing'};
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference'};   // v631 : goalie
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
@@ -6608,11 +6608,11 @@ function penLineupBack(p){ var lu=S.lineup && S.lineup[p.team]; if(!lu || !lu.le
   lu[k]=p.id; p.role=LINEUP_ROLES[k]; if(S.draftUsed && S.draftUsed[p.team]) S.draftUsed[p.team][p.id]=true; return true; }
 function penHunter(id){ var o=S.defOrders||[]; for(var i=0;i<o.length;i++) if(o[i].hunt && o[i].defId===id) return true; return false; }
 function penDeliberate(p){ return !!p && (!!hasOrder(p.id,'check') || penHunter(p.id)); }
-function penFoul(checker, carrier, run){ return Math.sign(checker.c-carrier.c)===-dir(carrier.team) ? 'behind' : ((run||0)>=3 ? 'charge' : null); }   // dans le dos : meme regle que le -50 %
-function penRisk(checker, carrier, run){ var f=penFoul(checker, carrier, run); return f==='behind' ? PEN_P_BEHIND : (f==='charge' ? PEN_P_CHARGE : 0); }
+function penFoul(checker, carrier, run){ if(carrier && carrier.type==='g') return 'goalie';   /* v631 : toucher le gardien = toujours une penalite (LNH) */ return Math.sign(checker.c-carrier.c)===-dir(carrier.team) ? 'behind' : ((run||0)>=3 ? 'charge' : null); }   // dans le dos : meme regle que le -50 %
+function penRisk(checker, carrier, run){ var f=penFoul(checker, carrier, run); if(f==='goalie') return 1; return f==='behind' ? PEN_P_BEHIND : (f==='charge' ? PEN_P_CHARGE : 0); }
 function penRiskShown(checker, carrier, run){ var r=penRisk(checker, carrier, run); return stState(checker)==='angry' ? (r ? r*ST_PEN : PEN_P_ROUGH) : r; }   // v581 : fache -> faute x1,5, sinon rudesse 10 %
 function penTry(p, prob, foul){   // l arbitre leve le bras
-  if(p && prob) prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined »
+  if(p && prob && foul!=='goalie') prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined » (v631 : pas sur le gardien : toujours appelee)
   if(p && prob && foul!=='rough' && stState(p)==='angry') prob*=ST_PEN;   // v559 : fache, x1,5 (v581 : pas la rudesse)
   if(!p || !foul || !prob || S.gameEnded || !(Math.random()<prob)) return false;
   if(penCount(p.team)>=PEN_MAX) return false;   // deja 2 punis : pas de 3e
@@ -6699,6 +6699,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   // Un def<4 NON poste (simple contact au passage) fait encore un poke (le finaud ne charge pas tout seul).
   var _postedHit = (posted || !!hasOrder(checker.id,'check'));
   var isBody=_postedHit || (checker.def>=4 && !hasOrder(checker.id,'poke'));   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit
+  if(C && C.type==='g' && (checker.team===AI_TEAM || !_postedHit)) isBody=false;   // v631 (match TRV, P3 0:08 ; son choix) : sur un gardien, l'IA fait un poke, jamais une mise en echec ; toi : seulement sur ton ordre (et c'est une penalite)
   var _carGuard = carSpeedGuard(C);   // lire la vitesse du porteur AVANT toute casse (elle alimente les cotes) ; l'elan ne se casse QUE si le contact connecte (voir le bloc success plus bas)
   var _dist=Math.max(Math.abs(checker.c-C.c), Math.abs(checker.r-C.r));
   var _adj=(_dist<=1);
