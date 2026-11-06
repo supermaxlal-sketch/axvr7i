@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v628</title>
+<title>Deck 3D v629</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -541,6 +541,8 @@ button.act.wrap{background:#8a5a14;color:#fff3e0;}
 button.act.cyc{background:#1f6f7a;color:#e6fbff;}
 button.act.cyc.on{box-shadow:0 0 0 3px #7fe0e6,0 0 12px rgba(127,224,230,.85);}
 .cell.mkt::before{content:'';position:absolute;inset:7%;border-radius:50%;box-shadow:0 0 0 3px #ff8fbf,0 0 9px rgba(255,143,191,.7);pointer-events:none;z-index:2;}   /* v480 : adversaire que tu peux marquer */
+.cell.hunt::before{content:'';position:absolute;inset:5%;border-radius:50%;box-shadow:0 0 0 3px #ff4d5e,0 0 10px rgba(255,77,94,.75);pointer-events:none;z-index:2;}   /* v629 : le chasseur de l'IA */
+.cell.hunt::after{content:attr(data-tag);position:absolute;left:50%;top:-14px;transform:translateX(-50%);color:#ff4d5e;font-weight:800;font-size:10px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none;z-index:3;}
 .cell.cyct::before{content:'';position:absolute;inset:9%;border-radius:50%;box-shadow:0 0 0 3px #2fd6d6;background:rgba(47,214,214,.20);pointer-events:none;z-index:2;}
 .cell.cyct::after{content:'🔄';position:absolute;right:6%;top:5%;font-size:10px;pointer-events:none;z-index:3;}
 .pawn.g.spr .simg{left:-25%;top:-25%;width:150%;height:150%;}
@@ -1358,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v628';
+var GAME_VERSION='v629';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1465,6 +1467,13 @@ function defRoleTarget(role){
   if(role==='threat'){ var th=mostDangerousAttacker(car.team); return th?{c:th.c, r:th.r}:predictDest(car); }
   return null;
 }
+// v629 (son match RIM, P3 0:15 : « Comment pouvait-il savoir que j'allais etre la ? » ; son choix : le montrer) : pendant TON plan
+// d'attaque, le chasseur de l'IA (il suit ton porteur, 1 action en retard) est montre : anneau rouge, « Hunting », ligne vers le porteur.
+function huntShown(){
+  if(!isHumanAttackPlan() || !S.puckOwner || S.bonus) return null; var car=byId(S.puckOwner); if(!car || car.team!==HUMAN_TEAM || !car.onIce) return null;
+  var o=S.defOrders||[]; for(var i=0;i<o.length;i++){ if(!o[i].hunt || o[i].used) continue; var h=byId(o[i].defId);
+    if(h && h.onIce && h.team!==HUMAN_TEAM && hasPos(h)) return {h:h, car:car}; }
+  return null; }
 // v383 : le CHASSEUR IA colle au porteur tente une reprise (une fois par echange). On le rend comme
 // "defenseur de ce temps" : les appelants passent deja par resolveSeqContact -> resolveCheck.
 function hunterReady(){
@@ -8808,6 +8817,7 @@ function render(){
     var _cr=28*0.3048/2*MARK_SCALE; _bd.style.borderRadius=(100*_cr/COLS).toFixed(1)+'%/'+(100*_cr/ROWS).toFixed(1)+'%'; }   // v387 : coins NHL (28 pi) a l'echelle de la glace
   paintRink();
   var mset={}, _msel=byId(S.sel); for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=S.moves[m].curve?'curve':(moveFar(_msel, S.moves[m])?'far':(S.moves[m].kind||'fwd'));   // v408 : case de courbe   // v603 : case du porteur a 2 actions
+  var _hunt=huntShown();   // v629
   for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
     var cell=document.createElement('button'); cell.className='cell'; cell.setAttribute('aria-label','square '+(c+1)+','+(r+1));
     var p=pieceAt(c,r), key=c+','+r, clickable=false;
@@ -8819,6 +8829,7 @@ function render(){
     if(S.planning||S.defCommit){ for(var _gk in S.ghost){ var _g=S.ghost[_gk]; if(_g&&_g.c===c&&_g.r===r) cell.className+=' ghostc'; if(_g&&_g.viaC!=null&&_g.viaC===c&&_g.viaR===r) cell.className+=' ghostvia'; if(_g&&_g.path){ for(var _gp=0;_gp<_g.path.length-1;_gp++){ if(_g.path[_gp].c===c&&_g.path[_gp].r===r){ cell.className+=' ghostvia'; break; } } } if(_g&&_g.rest){ for(var _gq=0;_gq<_g.rest.length;_gq++){ if(_g.rest[_gq].c===c&&_g.rest[_gq].r===r){ cell.className+=' ghostrest'; break; } } } } }   /* v408 : l'arc d'une courbe planifiee */
     if(S.defCommit){ for(var _di=0;_di<S.defCommit.picks.length;_di++){ if(S.defCommit.picks[_di].toC===c&&S.defCommit.picks[_di].toR===r){ cell.className+=' dcm'; cell.setAttribute('data-dn',String(_di+1)); } if(S.defCommit.picks[_di].mate&&S.defCommit.picks[_di].mate.toC===c&&S.defCommit.picks[_di].mate.toR===r){ cell.className+=' dcm'; cell.setAttribute('data-dn',String(_di+1)); }   /* v622 : le partenaire, meme numero */ }
       if(S.defCommit.pendingMove && S.defCommit.pendingMove.toC===c && S.defCommit.pendingMove.toR===r){ cell.className+=' dcm pend'; cell.setAttribute('data-dn',String(S.defCommit.picks.length+1)); } }
+    if(_hunt && _hunt.h.c===c && _hunt.h.r===r){ cell.className+=' hunt'; cell.setAttribute('data-tag','Hunting'); }   // v629 : le chasseur de l'IA
     if(S.planning && routePassAt(c,r)){ cell.className+=' pt rpt'; clickable=true; }
     if(S.planning && bankGoAt(c,r)){ cell.className+=' pt rpt'; clickable=true; }   // v457   // v428 : case-cible d un trajet
     if(!p && S.planning){
@@ -9174,8 +9185,8 @@ function hj3dSnapshot(slides){
           ghosts.push({id:gq.id, team:gq.team, type:gq.type, c:c, r:r, dc:gf.dc, dr:gf.dr||0, hand:gq.hand||null, size:gq.size||'M'}); } }
       else if(pw) pawnCls[pw.getAttribute('data-pid')]=pw.className;
       if(el.className==='cell') continue;
-      var o={c:c, r:r, k:el.className}, b=el.querySelector('.oddsbadge'), dn=el.getAttribute('data-dn');
-      if(b) o.pct=b.textContent; if(dn) o.dn=dn; cells.push(o); } }
+      var o={c:c, r:r, k:el.className}, b=el.querySelector('.oddsbadge'), dn=el.getAttribute('data-dn'), tg=el.getAttribute('data-tag');
+      if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
     var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', mom:q.mom||0, role:hj3dRole(q)};
@@ -9365,6 +9376,7 @@ function routeLines(){
     if(S.defCommit){ for(var i=0;i<S.defCommit.picks.length;i++){ var pk=S.defCommit.picks[i], pp=byId(pk.defId); if(pk.path && pp) both(pp, pk.path, pk.n||pk.path.length, 7); } }
   }
   if(S.route){ var p=byId(S.route.id); if(p){ var n=S.route.path.length ? routeStep(p, p.c, p.r, S.route.path, S.route.def?null:planState(p)).n : 0; both(p, S.route.path, n, 11); } }
+  var _hs=huntShown(); if(_hs) out.push({pts:[[_hs.h.c, _hs.h.r],[_hs.car.c, _hs.car.r]], solid:false, w:7, col:'hunt'});   // v629 : le chasseur -> ton porteur (pointilles rouges)
   var _sr=S.so && S.so.run; if(_sr && _sr.path && _sr.path.length && (_sr.phase==='draw' || _sr.phase==='skate')){ var _sp=byId(_sr.id); if(_sp) line([{c:_sp.c, r:_sp.r}].concat(_sr.path.slice(_sr.k||0)), true, 11); }   // v541 : le trajet du tireur
   return out;
 }
@@ -9375,7 +9387,7 @@ function renderRoute(){
   var L=routeLines();
   for(var li=0;li<L.length;li++){ var A=[]; for(var lj=0;lj<L[li].pts.length;lj++) A.push({c:L[li].pts[lj][0], r:L[li].pts[lj][1]});
     var e=document.createElementNS('http://www.w3.org/2000/svg','path');
-    e.setAttribute('d', routeCurveD(A)); e.setAttribute('fill','none'); e.setAttribute('stroke','#ff8fbf'); e.setAttribute('stroke-width', String(L[li].w)); e.setAttribute('stroke-linecap','round');
+    e.setAttribute('d', routeCurveD(A)); e.setAttribute('fill','none'); e.setAttribute('stroke', L[li].col==='hunt' ? '#ff4d5e' : '#ff8fbf'); e.setAttribute('stroke-width', String(L[li].w)); e.setAttribute('stroke-linecap','round');
     e.setAttribute('opacity', L[li].solid?'0.9':'0.6'); if(!L[li].solid) e.setAttribute('stroke-dasharray','3 16'); g.appendChild(e); }
   if(!S.route || !byId(S.route.id)) return;
   var tip=routeTip(); if(tip){ var t=_routeXY(tip);
@@ -12349,7 +12361,7 @@ showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":537884,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":538236,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
