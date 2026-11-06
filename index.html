@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v626</title>
+<title>Deck 3D v627</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1358,7 +1358,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v626';
+var GAME_VERSION='v627';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1606,6 +1606,10 @@ function resolveSeq(seq){
 
   if(a.kind==='zoneout'){ zoneOutRun(seq, p); return; }   // v578 : sortie de zone (les 5 en zone neutre)
   if(a.kind==='move'){
+    if(a.path && a.path.length && cheb(p, a.path[0])>1){   // v627 (match RIM, P1 2:00) : trace perime -- l'action bonus de l'echappee l'a deja deplace ; le vieux trace le ramenait en arriere (et devant son frappeur)
+      if(p.c===a.toC && p.r===a.toR){ p._skatedInPlan=true; var dfS=resolveSeqDefStep(seq); if(dfS==='takeover') return;   // deja a destination : il reste la (son patinage est fait : pas de glisse en fin de plan)
+        S.animating=true; render(); setTimeout(function(){ S.animating=false; render(); if(seq!==S.currentSeq) return; seqAdvance(seq); }, TEMPO.slide); return; }
+      a=Object.assign({}, a, {path:null, viaC:null, viaR:null}); }   // sinon : tout droit vers la destination
     var _preMateInZone = teammateInOffZone(p.team, p.id);   // HORS-JEU PORTE : on retient qui etait DEJA en zone AVANT ce mouvement. Un partenaire MIROIR qui franchit la ligne EN MEME TEMPS (mirrorMoveNow, plus bas) ne doit pas compter -> plus de faux hors-jeu simultane.
     resolveCutIfAny(seq, a);   // duel de coupe AVANT que le marqueur poursuive (seme le marqueur ce temps si gagne)
     var _bend=(a.viaC!=null && a.viaR!=null && planCanBendMove(p, a.viaC, a.viaR, a.toC, a.toR));   // trace coude valide : on passe par le point de virage
@@ -6572,7 +6576,7 @@ function penBoxedIds(team){ var P=S.pen, seen={}, a=[]; if(!P) return a; for(var
 // periode -> son equipe joue a 4. v600 (le concepteur : « je choisis 5 joueurs pour la periode quand meme. Quand le gars sort de
 // penalite, celui que tu as choisi saute sur la glace ») : on compose 5 joueurs ; l'ailier droit attend au banc (« After the
 // penalty ») et saute sur la glace a la fin de la penalite, le puni va au banc. Deux punis : AD puis AG. L'IA aussi.
-function penWaitSlots(team){ var k=penBoxedIds(team).length; return k>=2 ? ['AD','AG'] : (k===1 ? ['AD'] : []); }   // dans l'ordre ou ils sautent sur la glace
+function penWaitSlots(team, lu){ var k=penBoxedIds(team).filter(function(id){ return !lu || lu.indexOf(id)<0; }).length; return k>=2 ? ['AD','AG'] : (k===1 ? ['AD'] : []); }   // dans l'ordre ou ils sautent sur la glace
 function penWaiting(id){ var w=S.pen && S.pen.wait; return !!w && ['A','B'].some(function(t){ return (w[t]||[]).some(function(x){ return x.id===id; }); }); }
 function penSubOn(team, boxed){ var w=S.pen && S.pen.wait && S.pen.wait[team]; if(!w) return null; var k=-1;   // v600 : l'ailier qui attendait CE puni saute sur la glace
   for(var i=0;i<w.length;i++) if(w[i].by===boxed){ k=i; break; } if(k<0) return null; var q=byId(w.splice(k,1)[0].id);
@@ -7803,7 +7807,8 @@ var LINEUP_ROLES=['C','AG','AD','DG','DD'];   // ordre du lineup : Centre, Ailie
 function deployLineup(){
   var on={};
   if(S.pen) S.pen.wait={A:[], B:[]};
-  ['A','B'].forEach(function(tm){ var lu=S.lineup[tm]||[], wt=penWaitSlots(tm), bx=penBoxedIds(tm); for(var k=0;k<lu.length;k++){ if(!lu[k]) continue; var q=byId(lu[k]); if(q) q.role=LINEUP_ROLES[k]||null; if(wt.indexOf(LINEUP_ROLES[k])<0) on[lu[k]]=1; }
+  ['A','B'].forEach(function(tm){ var lu=S.lineup[tm]||[], wt=penWaitSlots(tm, lu), bx=penBoxedIds(tm).filter(function(id){ return lu.indexOf(id)<0; });   // v627 : un puni deja dans l'alignement laisse sa place vide -- personne n'attend pour lui (avant : 3 patineurs apres un but en inferiorite)
+    for(var k=0;k<lu.length;k++){ if(!lu[k]) continue; var q=byId(lu[k]); if(q) q.role=LINEUP_ROLES[k]||null; if(wt.indexOf(LINEUP_ROLES[k])<0) on[lu[k]]=1; }
     wt.forEach(function(r, i){ var id=lu[LINEUP_ROLES.indexOf(r)]; if(id && S.pen) S.pen.wait[tm].push({id:id, by:bx[i]}); }); });   // v600 : l'ailier (AD, puis AG) attend au banc la fin de la penalite de son puni
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk'){ q.onIce=!!on[q.id] && !penInBox(q.id) && !q.vacant && !(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[q.id]); } }   // v445 : un puni reste au banc ; v489 : un blesse aussi
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
