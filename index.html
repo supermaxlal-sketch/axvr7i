@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v627</title>
+<title>Deck 3D v628</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1358,7 +1358,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v627';
+var GAME_VERSION='v628';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2684,6 +2684,9 @@ function passRolls(p,t){ return !!(t && t.type==='sk' && (cheb(p,t)>5 || passFac
 function passCatchProb(p,t){   // reception d'une passe longue / dos au jeu : 60 + 0,5 x (passe - 60) - 7 / case au-dela de 6 ; face +15 / dos -35
   var f=passFacingThr(p,t), pr=0.60 + 0.005*(n100(p.passe)-60) - 0.07*(cheb(p,t)-6) + (f>0 ? 0.15 : (f<0 ? -0.35 : 0)) + 0.005*speechK(p.team, 'con') + MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'pass');   /* v559 */ // v504 ; v554 : le momentum ; v555 : son moral
   return Math.max(0.05, Math.min(0.95, pr)); }
+function recvBackDrop(p,t){ if(!p||!t||t.type!=='sk') return 0; var tc=Math.sign(p.c-t.c), f=facingOf(t).dc; if(!(tc && f && f!==tc)) return 0;   // v628 : receveur de dos au porteur (passe courte)
+  return (f===dir(t.team) && (t.mom||0)>0) ? 0.10 : 0.20; }   // son choix : -10 s'il file vers le filet adverse (la passe dans sa course), -20 s'il est arrete ou recule
+function passCatch(p,t){ if(passRolls(p,t)) return passCatchProb(p,t); return 1-recvBackDrop(p,t); }   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
   return Math.max(0.05, Math.min(0.90, 0.55 + 0.006*(n100(def.defense)-n100(passer.passe)) + (hasPerk(def,'intercepteur')?0.20:0) - (hasPerk(passer,'passeur')?0.30:0) + 0.005*speechK(def.team, 'sys'))); }   // v504
@@ -3745,7 +3748,7 @@ function passOdds(p,t){   // % que la passe passe : couloir actuel (1-thr/6) ET 
   if(!p||!t) return null;
   var lt=laneThreat(p,t);
   var laneProb=1 - (lt.def ? lt.prob : 0);
-  var _catch=passRolls(p,t) ? passCatchProb(p,t) : 1;   // v421 : passe longue / dos au jeu -> reception sur 100
+  var _catch=passCatch(p,t);   // v421 : passe longue / dos au jeu -> reception sur 100 ; v628 : receveur de dos -> 80
   var pct=Math.round(laneProb*(1-laneReachRisk(p,t))*_catch*100);
   var cap=Math.max(80, 96 - cheb(p,t));   // meme couloir vide : embuscade cachee, mauvaise reception -> jamais 100
   return Math.max(5, Math.min(pct, cap));   // plancher : une passe n'est jamais 0% (deviation chanceuse, rondelle dans les patins) — comme jamais 100%
@@ -6047,8 +6050,8 @@ function doPass(p,targetId){
   var _near=null;   // v584 : un adversaire a essaye de couper la passe et l'a ratee (le couloir ou l'ordre de bloc) : la 3D le montre
   [intc, blk].forEach(function(x){ if(x && x.def && !x.intercepted){ var dd=distToSeg(x.def.c, x.def.r, pc, pr, tc, tr).d; if(!_near || dd<_near.d) _near={id:x.def.id, d:dd}; } });
   var pdist=cheb(p,t), pmiss=false, pdie=0, pthr=0;
-  if(passRolls(p,t)){   // la passe roule si elle est longue OU dos au jeu (v421 : reception sur 100)
-    var _pcp=passCatchProb(p,t); pthr=Math.round(_pcp*100); pdie=1+Math.floor(Math.random()*100); pmiss=(pdie>pthr); if(tutGuided()) pmiss=(p.team!==HUMAN_TEAM);   /* v451 */
+  if(passRolls(p,t) || recvBackDrop(p,t)){   // la passe roule si elle est longue OU dos au jeu (v421) ; v628 : receveur de dos aussi
+    var _pcp=passCatch(p,t); pthr=Math.round(_pcp*100); pdie=1+Math.floor(Math.random()*100); pmiss=(pdie>pthr); if(tutGuided()) pmiss=(p.team!==HUMAN_TEAM);   /* v451 */
     if(_stride && pmiss && Math.random()<_rescue) pmiss=false;   // v419 : recue dans la course malgre tout
   }
   if(pmiss){
@@ -11774,7 +11777,7 @@ var TUT_LESSONS=[
     why:function(){ return S.tut.lastCount>2 ? "You used 3 actions. Move one winger: the mirror moves the other one for free." : "Not all three crossed the red line. From a stop, a player skates 3 or 4 squares."; },
     won:"The mirror moves two players with one action." } },
 { id:'pass', n:4, title:'Pass', blurb:'Read the % before you pass. Call for the puck in stride.',
-  setup:function(){ tutPlace({A:[['A_BE',9,5,'C'],['A_RO',12,2,'AG'],['A_BO',12,8,'AD']], B:[['B_PA',11,7]], puck:'A_BE', mirror:false}); },
+  setup:function(){ tutPlace({A:[['A_BE',9,5,'C'],['A_RO',12,2,'AG',-1],['A_BO',12,8,'AD',-1]], B:[['B_PA',11,7]], puck:'A_BE', mirror:false}); },   // v628 : Roy et Boucher regardent Belanger (de dos = -20 a la reception)
   steps:[
     {say:"Belanger has the puck. Tap him: each teammate shows the % that a pass gets there.", hl:['p:A_BE'], allow:['p:A_BE'], until:function(){ return S.sel==='A_BE'; }},
     {say:"Boucher shows a low %: Pageau stands in the passing lane and can cut the pass off. Roy is open. Tap Roy to pass to him.", hl:['p:A_RO'], allow:['p:A_RO'], until:function(){ return tutPlanHas('A_BE','pass',function(a){ return a.target==='A_RO'; }); }},
@@ -11786,7 +11789,7 @@ var TUT_LESSONS=[
     {say:"Boucher has the puck, away from Pageau. Your turn now.", next:true}
   ],
   goal:{ say:function(){ return "Your turn: get the puck to Boucher without losing it, in 2 plans. Plans used: "+(S.tut.freePlans||0)+"/2."; },
-    reset:function(){ tutPlace({A:[['A_BE',9,5,'C'],['A_RO',12,2,'AG'],['A_BO',12,8,'AD']], B:[['B_PA',11,7]], puck:'A_BE', mirror:false}); },
+    reset:function(){ tutPlace({A:[['A_BE',9,5,'C'],['A_RO',12,2,'AG',-1],['A_BO',12,8,'AD',-1]], B:[['B_PA',11,7]], puck:'A_BE', mirror:false}); },   // v628 : Roy et Boucher regardent Belanger (de dos = -20 a la reception)
     check:function(){ return S.puckOwner==='A_BO' && S.planning && !S.currentSeq && !S.animating; },
     fail:function(){ var o=S.puckOwner?byId(S.puckOwner):null; if(S.animating || S.currentSeq) return false;
       return (!!o && o.team!==HUMAN_TEAM) || (!o && !!S.puckLoose) || ((S.tut.freePlans||0)>=2 && S.planning); },
@@ -12047,7 +12050,7 @@ function tutPlace(spec){
   var on={}; ['A','B'].forEach(function(tm){ (spec[tm]||[]).forEach(function(x){ on[x[0]]=x; }); });
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type!=='sk') continue; var x=on[q.id];
     q.onIce=!!x; q.role=x?(x[3]||null):null; q.mom=0; q.speed=0; q.vel=null; q.route=null; q.facing={dc:dir(q.team), dr:0};
-    if(x){ q.c=x[1]; q.r=x[2]; } }
+    if(x){ q.c=x[1]; q.r=x[2]; if(x[4]) q.facing={dc:x[4], dr:0}; } }   // v628 : x[4] = le sens du regard (sinon vers le filet adverse)
   var ga=byId('A_TH'), gb=byId('B_DM'); ga.onIce=true; ga.c=NET_B; ga.r=CTR_R; gb.onIce=true; gb.c=NET_A; gb.r=CTR_R;
   S.puckOwner=spec.puck||null; S.puckLoose=spec.loose?{c:spec.loose[0], r:spec.loose[1]}:null;
   S.turn=spec.puck ? byId(spec.puck).team : HUMAN_TEAM; S.mirror=!!spec.mirror;
