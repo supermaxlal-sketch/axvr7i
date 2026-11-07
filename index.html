@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v637</title>
+<title>Deck 3D v638</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v637';
+var GAME_VERSION='v638';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -11190,11 +11190,15 @@ function offMeetLeave(stamp){ var c=CAREER, p=offMeetP(c);   // il ressort par l
   offGo('door', function(){ OFF_MEET=null; offOpen('roster', 'lines'); }, '', 9000); }   // le secours : sa marche (~3,8 s) ; setTimeout est divise par ANIM_RATE (1,5) -> 6 s
 function offMeetDone(){ var c=CAREER, p=offMeetP(c); if(!p || offMeetCanPlace(c.teams[c.my], p) || p.perkPick) return; offMeetLeave(true); }
 function offMeetLater(){ offMeetLeave(false); }
+function offMeetSub(T, p){   // v638 : la ligne sous le nom -- sa position en tete (comme la carte du bureau) et sa vraie main (G / D ; avant : 'R' attendu -> un droitier etait « LEFT SHOT »)
+  if(offIsGk(T, p)) return 'GOALIE · '+String(gkStyleLabel(p)).toUpperCase()+' · '+p.age+' YRS';
+  var sp=SPOT_LONG[spotOf(p)];
+  return (sp ? sp.toUpperCase()+' · ' : '')+String((ARCH_INFO[p.archetype]||{}).n||p.archetype).toUpperCase()+' · '+p.age+' YRS'+(p.hand ? ' · '+(p.hand==='G' ? 'LEFT' : 'RIGHT')+' SHOT' : ''); }
 function offPaintMeet(c, p){   // la carte LEVEL UP (800 x 1120, la maquette 5A) : le numero, LVL n -> n+1, le total, ses stats en barres ; le +1 de la visite en or
   var T=c.teams[c.my], L=OFF_LVL, gk=offIsGk(T, p), lk=lookParse(p.look), rows=offMeetRows(T, p), can=offMeetCanPlace(T, p), add=(OFF_MEET && OFF_MEET.add)||{}, from=OFF_MEET ? OFF_MEET.from : p.lvl;
   var perks=can ? [] : offMeetPerks(p), rr=(c.report && c.report.rows||[]).filter(function(r){ return r.uid===p.uid; })[0], ups=[];
   if(rr && rr.up) for(var k in rr.up) ups.push('▲ '+(CAREER_ABBR[k]||k)+' '+rr.up[k][0]+'→'+rr.up[k][1]);
-  var sub=gk ? 'GOALIE · '+String(gkStyleLabel(p)).toUpperCase()+' · '+p.age+' YRS' : String((ARCH_INFO[p.archetype]||{}).n||p.archetype).toUpperCase()+' · '+p.age+' YRS'+(p.hand ? ' · '+(p.hand==='R' ? 'RIGHT' : 'LEFT')+' SHOT' : '');
+  var sub=offMeetSub(T, p);
   var status=can ? (p.pts>1 ? 'TAP A STAT: '+p.pts+' POINTS TO PUT' : 'TAP A STAT TO PUT YOUR POINT') : (p.perkPick ? 'PICK A PERK' : 'ALL DONE');
   var sig='meet|'+p.uid+'|'+T.colors.join()+'|'+from+'>'+p.lvl+'|'+p.pts+'|'+(p.perkPick||[]).join()+'|'+rows.map(function(r){ return r.k+':'+p[r.k]+':'+(add[r.k]||0); }).join(',')+'|'+ups.join();
   if(OFF.paint.card===sig) return;
@@ -11208,7 +11212,8 @@ function offPaintMeet(c, p){   // la carte LEVEL UP (800 x 1120, la maquette 5A)
   x.textAlign='right'; x.fillText('LVL '+from+' → '+p.lvl, W-40, 182);
   x.textAlign='left'; x.fillStyle=FG; x.font='bold 150px '+OFF_SANS; x.fillText(String(offRating(T, p)), 34, 356);
   x.font='bold 58px '+OFF_SANS; x.fillText(offSurname(p.name).toUpperCase(), 296, 282, W-330);
-  x.fillStyle=DIM; x.font='bold 24px '+OFF_SANS; x.fillText(sub, 298, 326, W-330);
+  x.fillStyle=DIM; x.font='bold 24px '+OFF_SANS; for(var _fs=23; _fs>=18 && x.measureText && x.measureText(sub).width>W-330; _fs--) x.font='bold '+_fs+'px '+OFF_SANS;   // v638 : la position en plus -- plus petit plutot qu'ecrase
+  x.fillText(sub, 298, 326, W-330);
   x.fillStyle=OFF_GOLD; x.font='bold 24px '+OFF_SANS; ups.slice(0, 3).forEach(function(t, i){ x.fillText(t, 298+i*160, 366, 150); });   // les +1 gagnes en jouant ce match
   x.fillStyle='rgba(242,193,78,0.16)'; x.fillRect(12, 400, W-24, 70);
   x.fillStyle=OFF_GOLD; x.beginPath(); x.arc(64, 435, 24, 0, Math.PI*2); x.fill();
