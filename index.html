@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v641</title>
+<title>Deck 3D v642</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v641';
+var GAME_VERSION='v642';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3718,12 +3718,16 @@ function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PU
   lane.sort(function(a,b){return a.d-b.d;});
   var best=lane[0].e, crowd=lane.length, bd=lane[0].d;
   // v421 : TOUT SUR 100 -- 40 + 0,6 x (defense - passe) ; pile sur la ligne +10 / au bord -10 ; perks ; 2+ adversaires
-  var pr=0.40 + 0.006*(n100(best.defense)-n100(p.passe)) + (bd<=0.35 ? 0.10 : (bd>0.6 ? -0.10 : 0))
+  // v642 (ses notes : « trop dur de faire des passes » ; son choix « Les deux ») : base 25 (avant 40) ; s'il ARRIVE dans le couloir
+  // pendant le tour (pas dans ce couloir au debut de l'echange), moitie moins
+  var pr=0.25 + 0.006*(n100(best.defense)-n100(p.passe)) + (bd<=0.35 ? 0.10 : (bd>0.6 ? -0.10 : 0))
          + (hasPerk(best,'intercepteur') ? 0.20 : 0) - (hasPerk(p,'passeur') ? 0.30 : 0);
-  if(crowd>=2) pr=Math.max(pr+0.35, 0.80);   // DEUX adversaires (ou plus) dans le couloir : la passe ne passe presque jamais
+  if(crowd>=2) pr=Math.max(pr+0.50, 0.80);   /* v642 : +50 (la base passe de 40 a 25 : le mur reste le meme) */ // DEUX adversaires (ou plus) dans le couloir : la passe ne passe presque jamais
   if(S._stratDef && S._stratDef.kind==='intercept' && best.team===S._stratDef.team) pr+=0.30;   // bonus strategie Trappe neutre
   pr+=0.005*speechK(best.team, 'sys')-0.005*speechK(p.team, 'con');   // v504 : « Stick to the system » (defense) / « Believe in yourselves » (passe)
   pr-=MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'pass');   /* v559 : son etat */ // v554 : le momentum du passeur (moins d'interceptions) ; v555 : son moral
+  var _st=S._exStart && S._exStart[best.id];
+  if(_st && (_st.c!==best.c || _st.r!==best.r)){ var _s0=distToSeg(_st.c,_st.r,p.c,p.r,t.c,t.r); if(!(_s0.d<=0.85 && _s0.t>0.12 && _s0.t<0.92)) pr*=0.5; }   // v642 : il arrive dans le couloir
   pr=Math.max(0.05, Math.min(0.90, pr));
   return {def:best, crowd:crowd, prob:pr, thr:pr*6};   // thr : compat « seuil /6 »
 }
@@ -4973,6 +4977,7 @@ function startExchange(){
   flushPlanMomentum();   // v393 : une sequence coupee (passe, tir, contact) compte quand meme l'elan de ses gestes
   resetAlert();   // v380 : l'Alerte-passe ne dure qu'un tour
   S.gestes=3; S.carrierMoved=false; S.hiddenDef=[]; S.defRevealIdx=0; S.defOrders=[];
+  S._exStart={}; S.pieces.forEach(function(q){ if(q.onIce && q.type==='sk') S._exStart[q.id]={c:q.c, r:q.r}; });   // v642 : ou etait chacun au debut de l'echange (qui ARRIVE dans un couloir de passe)
   momDecay();   // v554 : le momentum revient vers le neutre a chaque tour
   var _atk=S.puckOwner?byId(S.puckOwner).team:null;
   var _reset=(_atk && S.rebStreak>=2 && !S.tut); if(_reset) S.rebStreak=0;   // v459 : pas pendant une lecon
@@ -4985,7 +4990,7 @@ function startExchange(){
   if(_atk===HUMAN_TEAM){ if(_reset){ announceReset(AI_TEAM); S.hiddenDef=aiDefResetPicks(); if(goalieHolding()) S.hiddenDef=S.hiddenDef.slice(0,1);   /* v462 : ton gardien -> un seul coup */ S.defRevealIdx=0; } else commitHiddenDefense(); startPlan(); return; }   // v459 (ecart 9) : le repli se joue vraiment   // le flag _faceoffFresh reste vrai ce 1er tour : le coach bar ne s'offre pas encore, il se leve a endExchange
   commitHiddenDefense();   // v459 : (pas de porteur -> jamais de repli ; la branche morte est retiree)
   clearSel(); render(); }
-function endExchange(){ S._lateDef=null;   // v524
+function endExchange(){ S._lateDef=null; S._exStart=null;   /* v642 : hors echange, personne n'« arrive » (le % du plan) */   // v524
   if(S._endingExch) return;   // deja en train de cloturer : on ne relance pas deux fois
   S._endingExch=true; setTimeout(function(){ S._endingExch=false; }, 300);
   cineExit();   // CINE 2.5D : la camera remonte au plateau a la fin de la sequence
