@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v639</title>
+<title>Deck 3D v640</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v639';
+var GAME_VERSION='v640';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12379,7 +12379,24 @@ function matchAutoPause(){   // la page est cachee (telephone verrouille, autre 
   if((mm && mm.classList.contains('show')) || (co && co.classList.contains('show'))) return;
   togglePause();
 }
-document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden') matchAutoPause(); });
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden') matchAutoPause(); else glLostCheck(); });
+/* v640 (son bogue : « quand je reviens d'une pause, quelquefois l'ecran est noir, je dois actualiser » ; son choix « Recharge auto
+   + reprise ») : en arriere-plan, le telephone peut vider la 3D (WebGL perdu) ; Godot ne sait pas la refaire (glace noire, meme
+   apres le retour du contexte). Au retour (page visible), la page se recharge et reprend le match sauvegarde (debut de l'echange
+   en cours, v499), en pause. Hors d'un match : elle se recharge seulement. */
+var GL_LOST=false, GL_RELOAD_KEY='hjGlReload';
+function glReload(){ location.reload(); }
+function glInMatch(){ var mm=document.getElementById('mainMenu'), co=document.getElementById('careerOverlay');
+  return !!(MSAVE_ON && S && !S.gameEnded && !S.tut && matchSaveRead() && !(mm && mm.classList.contains('show')) && !(co && co.classList.contains('show'))); }
+function glLostCheck(){ if(!GL_LOST || document.visibilityState==='hidden') return;
+  GL_LOST=false; try{ sessionStorage.setItem(GL_RELOAD_KEY, glInMatch() ? 'resume' : 'menu'); }catch(e){}
+  glReload(); }
+function glResumeAfterReload(){ var k=null; try{ k=sessionStorage.getItem(GL_RELOAD_KEY); sessionStorage.removeItem(GL_RELOAD_KEY); }catch(e){}
+  if(k!=='resume' || !matchSaveRead()) return false;
+  if(!matchResume()) return false;
+  if(!S.paused) togglePause();   // en pause : il reprend quand il veut (la 3D se recharge)
+  return true; }
+(function(){ var c=document.getElementById('g3d'); if(c) c.addEventListener('webglcontextlost', function(){ if(!hj3dActive()) return; GL_LOST=true; glLostCheck(); }); })();
 document.getElementById('mmResume').onclick=matchResume;
 document.getElementById('raResume').onclick=function(){ _hide('resumeAsk'); RA_NEXT=null; matchResume(); };
 document.getElementById('raNew').onclick=function(){ _hide('resumeAsk'); matchSaveClear(); matchSaveMenu(); var f=RA_NEXT; RA_NEXT=null; if(f) f(); };
@@ -12389,6 +12406,7 @@ loadSettings();
 newGame('A');
 updateDiagBtn();
 showMainMenu();   // le jeu s'ouvre sur le MENU PRINCIPAL (le draft est prêt en dessous)
+glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match reprend (en pause)
 </script>
 <script src="godot/index.js"></script>
 <script>
