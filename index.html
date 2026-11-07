@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v643</title>
+<title>Deck 3D v644</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v643';
+var GAME_VERSION='v644';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10930,7 +10930,7 @@ function offLuMag(x, T, p, m, cur){ var U=OFF_LU, gold=careerWaits(T, p), body=g
   x.fillStyle=body; offRRect(x, m.x, m.y, U.w, U.h, 10); x.fill(); x.restore();
   x.fillStyle='#fbfbf8'; x.fillRect(m.x+6, m.y+6, U.w-12, 34);
   x.fillStyle='#16181d'; x.textAlign='center'; x.font='bold 26px '+OFF_MARKER; x.fillText(offSurname(p.name), m.x+U.w/2, m.y+32, U.w-18);
-  var gk=m.k==='G', sp=gk ? null : spotOf(p), off=!gk && m.k==='L' && LINEUP_ROLES[m.ri]!==sp;   // v626 : la position en gros (orange hors poste, jamais aux gradins), la note, FO des avants
+  var gk=m.k==='G', sp=gk ? null : spotOf(p), off=!gk && m.k==='L' && LINEUP_ROLES[m.ri]!==sp;   // v626 : la position en gros (orange hors poste, jamais aux gradins), la note (v644 : plus de FO)
   if(!p.inj){ x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(m.x+6, m.y+43, U.w-12, 6);   // l'energie : une fine barre sous le nom
     x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(m.x+6, m.y+43, Math.round((U.w-12)*e/100), 6); }
   x.fillStyle='#fbfbf8'; offRRect(x, m.x+5, m.y+52, 44, 28, 6); x.fill();
@@ -10939,7 +10939,7 @@ function offLuMag(x, T, p, m, cur){ var U=OFF_LU, gold=careerWaits(T, p), body=g
   if(p.inj){ x.textAlign='right'; x.font='bold 20px '+OFF_SANS; x.fillText('Out '+p.inj.left, m.x+U.w-6, m.y+75);
     x.fillStyle='#ffffff'; offRRect(x, m.x+U.w-32, m.y-10, 38, 38, 7); x.fill(); x.fillStyle='#d42a2a'; offRRect(x, m.x+U.w-29, m.y-7, 32, 32, 5); x.fill();
     x.fillStyle='#ffffff'; x.fillRect(m.x+U.w-17, m.y-2, 8, 22); x.fillRect(m.x+U.w-24, m.y+5, 22, 8); }
-  else if(!gk && p.pos!=='D'){ x.textAlign='right'; x.font='bold 18px '+OFF_SANS; x.fillText('FO '+foRating(p), m.x+U.w-6, m.y+74, 52); }
+  // v644 (ses notes : « pas besoin des stats de mises au jeu, juste les positions ») : plus de « FO » sur l'aimant
   if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+U.w/2, m.y+U.h/2, U.w/2+7, U.h/2+7, 0, 0, Math.PI*2); x.stroke(); } }
 function offPaintLineup(c){
   var T=c.teams[c.my], Lo=offLineupLayout(c), U=OFF_LU, cur=careerGoalieOf(T), g=careerMyGame(c), sr=(c.phase==='playoffs') ? careerMySeries(c) : null;
