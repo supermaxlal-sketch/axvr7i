@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v647</title>
+<title>Deck 3D v648</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1015,6 +1015,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <button class="act selfbank" id="btnSelfBank" style="display:none">↪ Bank and go</button>
     <button class="act dump" id="btnDump" style="display:none">⤒ Dump in</button>
     <button class="act poke" id="btnPoke" style="display:none">🥍 Poke check</button>
+    <button class="act poke" id="btnLift" style="display:none">🥍 Stick lift</button>
     <button class="act prot" id="btnProtect" style="display:none">🛡 Protect the puck</button>
     <button class="act wrap" id="btnWrap" style="display:none">↩ Wraparound</button>
     <button class="act cyc" id="btnCycle" style="display:none">🔄 Cycle</button>
@@ -1360,7 +1361,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v647';
+var GAME_VERSION='v648';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1394,13 +1395,13 @@ function noteSkate(id, pts){ var L=0; for(var i=1;i<pts.length;i++) L+=Math.hypo
   if(!S._skateEnd) S._skateEnd={}; S._skateEnd[id]=Date.now()+Math.max(SKATE_MS_MIN, SKATE_MS_CELL*L)/ANIM_RATE; }
 function skateLeftMs(id){ var e=S._skateEnd && S._skateEnd[id]; return e ? Math.max(0, (e-Date.now())*ANIM_RATE) : 0; }   // en ms du jeu (setTimeout les divise par ANIM_RATE)
 function chargedPending(d){ var sq=S.currentSeq; if(!sq || !sq.def || !d) return false;
-  for(var i=(sq.defDone==null ? 0 : sq.defDone+1); i<sq.def.length; i++){ var m=sq.def[i]; if(m && m.defId===d.id && (m.order==='poke' || m.order==='check')) return true; }
+  for(var i=(sq.defDone==null ? 0 : sq.defDone+1); i<sq.def.length; i++){ var m=sq.def[i]; if(m && m.defId===d.id && (m.order==='poke' || m.order==='check' || m.order==='lift')) return true; }
   return false; }
 function chargedArrival(seq, df){
   var car=S.puckOwner ? byId(S.puckOwner) : null;
   if(!df || df==='takeover' || !car || df.team===car.team || cheb(df, car)!==1 || seq._chargedAt===seq.rank) return false;
   if(!(S.checkRun && S.checkRun.id===df.id && S.checkRun.dist>0)) return false;   // il vient de patiner jusqu'a lui ce temps-ci
-  if(!(hasOrder(df.id,'poke') || hasOrder(df.id,'check'))) return false;
+  if(!(hasOrder(df.id,'poke') || hasOrder(df.id,'check') || hasOrder(df.id,'lift'))) return false;
   seq._chargedAt=seq.rank; S.animating=true; render();
   setTimeout(function(){ if(seq!==S.currentSeq) return; S.animating=false; S.planNext={v2seq:seq, same:true}; resolveCheck(df, true); }, skateLeftMs(df.id));
   return true; }
@@ -2764,6 +2765,7 @@ function actionOdds(actor, action, target, side){
   if(!actor) return null;
   switch(action){
     case 'poke':     return target ? pctFromThr(pokeOdds(actor, target)) : null;                 // seuil /6
+    case 'lift':     return target ? Math.round(liftProb(actor, target)*100) : null;              // v648 : stick lift (proba)
     case 'deke':     return target ? Math.round(dekeOdds(actor, target, side||0)*100) : null;     // proba 0-1
     case 'dump':     return target ? pctFromThr(dumpOdds(actor, target.c, target.r).thr) : null;  // {thr} /6
     case 'redirect': return target ? pctFromThr(redirectCleanThr(target, actor.c)) : null;        // seuil /6
@@ -4842,7 +4844,7 @@ function toggleMirror(){
 // Attaque = S.atkPlan (+ joueur selectionne en cours) ; defense = S.defCommit.picks (+ dc.selDef).
 function tbEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
 var TB_VERB={bank:'Bank pass',bankgo:'Bank & go',move:'Skate',pass:'Pass',cycle:'Cycle',shoot:'Shoot',wrap:'Wrap',dump:'Dump',dangle:'Deke',deke:'Deke',protect:'Protect',pivot:'Pivot',hold:'Hold',zoneout:'Out of the zone'};   // v578 : sortie de zone
-var TB_ORDER={check:'Check',block:'Block pass',poke:'Poke',sblock:'Block shot',mark:'Mark'};
+var TB_ORDER={check:'Check',block:'Block pass',poke:'Poke',lift:'Stick lift',sblock:'Block shot',mark:'Mark'};
 function tbAtkVerb(a){ if(a.cont) return 'Route'; if(a.go) return 'Go'; if(a.stride) return 'In stride'; return TB_VERB[a.kind]||a.kind; }   // v419 : passe dans la course
 function tbDefVerb(k){ if(k.backup) return 'Back up'; if(k.cont) return 'Route'; if(k.kind==='order') return TB_ORDER[k.order]||k.order; return 'Move'+(k.order?(' + '+(TB_ORDER[k.order]||k.order)):''); }
 function tbSlot(i, id, what, st){
@@ -5317,7 +5319,7 @@ function cutDuel(seq, p){
   }
 }
 function hasOrder(id,kind){ if(!S.defOrders) return null; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id && o.order===kind && !o.used) return o; } return null; }
-function activeOrderClass(id){ if(!S.defOrders) return ''; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id&&!o.used) return o.order==='check'?' ordc':(o.order==='poke'?' ordp':(o.order==='sblock'?' ords':' ordb')); } return ''; }
+function activeOrderClass(id){ if(!S.defOrders) return ''; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id&&!o.used) return o.order==='check'?' ordc':((o.order==='poke'||o.order==='lift')?' ordp':(o.order==='sblock'?' ords':' ordb')); } return ''; }
 // v589 (le concepteur : « couper sur le trajet ») : ou le defenseur atteint la ligne de la passe (u : 0 = le passeur, 1 = le receveur)
 function passCutU(pc, pr, tc, tr, d){ var dx=tc-pc, dy=tr-pr, L2=dx*dx+dy*dy; return L2 ? ((d.c-pc)*dx+(d.r-pr)*dy)/L2 : 1; }
 function passCutPoint(pc, pr, tc, tr, d){ var u=Math.max(0.12, Math.min(1, passCutU(pc, pr, tc, tr, d))); return {c:pc+(tc-pc)*u, r:pr+(tr-pr)*u}; }
@@ -5382,7 +5384,7 @@ function defOrderPctsRaw(){   // % des ordres defensifs du defenseur selectionne
   var cell=dc.pendingMove?{c:dc.pendingMove.toC, r:dc.pendingMove.toR}:{c:d.c, r:d.r};
   var dPos=Object.assign({}, d, {c:cell.c, r:cell.r});
   return { pen: car ? Math.round(100*penRiskShown(dPos, car, cheb(d, cell))) : 0,   // v445 : risque de penalite (dans le dos / elan >= 3)
-           check: car?pctFromThr(checkOdds(dPos,car)):null, poke: car?pctFromThr(pokeOdds(dPos,car)):null,
+           check: car?pctFromThr(checkOdds(dPos,car)):null, poke: car?pctFromThr(pokeOdds(dPos,car)):null, lift: car?Math.round(100*liftProb(dPos,car)):null,   // v648
            sblock: Math.round(sblockOdds(dPos)*100), block: car?pctFromThr(blockPassThr(dPos,car)):null,
            _fo: !!(car && S.foPress && S.foPress.id===car.id && S.foPress.oppId===d.id) };
 }
@@ -5395,7 +5397,7 @@ function renderDefChoice(){
     el.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation(); var o=b.getAttribute('data-o'); if(o==='done') defSlideDone(); else finalizeDefPick(o); }); }
   var key=dc.selDef+'|'+dc.pendingMove.toC+','+dc.pendingMove.toR+'|'+(dc.extend?1:0);
   if(el.getAttribute('data-k')!==key){ el.setAttribute('data-k', key); var op=defOrderPcts()||{}; var pc=function(v){ return v!=null ? ' '+v+'%' : ''; };
-    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : '<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'); }
+    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : '<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'); }
   placeDefChoice(el);
 }
 function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pas la place), dans la zone de glace
@@ -5408,10 +5410,10 @@ function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pa
   el.style.left=x.toFixed(1)+'px'; el.style.top=y.toFixed(1)+'px';
 }
 function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); renderDefChoice(); var dc=S.defCommit; if(!dc){ db.style.display='none'; db.innerHTML=''; return; } var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
-  var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
+  var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
-  else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
-  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
+  else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(108,105,102,116))">+ Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
+  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
 // v474 : telephone -- si un ordre de l'embuscade reste sous la barre GO, le panneau defile pour le montrer
 function showDefOrders(){
   if(!isVRink() || !S.defCommit) return;
@@ -5829,10 +5831,10 @@ function commitHiddenDefense(){
 }
 // v399 : BULLES DE RESULTAT sur la glace (glace verticale). Au-dessus de la case de l'evenement, a l'endroit :
 // titre colore (sarcelle = reussi, rouge = rate) + la phrase du journal ; 2 bulles max ; disparait en ~2 s.
-var BUBBLE_T={post:'POST!',bar:'CROSSBAR!',onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
+var BUBBLE_T={post:'POST!',bar:'CROSSBAR!',onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',lift:'STICK LIFT',liftmiss:'LIFT MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
   shot:'SHOT',wide:'WIDE',save:'SAVE',blockshot:'SHOT BLOCKED',blockpass:'PASS BLOCKED',battle:'BATTLE',dekestop:'DEKE STOPPED',
   dumpin:'DUMP IN',dumpoff:'DUMP OFF',shield:'PROTECTED',stuffed:'STOPPED',blockmiss:'BLOCK MISSED',whiff:'BEATEN',blowby:'BLOWN BY'};
-var BUBBLE_MISS={otwhiff:1,passmiss:1,pokemiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
+var BUBBLE_MISS={otwhiff:1,passmiss:1,pokemiss:1,liftmiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
 function logPlain(i){ var h=(S.log&&S.log[i||0])||''; var d=document.createElement('div'); d.innerHTML=h; return (d.textContent||'').replace(/\s+/g,' ').trim(); }
 // v494 : OU EST UNE CASE A L'ECRAN (coordonnees de .boardwrap). 2D : la grille (glace verticale ou non). 3D : la camera
 // de Godot (hj3d.cam : projection x vue, colonne par colonne) projette le point monde de la case sur le canevas #g3d --
@@ -5875,8 +5877,8 @@ function iceBubble(type, c, r, fallback){
   setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1350);   // v405 : plus court (etait 2,3 s)
 }
 function checkFx(type, c, r){ var fx=document.getElementById('checkfx'); if(!fx) return; var txt=type==='body'?'BODY CHECK':(type==='poke'?'POKE !':(type==='whiff'?'BEATEN!':
-    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='pressure'?'UNDER PRESSURE':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED')))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!';   /* v495 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
-  if(type==='body'){ sfx('bang'); } else if(type==='poke'){ sfx('poke'); } else if(type==='block'){ sfx('block'); }
+    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='pressure'?'UNDER PRESSURE':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED')))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='lift') txt='STICK LIFT'; else if(type==='liftmiss') txt='LIFT MISSED'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!';   /* v495 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
+  if(type==='body'){ sfx('bang'); } else if(type==='poke' || type==='lift'){ sfx('poke'); } else if(type==='block'){ sfx('block'); }
   else if(type==='shot'){ sfx('shot'); } else if(type==='pass'){ sfx('pass'); }
   else if(type==='blockshot'||type==='blockpass'){ sfx('block'); } else if(type==='save'){ sfx('save'); } else if(type==='post'||type==='bar'){ sfx('ding'); }   /* v495 */
   var _crw={save:'ooh', wide:'ooh', blockshot:'ooh', body:'hit', blowby:'ooh', post:'ooh', bar:'ooh'}[type]; if(_crw) crowd(_crw);   // v402 : la foule reagit a l'action
@@ -6114,6 +6116,7 @@ function doPass(p,targetId){
     return; }
   var _near=null;   // v584 : un adversaire a essaye de couper la passe et l'a ratee (le couloir ou l'ordre de bloc) : la 3D le montre
   [intc, blk].forEach(function(x){ if(x && x.def && !x.intercepted){ var dd=distToSeg(x.def.c, x.def.r, pc, pr, tc, tr).d; if(!_near || dd<_near.d) _near={id:x.def.id, d:dd}; } });
+  var _lf=liftRecvTry(p, t); if(_lf && _lf.ok){ liftRecvPlay(p, t, _lf.d, _flow); return; }   // v648 : stick lift sur le receveur colle
   var pdist=cheb(p,t), pmiss=false, pdie=0, pthr=0;
   if(passRolls(p,t) || recvBackDrop(p,t)){   // la passe roule si elle est longue OU dos au jeu (v421) ; v628 : receveur de dos aussi
     var _pcp=passCatch(p,t); pthr=Math.round(_pcp*100); pdie=1+Math.floor(Math.random()*100); pmiss=(pdie>pthr); if(tutGuided()) pmiss=(p.team!==HUMAN_TEAM);   /* v451 */
@@ -6516,7 +6519,7 @@ function contactsAlongPath(p, fromC, fromR, toC, toR){
 function orderMeet(p, cells){
   if(!p || S.puckOwner!==p.id || !S.defOrders || !S.defOrders.length || !cells) return null;
   for(var k=0;k<cells.length-1;k++) for(var j=0;j<S.defOrders.length;j++){ var o=S.defOrders[j];
-    if((o.order!=='check' && o.order!=='poke') || o.used) continue;
+    if((o.order!=='check' && o.order!=='poke' && o.order!=='lift') || o.used) continue;
     var d=byId(o.defId); if(!d || !d.onIce || d.type!=='sk' || d.team===p.team || raceLate(d.id) || chargedPending(d)) continue;
     if(cheb(cells[k], d)===1) return {k:k, n:cells.length, cell:{c:cells[k].c, r:cells[k].r}, d:d, o:o}; }
   return null;
@@ -6527,7 +6530,7 @@ function orderMeetTry(seq, p, m){
   if(seq!==S.currentSeq || S.puckOwner!==p.id || m.o.used || !m.d.onIce) return null;
   var fc=p.c, fr=p.r, _pn=S.planNext; S.planNext=null;
   S._ordTried=m.d.id;
-  pushLog('<b>'+m.d.name+'</b> '+(m.o.order==='poke' ? 'pokes at' : 'steps into')+' '+p.name+' as he goes by.');
+  pushLog('<b>'+m.d.name+'</b> '+(m.o.order==='poke' ? 'pokes at' : (m.o.order==='lift' ? 'reaches for the stick of' : 'steps into'))+' '+p.name+' as he goes by.');
   p.c=m.cell.c; p.r=m.cell.r; S._holdRender=true;
   var res=null; try{ res=resolveCheck(m.d, false); } finally { S._holdRender=false; }
   m.o.used=true;   // servi APRES : resolveCheck lit l'ordre (hasOrder : check = mise en echec postee, poke = poke)
@@ -6765,8 +6768,10 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   // le gabarit (def) ne decide plus SI c'est un body check, il en pilote seulement la REUSSITE et la SEPARATION.
   // Un def<4 NON poste (simple contact au passage) fait encore un poke (le finaud ne charge pas tout seul).
   var _postedHit = (posted || !!hasOrder(checker.id,'check'));
-  var isBody=_postedHit || (checker.def>=4 && !hasOrder(checker.id,'poke'));   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit
+  var isBody=_postedHit || (checker.def>=4 && !hasOrder(checker.id,'poke') && !hasOrder(checker.id,'lift'));   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit ; v648 : Stick lift aussi
   if(C && C.type==='g' && (checker.team===AI_TEAM || !_postedHit)) isBody=false;   // v631 (match TRV, P3 0:08 ; son choix) : sur un gardien, l'IA fait un poke, jamais une mise en echec ; toi : seulement sur ton ordre (et c'est une penalite)
+  var _liftO=hasOrder(checker.id,'lift'); if(_liftO) _liftO.used=true;   // v648 : l'ordre Stick lift sert une fois (de face : un poke)
+  var isLift=!isBody && !!C && C.type==='sk' && liftProb(checker, C)>0 && (!!_liftO || (!hasOrder(checker.id,'poke') && aiLift(checker, C)));
   var _carGuard = carSpeedGuard(C);   // lire la vitesse du porteur AVANT toute casse (elle alimente les cotes) ; l'elan ne se casse QUE si le contact connecte (voir le bloc success plus bas)
   var _dist=Math.max(Math.abs(checker.c-C.c), Math.abs(checker.r-C.r));
   var _adj=(_dist<=1);
@@ -6798,7 +6803,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
     } else { _dir = {mod:0, autoFail:false}; }
   } else { _dir = pokeDirMod(checker, C); }
   // v420 : TOUT SUR 100 -- mise en echec = checkProb (stats /100) ; poke au contact = pokeProb (v406, un seul poke)
-  var pr = isBody ? checkProb(checker, C, {posted:_posted, run:_run}) : pokeProb(checker, C);
+  var pr = isBody ? checkProb(checker, C, {posted:_posted, run:_run}) : (isLift ? liftProb(checker, C) : pokeProb(checker, C));
   var _worn = wearOn(C.id);
   if(foStrip(checker, C)) pr = 1;   // v467 : centre de mise au jeu -- a coup sur seulement sur mise en echec / poke voulu du centre adverse
   // un porteur qui vient de survivre a une mise en echec ne traverse PAS la patinoire :
@@ -6816,6 +6821,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
     if(_run>=2) pushLog('<b>'+checker.name+'</b> arrives with a full head of steam ('+_run+' squares) — the hit lands harder.');
     else if(_posted && _run<2) pushLog('<b>'+checker.name+'</b> is set and braced — he delivers a solid body check.');
     else if(_run===0) pushLog('<b>'+checker.name+'</b> is flat-footed — not much behind that hit.');
+  } else if(isLift){
+    pushLog('<b>'+checker.name+'</b> reaches for the stick of '+C.name+'.');
   } else if(_sideMsg){
     pushLog('<b>'+checker.name+'</b> pokes at it — '+_sideMsg+'.');
   }
@@ -6825,16 +6832,17 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   var _pen=false;
   if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))){ var _pf=penFoul(checker, C, _run);   // v445 : penalite (mise en echec VOULUE seulement)
     _pen=_pf ? penTry(checker, penRisk(checker, C, _run), _pf) : (stState(checker)==='angry' && penTry(checker, PEN_P_ROUGH, 'rough')); }   // v581 : fache, meme propre -> rudesse 10 %
-  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen});   // v447   // v581 : pen
+  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift});   // v447   // v581 : pen   // v648 : lift
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
   if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run); looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.fall?' with a full head of steam — '+carName+' is knocked to the ice!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
+    else if(isLift){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; careerTrack('steal', {id:checker.id}); document.getElementById('outcome').innerHTML='Stick lift! '+cName+' takes the puck from '+carName+'.'; pushLog('<b>Stick lift</b>: '+cName+dpos(checker)+' lifts the stick of '+carName+dpos(C)+' and takes the puck.'); }   // v648
     else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); looseOffside(checker.team, cc); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
   else if(_blowby){ if(C.team===HUMAN_TEAM) tipTrigger('blowby');   /* v460 */ bonusTrigger(C, 'speed'); /* v438 : echappee */ document.getElementById('outcome').innerHTML=carName+' blows by '+cName+'!'; pushLog('<b>'+carName+'</b> blows by '+cName+dpos(checker)+' with speed — beaten flat.'); }
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
-  else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (carName+' shields the puck.'); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.')); }
-  render(); checkFx(success?(isBody?'body':'poke'):(_blowby?'blowby':(_feintBeat?'dekestop':(_shielded?'shield':(isBody?'checkmiss':'pokemiss')))), cc, cr);   /* rate nomme l'action : PROTECTED si bouclier, sinon CHECK MISSED / POKE MISSED */ if(anticipated){ var ocp=document.getElementById('outcome'); ocp.innerHTML='Pressure read! '+ocp.innerHTML; } var activeHas=!!(S.puckOwner && byId(S.puckOwner) && byId(S.puckOwner).team===activeTeam); var lost=activeHad && !activeHas;
-  setTimeout(function(){ if(success && isBody){ looseBall(checker.team); } else if(success && !isBody){ if(hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450);
+  else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (isLift ? (carName+' keeps his stick on the puck.') : (carName+' shields the puck.')); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : (isLift ? ('<b>Stick lift</b> missed: '+carName+' keeps the puck away from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.'))); }
+  render(); checkFx(success?(isBody?'body':(isLift?'lift':'poke')):(_blowby?'blowby':(_feintBeat?'dekestop':(_shielded?'shield':(isBody?'checkmiss':(isLift?'liftmiss':'pokemiss'))))), cc, cr);   /* rate nomme l'action : PROTECTED si bouclier, sinon CHECK MISSED / POKE MISSED */ if(anticipated){ var ocp=document.getElementById('outcome'); ocp.innerHTML='Pressure read! '+ocp.innerHTML; } var activeHas=!!(S.puckOwner && byId(S.puckOwner) && byId(S.puckOwner).team===activeTeam); var lost=activeHad && !activeHas;
+  setTimeout(function(){ if(success && isBody){ looseBall(checker.team); } else if(success && !isBody){ if(isLift || hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450);
   return {success:!!success, body:!!isBody}; }   // v614 : pour le coup en route (orderMeetTry)
 function nearEnemySkater(p){ for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce&&e.type==='sk'&&e.team!==p.team&&cheb(p,e)<=2) return e; } return null; }
 function selfBankLanding(p){ var d=dir(p.team), cand=[[2*d,0],[2*d,-1],[2*d,1],[1*d,-1],[1*d,1],[1*d,0]]; for(var i=0;i<cand.length;i++){ var c=p.c+cand[i][0], r=p.r+cand[i][1]; if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!pieceAt(c,r)) return {c:c,r:r}; } return null; }
@@ -6946,6 +6954,69 @@ function pokeProb(p, car){
   return Math.max(0.05, Math.min(0.85, pr));
 }
 function pokeOdds(p,car){ return pokeProb(p,car)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr) = chance x 6
+// v648 STICK LIFT (sa note ; ses choix, spec 2026-11-07-stick-lift-design) : sur le porteur, de COTE ou de DERRIERE (jamais de
+// face ; de derriere, il patine dans le meme sens que lui, sinon 0 %), il VOLE la rondelle ; chance = poke - 20 % (5..65 %).
+// Sur le receveur colle (ordre « Stick lift ») : la passe passe sous son baton et continue selon sa force (liftRecvPlay).
+function liftAngle(p, car){ if(!p || !car) return 'none'; var cdir=dir(car.team), sep=Math.sign(p.c-car.c);
+  if(sep===cdir) return 'front';
+  if(sep===-cdir) return facingOf(p).dc===cdir ? 'behind' : 'wrong';
+  return 'side'; }
+function liftProb(p, car){ var a=liftAngle(p, car); if(a!=='behind' && a!=='side') return 0;
+  return Math.max(0.05, Math.min(0.65, pokeProb(p, car)-0.20)); }
+function liftRecvProb(d, t){ var def=(typeof d.defense==='number')?d.defense:50, han=(typeof t.maniement==='number')?t.maniement:50;
+  return Math.max(0.10, Math.min(0.70, 0.35+0.006*(def-han))); }
+// l'IA (sans ordre Poke) : le stick lift quand c'est mieux qu'un poke -- un bon poke (40 % ou plus) et le vol garde 60 % de sa chance
+function aiLift(p, car){ if(!p || !car || p.team!==AI_TEAM) return false; var l=liftProb(p, car), k=pokeProb(p, car); return l>0 && k>=0.40 && l>=0.6*k; }
+function liftRecvTry(p, t){ if(!S.defOrders || !t || t.type!=='sk') return null;
+  for(var j=0;j<S.defOrders.length;j++){ var o=S.defOrders[j]; if(o.order!=='lift' || o.used) continue;
+    var d=byId(o.defId); if(!d || !d.onIce || d.type!=='sk' || d.team===t.team || cheb(d, t)>1) continue;
+    o.used=true; var ok=tutLuck(liftRecvProb(d, t), d.team===HUMAN_TEAM);
+    if(!ok) pushLog('<b>'+d.name+'</b> reaches for the stick of '+t.name+' — too late, he takes the pass.');
+    return {d:d, ok:ok}; }
+  return null; }
+function liftRecvPlay(p, t, d, flow){   // la passe arrive au receveur, passe sous son baton et continue avec la force qui lui reste
+  var pc=p.c, pr=p.r, tc=t.c, tr=t.r, team=p.team, tname=t.name, dname=d.name, tid=t.id, did=d.id;
+  if(S.redirect===tid) S.redirect=null; S.otFrom=null;
+  var P=boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(p, t), 3, 8), k=BOARD_SPEED/BOARD_PHYS.ice, stop=BOARD_STOP/BOARD_PHYS.ice;
+  var rem=Math.max((1.5+stop)/k, P-Math.hypot(tc-pc, tr-pr)/k);   // la force d'une passe, moins le chemin deja fait (au moins 1,5 case de plus)
+  var path=puckPath(tc, tr, tc-pc, tr-pr, rem), L=path.rest;
+  var off=(!inOffZone(team, pc) && inOffZone(team, L.c) && teammateInOffZone(team, p.id)) ? team : null;
+  flyPuckBoard(pc, pr, tc, tr, function(){
+    matchEv('hit', {id:did, on:tid, body:false, ok:true, lift:true, recv:true});
+    checkFx('lift', tc, tr);
+    flyPuckPath(path.pts, function(){
+      placeLooseNear(L.c, L.r); if(off && S.puckLoose) S.puckLoose.offside=off;
+      sfx('drop'); morPass(p, false);
+      document.getElementById('outcome').innerHTML='<b>Stick lift</b> — the pass slides under the stick of '+tname+'.';
+      pushLog('<b>Stick lift</b>: '+dname+' lifts the stick of '+tname+' — the pass slides through.'+(S.puckLoose?dcell(S.puckLoose.c, S.puckLoose.r):''));
+      S.animating=false; render();
+      if(S.planResume && S.planResume.v2seq){ var s=S.planResume.v2seq; S.planResume=null; if(s===S.currentSeq){ s.rank++; resolveSeq(s); } return; }
+      looseBall(team, team==='A'?'B':'A');
+    });
+  }, flow ? flow.ms/1000 : undefined);
+}
+function doLift(p, carId){   // v648 : le bouton a ton tour (comme doPoke) -- reussi : il repart avec la rondelle
+  if(S.animating||S.gameEnded) return;
+  var car=byId(carId);
+  if(!p||!car||S.puckOwner!==car.id||car.team===p.team||S.gestes<=0) return;
+  var lp=liftProb(p, car); if(!(lp>0)) return;
+  var thr=Math.round(lp*100); if(protShieldHit(car.id)){ thr=Math.min(thr, 17); } var a=1+Math.floor(Math.random()*100), ok=(a<=thr); bumpWear(car.id);
+  var pn=p.name, cn=car.name, pid=p.id, pteam=p.team, cc=car.c, cr=car.r;
+  clearSel(); render();
+  matchEv('hit', {id:pid, on:car.id, body:false, ok:ok, lift:true});
+  animateDice({type:'duel', pct:true, ctx:'Stick lift', atk:{name:pn, roll:a, ok:ok, sub:'Lift '+thr+'%'}}, function(){
+    checkFx(ok?'lift':'liftmiss', cc, cr);
+    if(ok){ stGood(p); stErr(car); } morAdd(p, ok ? MOR_ACT : -MOR_ACT, ok ? MOR_TEAM : -MOR_TEAM); if(ok) morAdd(car, -MOR_ACT, -MOR_TEAM);
+    if(ok){ p.speed=0; car.speed=0; p.mom=0; car.mom=0; killContactRoutes(p, car);
+      S.puckOwner=pid; S.puckLoose=null; S.rcvPop=pid; S._looseLoser=car.id; careerTrack('steal', {id:pid});
+      document.getElementById('outcome').innerHTML='Stick lift — '+pn+' takes the puck!';
+      pushLog('<b>Stick lift</b>: '+pn+' lifts the stick of '+cn+' and takes the puck.');
+      render(); gainPuck(pteam); return; }
+    document.getElementById('outcome').innerHTML=cn+' keeps his stick on the puck.';
+    pushLog('<b>Stick lift</b> missed: '+cn+' keeps the puck away from '+pn+'.');
+    S.animating=false; spend(); render();
+  });
+}
 function doPoke(p,carId){
   if(S.animating||S.gameEnded) return;
   var car=byId(carId);
@@ -8867,6 +8938,8 @@ function render(){
   var pkb=document.getElementById('btnPoke');
   pkb.style.display=canPoke?'inline-block':'none';
   if(canPoke){ var _pc=byId(S.pokeT[0]); pkb.textContent='🥍 Poke check ('+actionOdds(sp,'poke',_pc)+'%)'; }   // source unique : actionOdds
+  var _lfb=document.getElementById('btnLift'), _lfc=canPoke ? byId(S.pokeT[0]) : null, canLift=!!(_lfc && liftProb(sp, _lfc)>0);   // v648 : de cote ou de derriere
+  if(_lfb){ _lfb.style.display=canLift?'inline-block':'none'; if(canLift) _lfb.textContent='🥍 Stick lift ('+actionOdds(sp,'lift',_lfc)+'%)'; }
   var canDump = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!inOffZone(sp.team,sp.c);
   var dbn=document.getElementById('btnDump');
   dbn.style.display=canDump?'inline-block':'none';
@@ -9502,6 +9575,7 @@ document.getElementById('btnCycle').onclick=armCycle;
 document.getElementById('btnAlert').onclick=function(){};   // v417 : Alert retire (bouton toujours masque)
 document.getElementById('btnCall').onclick=function(){ var sp=S.sel?byId(S.sel):null; if(sp) callFor(sp); render(); };
 document.getElementById('btnPoke').onclick=function(){ var p=S.sel?byId(S.sel):null; if(p&&S.pokeT&&S.pokeT.length) doPoke(p,S.pokeT[0]); };
+document.getElementById('btnLift').onclick=function(){ var p=S.sel?byId(S.sel):null; if(p&&S.pokeT&&S.pokeT.length) doLift(p,S.pokeT[0]); };   // v648
 document.getElementById('btnReset').onclick=function(){ newGame('A'); };
 document.getElementById('btnSound').textContent = SOUND_ON ? '🔊' : '🔇';
 document.getElementById('btnSound').onclick=function(){
@@ -12124,13 +12198,13 @@ function tutTap(c,r){   // true = tap consomme par la lecon (geste non permis, o
 }
 function tutBtnKey(b){
   if(!b || b.getAttribute('data-tut') || b.classList.contains('cell')) return null;
-  var IDS={btnShoot:'shoot', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
+  var IDS={btnShoot:'shoot', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
   if(b.id && IDS[b.id]) return IDS[b.id];
   if(b.classList.contains('taim')) return 'corner:'+b.getAttribute('data-t');
   var oc=b.getAttribute('onclick')||'', mf=/armFeint\('(\w+)'\)/.exec(oc);
   if(mf) return 'feint:'+mf[1];
   var MAP=[[/resolvePlan/,'go'],[/planUndo|undoDefPick/,'undo'],[/toggleMirror/,'mirror'],[/confirmDefCommit/,'confirm'],[/defSlideDone/,'done'],
-    [/finalizeDefPick\(null\)/,'more'],[/115,98,108,111,99,107/,'sblock'],[/98,108,111,99,107/,'block'],[/99,104,101,99,107/,'check'],[/112,111,107,101/,'poke'],
+    [/finalizeDefPick\(null\)/,'more'],[/115,98,108,111,99,107/,'sblock'],[/98,108,111,99,107/,'block'],[/99,104,101,99,107/,'check'],[/112,111,107,101/,'poke'],[/108,105,102,116/,'lift'],
     [/startMark/,'mark'],[/pullGoalie/,'pull'],[/armDangle|cancelDangle/,'deke'],[/armOneTimer|cancelOneTimer/,'onetimer'],[/armRedirect|cancelRedirect/,'redirect']];
   for(var i=0;i<MAP.length;i++){ if(MAP[i][0].test(oc)) return MAP[i][1]; }
   return null;
@@ -12468,7 +12542,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":554732,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":555372,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
