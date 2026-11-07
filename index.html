@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v638</title>
+<title>Deck 3D v639</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v638';
+var GAME_VERSION='v639';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7826,11 +7826,17 @@ function availFor(team){ var u=S.draftUsed[team]||{}, ok=teamSkaters(team).filte
     ok.forEach(function(p){ if(p.pos===x[0] && u[p.id]) av.push(p); }); });
   return av; }
 function draftFreshFirst(team, best){ var u=S.otDraft ? {} : (S.draftUsed[team]||{}); return function(a, b){ var ua=u[a.id]?1:0, ub=u[b.id]?1:0; return (ua-ub) || (ua ? careerLiveEn(b)-careerLiveEn(a) : best(a, b)); }; }   // v489 : les frais d'abord, puis les plus frais
+// v639 (son choix « Memes joueurs, bien places ») : les memes joueurs, chacun a son poste ecrit si possible -- l'ordre qui met le
+// plus de joueurs a leur poste ; a egalite, le premier (le mieux classe garde sa place d'avant)
+function spotArrange(list, slots){ var n=list.length, best=null, bm=-1;
+  (function perm(pre, left){ if(!left.length){ var m=0; for(var k=0;k<pre.length;k++) if(list[pre[k]] && spotOf(list[pre[k]])===slots[k]) m++; if(m>bm){ bm=m; best=pre; } return; }
+    for(var i=0;i<left.length;i++) perm(pre.concat([left[i]]), left.slice(0, i).concat(left.slice(i+1))); })([], list.map(function(_, i){ return i; }));
+  return best ? best.map(function(i){ return list[i]; }) : list; }
 function aiDraft(team){
   var av=availFor(team);
   var fwd=av.filter(function(p){return p.pos==='F';}).sort(draftFreshFirst(team, function(a,b){return (b.off+b.pass)-(a.off+a.pass);}));
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(team, function(a,b){return b.def-a.def;}));
-  var f=fwd.slice(0,3), d=def.slice(0,2), fi=0, di=0;
+  var f=spotArrange(fwd.slice(0,3), ['C','AG','AD']), d=spotArrange(def.slice(0,2), ['DG','DD']), fi=0, di=0;   // v639 : chacun a son poste
   var pick=LINEUP_ROLES.map(function(r){ var q=(r==='DG'||r==='DD') ? d[di++] : f[fi++]; return q ? q.id : null; });   // v600 : 5 joueurs, meme avec un puni (deployLineup garde l'ailier au banc)
   for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[team][pick[i]]=true; }
   return pick;
@@ -7939,6 +7945,7 @@ function autoFillDraft(){
   var def=av.filter(function(p){return p.pos==='D';}).sort(draftFreshFirst(HUMAN_TEAM, function(a,b){return overall(b)-overall(a);}));
   var fs=DRAFT_FSLOTS, ds=DRAFT_DSLOTS;
   if(fwd.length<fs.length || def.length<ds.length) return;
+  fwd=spotArrange(fwd.slice(0, fs.length), fs); def=spotArrange(def.slice(0, ds.length), ds);   // v639 : les memes joueurs, chacun a son poste si possible
   S.draftRoles={C:null,AG:null,AD:null,DG:null,DD:null}; fs.forEach(function(r, i){ S.draftRoles[r]=fwd[i].id; }); ds.forEach(function(r, i){ S.draftRoles[r]=def[i].id; }); S.draftActiveSlot=null; S.draftLine=null;   // v625 : plus une de ses lignes
   renderDraftCards();
 }
