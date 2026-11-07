@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v645</title>
+<title>Deck 3D v646</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v645';
+var GAME_VERSION='v646';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1958,6 +1958,11 @@ var PERK_LETTER={vitesse:'V',intercepteur:'I',relais:'R',voleur:'L',passeur:'P',
 var POS={A_LA:'D',A_NA:'D',A_GA:'D',A_DU:'D',A_CO:'D',A_FR:'D',B_PA:'D',B_ME:'D',B_LE:'D',B_GI:'D',B_BC:'D',B_SI:'D'};
 // Les 6 attributs /100 sont la SOURCE DE VERITE ; on recalcule les anciens champs (off/def/pass/rec/spd)
 // pour que TOUTES les formules existantes marchent a l'identique (equilibre v302 preserve).
+// v646 (ses choix, spec 2026-11-07-pression-passes) : la stat PRESSURE (sang-froid, /100) -- age + talent (passe, maniement)
+// + un petit hasard FIXE par joueur ; 20..95 ; pas dans l'OVR. Plus elle est haute, mieux il passe sous la pression.
+function pressureHash(s){ var h=0; s=String(s||''); for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return (Math.abs(h)%17)-8; }   // -8..8
+function pressureStat(p){ if(!p || p.type==='g') return 0; var a=(typeof p.age==='number') ? p.age : 26;
+  return Math.max(20, Math.min(95, Math.round(20 + 0.45*((p.passe||50)+(p.maniement||50))/2 + 1.5*(a-20) + pressureHash(p.uid||p.id)))); }
 function deriveLegacy(p){
   function q(v){ return Math.max(1, Math.min(6, Math.round(2 + (v-30)/18))); }   // /100 -> ancien [1,6]
   if(p.type==='sk'){
@@ -1968,6 +1973,7 @@ function deriveLegacy(p){
     p.spd  = q(p.vitesse);
     // ELAN (v378) : stat d'acceleration derivee au depart de vitesse/spd si absente (le concepteur peut la poser a la main)
     if(typeof p.acceleration100!=='number') p.acceleration100 = Math.max(40, Math.min(92, Math.round((p.vitesse||60) + ((p.spd||4)-4)*6)));
+    if(typeof p.pressure!=='number') p.pressure=pressureStat(p);   // v646 : la stat Pressure (sang-froid), calculee une fois
   } else if(p.type==='g'){
     if(typeof p.arret100==='number') p.arret = q(p.arret100);
   }
@@ -2010,7 +2016,7 @@ function playerCardBig(p){
   var ovr=(p.type==='g') ? Math.round(((p.arret100||0)+(p.couverture100||0))/2) : overall(p);
   var bars=(p.type==='g')
     ? _bigBar('SAVE',p.arret100||0)+_bigBar('COV',p.couverture100||0)
-    : _bigBar('SHO',p.tir)+_bigBar('PAS',p.passe)+_bigBar('SPD',p.vitesse)+_bigBar('ACC',p.acceleration100||0)+_bigBar('PHY',p.physique)+_bigBar('DEF',p.defense)+_bigBar('HND',p.maniement)+_bigBar('FO',foRating(p));   // v553
+    : _bigBar('SHO',p.tir)+_bigBar('PAS',p.passe)+_bigBar('SPD',p.vitesse)+_bigBar('ACC',p.acceleration100||0)+_bigBar('PHY',p.physique)+_bigBar('DEF',p.defense)+_bigBar('HND',p.maniement)+_bigBar('PRS',p.pressure||0)+_bigBar('FO',foRating(p));   // v553
   var pk=p.perk?('<span class="dcp-perk">'+PERK_INFO[p.perk].n+'</span>'):'';
   return '<div class="pcard '+p.team+'">'
     + '<div class="pcard-hd"><span class="pcard-ovr">'+ovr+'</span>'
@@ -3759,12 +3765,46 @@ function laneReachRisk(p,t){
   var _dist=Math.max(Math.abs(t.c-p.c), Math.abs(t.r-p.r));   // longueur de la passe (cheb)
   return risk * Math.max(0, Math.min(1, (_dist-1)/3));        // 1 case = risque d'entree quasi nul ; 4+ cases = plein risque
 }
+// v646 (ses choix, spec 2026-11-07-pression-passes) : LA PRESSION sur le passeur -- chaque patineur adverse a 4 cases ou moins :
+// proximite (1 : 100 %, 2 : 60, 3 : 35, 4 : 15) x sa course (immobile 30 %, lance vers lui 100 %) ; ils s'additionnent ; Forecheck x1,5.
+var PRESS_W=[0, 1.00, 0.60, 0.35, 0.15];
+function pressCharge(q, p){ var el=Math.min(1, Math.max(q.mom||0, q.speed||0)/5), ap=0;
+  var st=S._exStart && S._exStart[q.id]; if(st && Math.max(Math.abs(st.c-p.c), Math.abs(st.r-p.r))>cheb(q, p)) ap=1;   // il s'est rapproche pendant l'echange
+  var f=q.facing, dx=p.c-q.c, dy=p.r-q.r, n=Math.hypot(dx, dy)||1;
+  if(f && (f.dc*dx+(f.dr||0)*dy)/(n*(Math.hypot(f.dc, f.dr||0)||1))>0.5) ap=1;   // ou il patine vers lui
+  return el*ap; }
+function passPressure(p){ var P=0, near=null, nk=-1;
+  if(p) S.pieces.forEach(function(q){ if(!q.onIce || q.type!=='sk' || q.team===p.team) return; var d=cheb(q, p); if(d<1 || d>4) return;
+    var k=pressCharge(q, p), part=100*PRESS_W[d]*(0.30+0.70*k);
+    if(S._stratDef && S._stratDef.kind==='pressure' && q.team===S._stratDef.team) part*=1.5;   // le bonus « pressure » du Forecheck (prepare, jamais lu avant)
+    P+=part; if(d===1 && k>nk){ nk=k; near=q; } });
+  return {P:Math.min(200, P), near:(near && nk>=0.5) ? near : null}; }
+function passRattle(p){ if(!p || p.type!=='sk' || S.tut) return 0;   /* les lecons : pas de pression (elles enseignent autre chose) */   // la chance que sa passe parte mal : la pression contre sa stat Pressure
+  if(typeof p.pressure!=='number') p.pressure=pressureStat(p);   /* un match repris d'avant v646 */
+  return Math.max(0, Math.min(0.85, passPressure(p).P/100*(1.1-p.pressure/100))); }
+function pressPassBad(p, t, pp, _flow){   // la passe part mal : touchee par le colle qui fonce (de travers, libre) ou imprecise (libre a cote du receveur)
+  var pc=p.c, pr=p.r, tc=t.c, tr=t.r, nr=pp.near, tip=!!(nr && Math.random()<0.35);
+  S.animating=true; S.puckOwner=null; S.puckLoose=null; clearSel();
+  matchEv('pressure', {id:p.id, by:nr ? nr.id : null, res:tip ? 'tip' : 'off'}); checkFx('pressure', pc, pr); morPass(p, false);
+  if(tip){
+    var v=rotVec(tc-pc, tr-pr, (Math.random()<0.5?-1:1)*(0.5+Math.random()*0.65)), path=puckPath(pc, pr, v.x, v.y, 0.45*boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(p,t), 3, 8)), L=path.rest;
+    pushLog('<b>Under pressure</b>: '+nr.name+' charges in — '+nr.name+' gets a stick on it. '+p.name+"'s pass bounces away, loose.");
+    document.getElementById('outcome').innerHTML='Under pressure!'; render();
+    flyPuckPath(path.pts, function(){ placeLooseNear(L.c, L.r); sfx('block'); S.animating=false; render(); looseBall(nr.team, null); });
+    return; }
+  var best=null, bd=1e9, M=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  M.forEach(function(m){ var c=tc+m[0], r=tr+m[1]; if(c<0 || r<0 || c>=COLS || r>=ROWS || pieceAt(c, r)) return; var dd=distToSeg(c, r, pc, pr, tc, tr).d+Math.random()*0.3; if(dd<bd){ bd=dd; best={c:c, r:r}; } });
+  if(!best) best={c:tc, r:tr};
+  pushLog('<b>Under pressure</b>: '+(nr ? nr.name+' charges in — ' : '')+p.name+"'s pass is off target.");
+  document.getElementById('outcome').innerHTML='Under pressure!'; render();
+  flyPuckBoard(pc, pr, best.c, best.r, function(){ placeLooseNear(best.c, best.r); S.animating=false; render(); looseBall(p.team, null); }, _flow ? _flow.ms/1000 : undefined); }
 function passOdds(p,t){   // % que la passe passe : couloir actuel (1-thr/6) ET risque qu'un adversaire s'y deplace ; jamais 100%
   if(!p||!t) return null;
   var lt=laneThreat(p,t);
   var laneProb=1 - (lt.def ? lt.prob : 0);
   var _catch=passCatch(p,t);   // v421 : passe longue / dos au jeu -> reception sur 100 ; v628 : receveur de dos -> 80
   var pct=Math.round(laneProb*(1-laneReachRisk(p,t))*_catch*100);
+  pct=Math.round(pct*(1-passRattle(p)));   // v646 : la pression du moment
   var cap=Math.max(80, 96 - cheb(p,t));   // meme couloir vide : embuscade cachee, mauvaise reception -> jamais 100
   return Math.max(5, Math.min(pct, cap));   // plancher : une passe n'est jamais 0% (deviation chanceuse, rondelle dans les patins) — comme jamais 100%
 }
@@ -5835,7 +5875,7 @@ function iceBubble(type, c, r, fallback){
   setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1350);   // v405 : plus court (etait 2,3 s)
 }
 function checkFx(type, c, r){ var fx=document.getElementById('checkfx'); if(!fx) return; var txt=type==='body'?'BODY CHECK':(type==='poke'?'POKE !':(type==='whiff'?'BEATEN!':
-    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED'))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!';   /* v495 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
+    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='pressure'?'UNDER PRESSURE':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED')))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!';   /* v495 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
   if(type==='body'){ sfx('bang'); } else if(type==='poke'){ sfx('poke'); } else if(type==='block'){ sfx('block'); }
   else if(type==='shot'){ sfx('shot'); } else if(type==='pass'){ sfx('pass'); }
   else if(type==='blockshot'||type==='blockpass'){ sfx('block'); } else if(type==='save'){ sfx('save'); } else if(type==='post'||type==='bar'){ sfx('ding'); }   /* v495 */
@@ -6046,6 +6086,8 @@ function doPass(p,targetId){
   sfx('pass');
   var _flow=S._routeFlow; S._routeFlow=null;   // v429 : vol = duree du patinage du receveur, pas de pause a la reception
   var _stride=!!S._stridePass; S._stridePass=false;   // v419 : passe dans la course -> +STRIDE_BONUS % (chance de sauver une passe ratee)
+  var _rt=passRattle(p); if(_rt>0 && ttype==='sk' && Math.random()<_rt){ pressPassBad(p, t, passPressure(p), _flow); return; }   // v646 : sous la pression, la passe part mal
+  S._prsPass=(_rt>0);   // v646 : une passe reussie sous pression (carriere : la stat Pressure monte)
   var _rescue=_stride ? strideRescue((passOdds(p,t)||0)/100) : 0;
   var intc = pressed ? null : laneInterceptor(p,t);
   var blk = pressed ? null : blockOrderCheck(p,t);
@@ -6195,7 +6237,7 @@ function doPass(p,targetId){
   }
   var offPass=(ttype==='sk' && !inOffZone(team,pc) && inOffZone(team,tc));
   flyPuckBoard(pc,pr,tc,tr,function(){
-    S.puckOwner=tid; S.rcvPop=tid; checkFx('pass', tc, tr); careerTrack('passok', {id:p.id, to:tid}); morPass(p, true);   // v484
+    S.puckOwner=tid; S.rcvPop=tid; checkFx('pass', tc, tr); careerTrack('passok', {id:p.id, to:tid, prs:!!S._prsPass}); S._prsPass=false; morPass(p, true);   // v484
     if(t && t.type==='g') S.gkSide=(p.r<CTR_R)?'T':((p.r>CTR_R)?'B':null);
     if(t && t.type==='sk' && hasPerk(t,'relais') && !_flow){   // v429 : deja lance dans sa course -> pas de case de relais en plus
       var _rn=goalCol(t.team), _rs=(_rn>t.c?1:(_rn<t.c?-1:0)), _rc=t.c+_rs, _preC=t.c;
@@ -7968,7 +8010,7 @@ function draftCardHtml(p, cls){ var role=draftRoleOf(p.id), sel=!!role;
     + '<div class="dcard-hd"><span class="dcp-ovr">'+overall(p)+'</span>'
       + '<span class="dcard-id"><span class="dcp-name">'+roleLbl+hd+p.name+'</span>'
       + '<span class="dcp-arch">'+sp+ai.e+' '+ai.n+'</span></span></div>'
-    + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
+    + '<div class="dcard-bars">'+bar('SHO',p.tir)+bar('PAS',p.passe)+bar('SPD',p.vitesse)+bar('PHY',p.physique)+bar('DEF',p.defense)+bar('HND',p.maniement)+bar('PRS',p.pressure||0)+bar('FO',foRating(p))+'</div>'   // v553 : FO = les mises au jeu
     + '<div class="dcard-ft"><span class="dcard-size">📏 '+p.size+' · '+cmToFtIn(p.cm)+'</span>'+pk+morTag(p)+stTag(p)+(CAREER_MATCH?careerDraftTag(p):'')+'</div>'
   + '</div>'; }
 function renderDraftCards(){
@@ -9222,7 +9264,7 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', mom:q.mom||0, role:hj3dRole(q)};
+    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:q.mom||0, role:hj3dRole(q)};
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
@@ -9610,7 +9652,7 @@ function careerSkin(arr){   // match de carriere : chaque joueur prend une place
       for(var i=0;i<slots.length;i++){ var q=slots[i], p=pl[i];
         if(!p){ q.vacant=true; q.onIce=false; q.name='—'; q.label='—'; q.uid=null; continue; }   // v489 : place vide -- un joueur du banc jouera 2 periodes
         q.name=p.name; q.label=p.label; q.tir=p.tir; q.passe=p.passe; q.vitesse=p.vitesse; q.physique=p.physique; q.defense=p.defense; q.maniement=p.maniement;
-        q.size=p.size; q.cm=p.cm; q.hand=p.hand; q.archetype=p.archetype; q.perk=p.perk||null; q.perk2=p.perk2||null; q.uid=p.uid; q.spot=spotOf(p); q.look=p.look; delete q.acceleration100; deriveLegacy(q); } });
+        q.size=p.size; q.cm=p.cm; q.hand=p.hand; q.archetype=p.archetype; q.perk=p.perk||null; q.perk2=p.perk2||null; q.uid=p.uid; q.spot=spotOf(p); q.look=p.look; q.pressure=(typeof p.pressure==='number') ? p.pressure : pressureStat(p);   /* v646 */ delete q.acceleration100; deriveLegacy(q); } });
     var g=arr.filter(function(q){ return q.team===team && q.type==='g'; })[0], G=careerGoalieOf(T);   // v489 : le gardien partant
     if(g){ g.name=G.name; g.label=G.label; g.arret100=G.arret100; g.couverture100=G.couverture100; g.size=G.size; g.cm=G.cm; g.hand=G.hand; g.uid=G.uid; g.look=G.look; deriveLegacy(g); } });
 }
@@ -9809,7 +9851,7 @@ function careerTrack(e, d){   // les actions du match de carriere
     if(d.ok) CAREER_LOG.last=null;   // v579 : la rondelle perdue coupe la chaine des passes
     if(d.ok && d.body){ careerCost(d.id, CAREER_EN.hitG); careerCost(d.on, CAREER_EN.hitR); if((s=careerStatOf(d.on))) s.hr++; careerHitInjury(d); } }   // v489 : la fatigue des contacts ; v516 : la blessure seulement d'une mise en echec dangereuse
   else if(e==='skate'){ if(d.pts && (s=careerStatOf(d.id))){ var _c0=s.cells; for(var i=1;i<d.pts.length;i++) s.cells+=Math.max(Math.abs(d.pts[i][0]-d.pts[i-1][0]), Math.abs(d.pts[i][1]-d.pts[i-1][1])); careerCost(d.id, (s.cells-_c0)/CAREER_EN.cells); } }
-  else if(e==='passok'){ if((s=careerStatOf(d.id))) s.pc++; var pp=byId(d.id), L0=CAREER_LOG.last; CAREER_LOG.last={from:d.id, to:d.to, team:pp?pp.team:null, prev:(L0 && pp && L0.to===d.id && L0.team===pp.team) ? L0.from : null}; }   // v579 : la passe d'avant (2e passe)
+  else if(e==='passok'){ if((s=careerStatOf(d.id))){ s.pc++; if(d.prs) s.pup=(s.pup||0)+1; }   /* v646 : passe reussie sous pression */ var pp=byId(d.id), L0=CAREER_LOG.last; CAREER_LOG.last={from:d.id, to:d.to, team:pp?pp.team:null, prev:(L0 && pp && L0.to===d.id && L0.team===pp.team) ? L0.from : null}; }   // v579 : la passe d'avant (2e passe)
   else if(e==='steal'){ if((s=careerStatOf(d.id))) s.stl++; CAREER_LOG.last=null; }
   else if(e==='battle'){ if((s=careerStatOf(d.id))) s.bat++; careerCost(d.id, CAREER_EN.bat); if(d.lose){ careerCost(d.lose, CAREER_EN.bat); } }   // v516 : une bataille ne blesse plus
   else if(e==='breakaway'){ if((s=careerStatOf(d.id))) s.brk++; }
@@ -10331,15 +10373,19 @@ function careerEndSeason(c){   // les 2 premiers de D3 et D2 montent, les 2 dern
   c.next={up:up, down:down}; c.phase='done';
 }
 // ---- v484 : PROGRESSION (spec docs/superpowers/specs/2026-10-08-carriere-2-progression-design.md) ----
-var CAREER_ATTRS=['tir','passe','vitesse','physique','defense','maniement'], CAREER_GATTRS=['arret100','couverture100'];
+var CAREER_ATTRS=['tir','passe','vitesse','physique','defense','maniement','pressure'],   /* v646 : + la Pressure (on peut y mettre des points) */ CAREER_GATTRS=['arret100','couverture100'];
 function careerRng(seed){ var s=seed|0; return function(){ s=s+0x6D2B79F5|0; var t=Math.imul(s^s>>>15, 1|s); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function careerMargin(age, R){ var r=age<23?[8,25]:(age<28?[4,12]:(age<32?[1,6]:[0,3])); return r[0]+R()*(r[1]-r[0]); }
 function careerAgePlayer(p, R, goalie){   // age, talent, plafonds, position de la fourchette ; experience et niveau a zero
   var u=R(); p.age=u<0.25?19+Math.floor(R()*4):(u<0.6?23+Math.floor(R()*5):(u<0.85?28+Math.floor(R()*4):32+Math.floor(R()*4)));
-  var talent=0.3+0.7*R(); p.cap={}; p.capF={}; p.xp={};
+  var talent=0.3+0.7*R(); p.cap={}; p.capF={}; p.xp={}; if(!goalie) p.pressure=pressureStat(p);   // v646 : sa Pressure (age + talent)
   (goalie?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ p.cap[k]=Math.min(99, Math.max(p[k], Math.round(p[k]+careerMargin(p.age, R)*talent))); p.capF[k]=Math.round(R()*100)/100; p.xp[k]=0; });
   p.lvl=1; p.txp=0; p.pts=0; p.perk2=p.perk2||null; p.perkPick=null; p.gp=0; p.st={gp:0, g:0, a:0}; p.mor=0;   /* v556 */
 }
+function careerPressureEnsure(c){ var R=careerRng((c.seed||20261008)+646);
+  var all=[]; Object.keys(c.teams).sort().forEach(function(k){ all=all.concat(c.teams[k].skaters); }); all=all.concat((c.fa||[]).filter(function(p){ return p && p.pos!=='G' && p.type!=='g'; }));
+  all.forEach(function(p){ if(!p || typeof p.pressure==='number') return; p.pressure=pressureStat(p);
+    if(p.cap){ p.cap.pressure=Math.min(99, Math.max(p.pressure, Math.round(p.pressure+careerMargin(p.age||26, R)*(0.3+0.7*R())))); p.capF=p.capF||{}; p.capF.pressure=Math.round(R()*100)/100; p.xp=p.xp||{}; p.xp.pressure=0; } }); }
 function careerUpgrade(c){   // v1 (v483) -> v2 : age, plafonds, experience pour tous les joueurs (graine de la carriere : reproductible)
   if(c && c.v===1){ c.seed=c.seed||20261008; var R=careerRng(c.seed);
     Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.forEach(function(p){ careerAgePlayer(p, R, false); }); careerAgePlayer(T.goalie, R, true); });
@@ -10359,6 +10405,7 @@ function careerUpgrade(c){   // v1 (v483) -> v2 : age, plafonds, experience pour
       [['F', 11], ['D', 7]].forEach(function(x){ while(T.skaters.filter(function(p){ return p.pos===x[0]; }).length<x[1]) T.skaters.push(careerMakeDepth(T, x[0], R5, ++c.uid)); }); });
     c.v=5; }
   if(c && !c.fa) faInit(c);   // v568 : la banque de joueurs autonomes
+  if(c) careerPressureEnsure(c);   // v646 : la stat Pressure (une carriere deja commencee la recoit ; rien d'autre ne bouge)
   if(c) Object.keys(c.teams).forEach(function(k){ careerSpotsEnsure(c.teams[k]); });   // v626 : les positions (une carriere deja commencee les recoit ; ses lignes ne bougent pas)
   return c;
 }
@@ -10604,7 +10651,7 @@ function careerCapRange(p, k){   // la fourchette du depisteur : la vraie valeur
   return [lo, hi];
 }
 // l'experience : bareme des actions par categorie (points), age, cout du +1 selon la marge, niveaux, 2e atout au niveau 5
-var CAREER_XP={tir:{sog:2, g:5}, passe:{pc:2, a:3}, maniement:{dk:4, dkf:1}, physique:{hit:4, bat:2}, defense:{stl:4}, vitesse:{cells:0.1, brk:3}, arret100:{sv:2}, couverture100:{svc:1}};
+var CAREER_XP={pressure:{pup:4}, tir:{sog:2, g:5}, passe:{pc:2, a:3}, maniement:{dk:4, dkf:1}, physique:{hit:4, bat:2}, defense:{stl:4}, vitesse:{cells:0.1, brk:3}, arret100:{sv:2}, couverture100:{svc:1}};
 function careerAgeMul(age){ return age<23?1.5:(age<28?1.2:(age<32?1:0.7)); }
 function careerXpCost(p, k){ var room=p.cap[k]-p[k]; return room>10?20:(room>4?30:45); }
 function careerLevelCost(lvl){ return 40+20*lvl; }
@@ -10692,7 +10739,7 @@ function careerTickPlayer(p){   // un match de son equipe : la blessure avance (
   if(p.rust>0) p.rust--;
   if(p.seq){ p.seq.left--; if(p.seq.left<=0) p.seq=null; }
 }
-var CAREER_ABBR={tir:'SHT', passe:'PAS', vitesse:'SPD', physique:'PHY', defense:'DEF', maniement:'HND', arret100:'SAV', couverture100:'COV'}, CAREER_PUID=null, CAREER_BACK='roster';
+var CAREER_ABBR={tir:'SHT', passe:'PAS', vitesse:'SPD', physique:'PHY', defense:'DEF', maniement:'HND', pressure:'PRS', arret100:'SAV', couverture100:'COV'}, CAREER_PUID=null, CAREER_BACK='roster';
 function careerStatLine(st, gk){ if(gk) return (st.sv||0)+(st.sv===1?' save':' saves'); var o=[];
   [['g','G'],['a','A'],['sog','SOG'],['hit','hit'],['dk','deke'],['stl','takeaway'],['bat','battle']].forEach(function(x){ var n=st[x[0]]; if(n) o.push(n+' '+x[1]+((n>1 && x[1]===x[1].toLowerCase())?'s':'')); });
   return o.length ? o.join(' · ') : '—'; }
@@ -11088,7 +11135,9 @@ function offOpenCard(m){ var M=OFF_MAG;
 function offIsGk(T, p){ return p===T.goalie || p===T.goalie2; }
 function offCardRows(T, p){   // [{k, y, at}] : une ligne par stat
   var C=OFF_CARD;
-  return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ return {k:k, y:C.y0+i*C.dy, at:p[k]>=p.cap[k]}; }); }
+  var ks=offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS, dy=offRowDy(C.dy, ks.length);
+  return ks.map(function(k, i){ return {k:k, y:C.y0+i*dy, at:p[k]>=p.cap[k]}; }); }
+function offRowDy(base, n){ return n>6 ? base*5/(n-1) : base; }   // v646 : 7 stats (la Pressure) dans la place de 6 : la derniere ligne ne bouge pas
 function offCardLines(p){ var o=[];   // la sante, en mots (comme careerCardHealth)
   if(p.inj) o.push(['Injured: '+p.inj.t+' ('+CAREER_SEV[p.inj.sev]+'), out '+p.inj.left+' game'+(p.inj.left>1?'s':''), OFF_INK.red]);
   if(p.rust>0) o.push(['Rusty ('+p.rust+' game'+(p.rust>1?'s':'')+'): −5 to all', '#5a606b']);
@@ -11149,7 +11198,7 @@ function offCardBack(){ if(CAREER_BACK==='report') careerGo('report', true); els
 // ✓ Done : il ressort (la camera a la porte), puis le tableau -- son aimant a le tampon « ✓ LVL n » ; Later : il ressort, rien n'est perdu.
 var OFF_LVL={w:800, h:1120, y0:548, dy:72, py:930, ph:170};   // la carte LEVEL UP ; les lignes des stats ; les tuiles d'atout
 var OFF_GOLD='#f2c14e';
-var OFF_LONG={tir:'SHOT', passe:'PASS', vitesse:'SPEED', physique:'PHYSICAL', defense:'DEFENSE', maniement:'HANDLING', arret100:'SAVE', couverture100:'COVERAGE'};
+var OFF_LONG={tir:'SHOT', passe:'PASS', vitesse:'SPEED', physique:'PHYSICAL', defense:'DEFENSE', maniement:'HANDLING', pressure:'PRESSURE', arret100:'SAVE', couverture100:'COVERAGE'};
 var OFF_MEET=null;    // la rencontre en cours : {uid, add:{stat: +n}, from: le niveau d'avant}
 var OFF_STAMP={};     // uid -> {lvl, tag} : la rencontre faite (le tampon de son aimant, jusqu'au prochain match)
 var OFF_WAITQ=false;  // ▶ Next game avec des convoques : le coach le dit d'abord
@@ -11158,7 +11207,7 @@ function offStampOf(c, p){ var s=OFF_STAMP[p.uid]; return (s && s.tag===offDayTa
 function offWaiting(c){ var T=c.teams[c.my]; return T.skaters.concat([T.goalie, T.goalie2]).filter(function(p){ return careerWaits(T, p); }); }
 function offMeetP(c){ return OFF_MEET ? careerPlayerByUid(c.teams[c.my], OFF_MEET.uid) : null; }
 function offMeetCanPlace(T, p){ return careerCanSpend(p, offIsGk(T, p)); }
-function offMeetRows(T, p){ return (offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS).map(function(k, i){ return {k:k, y:OFF_LVL.y0+i*OFF_LVL.dy}; }); }   // le meme calcul pour peindre et pour toucher
+function offMeetRows(T, p){ var ks=offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS, dy=offRowDy(OFF_LVL.dy, ks.length); return ks.map(function(k, i){ return {k:k, y:OFF_LVL.y0+i*dy, dy:dy}; }); }   // le meme calcul pour peindre et pour toucher
 function offMeetPerks(p){ var L=OFF_LVL; return (p.perkPick||[]).map(function(k, i){ return {k:k, x:28+i*254, y:L.py, w:236, h:L.ph}; }); }
 var OFF_FITS=['S','T','H'];   // v619 : la tenue du joueur appele (il sort de la douche) -- complet, serviette, survetement d'equipe
 function offOutfit(c, p){ var R=lookRng('fit/'+p.uid+'/'+offDayTag(c)), h=p.uid%3;   // son habitude (uid) ~80 % ; une autre ~20 % (uid + le jour) ; sans Math.random
@@ -11189,7 +11238,7 @@ function offMeetCard(c){   // devant sa carte : la bulle du coach ; ✓ Done (to
   document.getElementById('offBar').innerHTML='<button class="mbtn play half" id="offDone" onclick="offMeetDone()"'+(done ? '' : ' disabled')+'>✓ Done</button><button class="mbtn sm" onclick="offMeetLater()">Later</button>'; }
 function offTapMeet(ix, iy, ev){ var c=CAREER, T=c.teams[c.my], p=offMeetP(c), hit=null; if(!p || CAREER_VIEW!=='levelup') return;
   if(offMeetCanPlace(T, p)){
-    if(ix>=20 && ix<=OFF_LVL.w-20) offMeetRows(T, p).forEach(function(r){ if(Math.abs(iy-(r.y-14))<=OFF_LVL.dy/2) hit=r; });
+    if(ix>=20 && ix<=OFF_LVL.w-20) offMeetRows(T, p).forEach(function(r){ if(Math.abs(iy-(r.y-14))<=r.dy/2) hit=r; });
     if(hit && careerSpendPoint(p, hit.k)){ OFF_MEET.add[hit.k]=(OFF_MEET.add[hit.k]||0)+1; careerSave(); careerRender(); offBurst(ev); }
     return; }
   offMeetPerks(p).forEach(function(t){ if(ix>=t.x && ix<=t.x+t.w && iy>=t.y && iy<=t.y+t.h) hit=t; });
@@ -11693,11 +11742,11 @@ function careerPack(c){   // pour le compte : sans les valeurs par defaut des jo
     ['ps', 'pc'].forEach(function(f){ var o=p[f]; if(!o) return;   // v580 : les series, pareil
       if(!Object.keys(o).some(function(x){ return o[x]; })) delete p[f]; else p[f]=(o.sa!=null) ? [o.gp, o.w, o.l, o.otl, o.sa, o.ga] : [o.gp, o.g, o.a]; });
     if(p.capF) Object.keys(p.capF).forEach(function(x){ p.capF[x]=Math.round(p.capF[x]*100)/100; });
-    ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(v && !Array.isArray(v) && Object.keys(v).join()===CAREER_PK.join()) p[f]=CAREER_PK.map(function(x){ return v[x]; }); }); }); });   // v517 : 18 joueurs par equipe -> plafonds, fourchettes, experience en listes (meme ordre)
+    ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; [CAREER_PK7, CAREER_PK].forEach(function(K){ if(v && !Array.isArray(v) && Object.keys(v).join()===K.join()) v=p[f]=K.map(function(x){ return v[x]; }); }); }); }); });   /* v646 : 7 avec la Pressure */   // v517 : 18 joueurs par equipe -> plafonds, fourchettes, experience en listes (meme ordre)
   if(o.results) o.results=o.results.map(careerResPack);   // v580 : les resultats en listes (la copie restait trop pres de la limite)
   return o;
 }
-var CAREER_PK=['tir', 'passe', 'vitesse', 'physique', 'defense', 'maniement'];   // v517 : l'ordre des listes de la copie du compte
+var CAREER_PK=['tir', 'passe', 'vitesse', 'physique', 'defense', 'maniement']; var CAREER_PK7=CAREER_PK.concat(['pressure']);   // v646   // v517 : l'ordre des listes de la copie du compte
 var CAREER_RK=['home', 'away', 'hs', 'as', 'ot', 'div', 'day', 'mine', 'po', 'so', 'dr', 'dz'];   // v580 : l'ordre des listes de resultats (absent = null)
 function careerResPack(r){ var ks=Object.keys(r);   // un champ inconnu ou null : le resultat reste un objet
   if(!ks.every(function(k){ return CAREER_RK.indexOf(k)>=0 && r[k]!==null; })) return r;
@@ -11707,7 +11756,7 @@ function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
   if(o && Array.isArray(o.results)) o.results=o.results.map(careerResUnpack);   // v580
   Object.keys((o && o.teams)||{}).forEach(function(k){ var T=o.teams[k]; (T.skaters||[]).concat(T.goalie?[T.goalie]:[], T.goalie2?[T.goalie2]:[]).forEach(function(p){
     for(var f in CAREER_PDEF){ if(!(f in p)) p[f]=CAREER_PDEF[f]; }
-    ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; CAREER_PK.forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
+    ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; (v.length===7 ? CAREER_PK7 : CAREER_PK).forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
     if(Array.isArray(p.st)) p.st={gp:p.st[0], g:p.st[1], a:p.st[2]};   // v579 : les listes redeviennent des objets
     if(Array.isArray(p.ss)) p.ss=(p.ss.length===6) ? {gp:p.ss[0], w:p.ss[1], l:p.ss[2], otl:p.ss[3], sa:p.ss[4], ga:p.ss[5]} : {gp:p.ss[0], g:p.ss[1], a:p.ss[2]};
@@ -12417,7 +12466,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":548028,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":548812,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
