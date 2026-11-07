@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v646</title>
+<title>Deck 3D v647</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1360,7 +1360,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v646';
+var GAME_VERSION='v647';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6611,19 +6611,20 @@ function stickSide(p){
 }
 /* PORT du Body Check Lab : issue d'une mise en echec REUSSIE.
    - Rondelle : de plein fouet (dans l'axe) -> case ARRIERE ; en angle -> DIAGONALE du cote du baton.
-   - Recul du PORTEUR : 0/1/2 cases de chute + eventuellement 1 de glisse (max 3), selon l'elan (run) et
-     l'ecart de PHYSIQUE (le gabarit sert de "masse"). Pousse tant que c'est libre.
+   - Recul du PORTEUR : 1 case au plus (v647), 0 si coup flat-footed ; chute sur la glace si elan + PHYSIQUE >= 3.
    - Recul du CHECKEUR : un checkeur bien moins physique que le porteur rebondit en arriere.
-   Retourne {knock, recoil, puck}. */
+   Retourne {knock, fall, recoil, puck}. */
 function bodyCheckOutcome(checker, C, cc, cr, run){
   var pushC=Math.sign(cc-checker.c), pushR=Math.sign(cr-checker.r);      // sens du coup (checkeur -> porteur)
   var dphys=effPhys(checker)-effPhys(C);                     // avantage de gabarit du checkeur (v469 : Physique + gabarit)
   var power=run + (dphys>=15?1:0) + (dphys<=-15?-1:0);                    // elan + physique
-  var fall=power>=3?2:(power>=1?1:0);                                     // chute : 0/1/2 cases (visible des le moindre elan/avantage)
-  var slide=power>=4?1:0;                                                 // glisse +1 sur les plus gros coups (max 3)
-  var steps=fall+slide, nx=cc, ny=cr;                                    // pousse le porteur, case par case, tant que libre
+  // v647 (ses notes : « une mise en echec te fait tomber une case plus loin, pas 2 » ; « tomber sur la glace lors de tres gros
+  // contacts, sinon pas plus de 1 case de recul » ; choix « Lance 3 cases + », « Seulement sonne ») : recul 1 case au plus ;
+  // un tres gros coup (power >= 3 : 3 cases d'elan, ou 2 et nettement plus costaud) le fait TOMBER (evenement fall pour la 3D).
+  var fall=power>=3;
+  var steps=power>=1?1:0, nx=cc, ny=cr;                                  // pousse le porteur d'une case, si libre
   for(var s=0;s<steps;s++){ var tx=nx+pushC, ty=ny+pushR;
-    if((pushC||pushR) && tx>=0&&tx<COLS&&ty>=0&&ty<ROWS && !pieceAt(tx,ty)){ nx=tx; ny=ty; } else break; }
+    if((pushC||pushR) && onIce(tx,ty) && !pieceAt(tx,ty)){ nx=tx; ny=ty; } else break; }   // v647 : pas dans un coin arrondi (hors glace)
   if(nx!==cc||ny!==cr){ C.c=nx; C.r=ny; addSlide(C.id, cc-nx, cr-ny); }
   // PLUS DE RECUL DU CHECKEUR (choix design "le check gagne la rondelle") : un body check REUSSI le laisse
   // plante au POINT D'IMPACT. Ainsi c'est LUI le plus proche de la rondelle ejectee -> il la reprend, au lieu
@@ -6637,7 +6638,8 @@ function bodyCheckOutcome(checker, C, cc, cr, run){
   if(pushR!==0) pr=cr+stickSide(C);                                      // hit en angle : la rondelle squirte du cote du baton
   if(onIce(pc,pr) && !pieceAt(pc,pr)){ S.puckLoose={c:pc,r:pr}; S.puckOwner=null; }   // v397 : pas sur la bande
   else placeLooseNear(pc,pr);
-  return {knock:steps, recoil:recoil, puck:{c:S.puckLoose.c,r:S.puckLoose.r}};
+  if(fall) matchEv('fall', {id:C.id, by:checker.id});
+  return {knock:steps, fall:fall, recoil:recoil, puck:{c:S.puckLoose.c,r:S.puckLoose.r}};
 }
 // v445 : PENALITES (spec 2026-09-30-penalites-design.md) -- seule une mise en echec VOULUE (ordre Body check ; pour l IA,
 // son chasseur) peut etre sifflee. DIFFEREE : sifflet quand l equipe fautive touche la rondelle (ou arret de jeu) ; un
@@ -6826,7 +6828,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen});   // v447   // v581 : pen
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
-  if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run); looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.knock>=2?' with a full head of steam — '+carName+' is knocked flying!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
+  if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run); looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.fall?' with a full head of steam — '+carName+' is knocked to the ice!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
     else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); looseOffside(checker.team, cc); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
   else if(_blowby){ if(C.team===HUMAN_TEAM) tipTrigger('blowby');   /* v460 */ bonusTrigger(C, 'speed'); /* v438 : echappee */ document.getElementById('outcome').innerHTML=carName+' blows by '+cName+'!'; pushLog('<b>'+carName+'</b> blows by '+cName+dpos(checker)+' with speed — beaten flat.'); }
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
@@ -12466,7 +12468,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":548812,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":554732,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
