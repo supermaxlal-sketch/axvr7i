@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v650</title>
+<title>Deck 3D v651</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -536,6 +536,10 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .cell.dka::after{content:'⤳';position:absolute;right:8%;top:6%;color:#e9dcff;font-size:11px;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.85);pointer-events:none;z-index:3;}
 button.act.dump{background:#14708a;color:#eafcff;}
 button.act.poke{background:#6b4bb0;color:#f0e9ff;}
+button.act.dke{background:#7a4fb0;color:#f6eeff;}
+.dekelist{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,92vw);max-height:80vh;overflow-y:auto;z-index:45;background:#102536;border:2px solid #7a4fb0;border-radius:14px;padding:10px;flex-direction:column;gap:7px;box-shadow:0 8px 28px rgba(0,0,0,.6);}
+.dekelist .dktitle{color:#e9dcff;font-weight:800;font-size:15px;text-align:center;}
+.dekelist .perkbtn{width:100%;min-height:46px;font-size:15px;}
 button.act.prot{background:#2f6f4f;color:#e6fff0;}
 button.act.wrap{background:#8a5a14;color:#fff3e0;}
 button.act.cyc{background:#1f6f7a;color:#e6fbff;}
@@ -1010,6 +1014,7 @@ body:not(.vrink) .thumbx{display:none !important;}
   <div class="thumbx tbtop" id="tbTop" style="display:none"></div>
   <div class="controls">
     <div class="gestes" id="gestes"></div>
+    <button class="act dke" id="btnDeke" style="display:none">🌀 Deke</button>
     <button class="act shoot" id="btnShoot" style="display:none">🏒 Wrist shot</button>
     <button class="act shoot" id="btnSlap" style="display:none">💥 Slap shot</button>
     <button class="act bank" id="btnBank" style="display:none">Bank pass</button>
@@ -1023,6 +1028,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <button class="act alert" id="btnAlert" style="display:none">📣 Alert</button>
     <button class="act call" id="btnCall" style="display:none">🙋 Call</button>
   </div>
+  <div class="dekelist" id="dekeList" style="display:none"></div>
   <div class="perkbar" id="perkbar" style="display:none"></div>
   <div class="perkbar" id="defbar" style="display:none"></div>
   <div class="perkbar" id="planbar" style="display:none"></div>
@@ -1362,7 +1368,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v650';
+var GAME_VERSION='v651';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1881,7 +1887,7 @@ function resolveSeq(seq){
       if(!_pk && _dts.length) _pk=_dts[0];
       if(!_pk){ var _dfn=resolveSeqDefStep(seq); if(chargedArrival(seq, _dfn)) return;   /* v523 : le coup charge part a son arrivee */ pushLog(p.name+' is not close enough to '+_dt.name+' to deke — he keeps the puck.'); seq.rank++; resolveSeq(seq); return; }
       _land={c:_pk.c, r:_pk.r}; _side=_pk.side;
-    }
+    } else if(cheb(p,_dt)!==1){ var _dfg=resolveSeqDefStep(seq); if(chargedArrival(seq, _dfg)) return; pushLog(p.name+' is not close enough to '+_dt.name+' to deke — he keeps the puck.'); seq.rank++; resolveSeq(seq); return; }   // v651
     var _dfd=defStepOrLate(seq); if(_dfd!=='late' && chargedArrival(seq, _dfd)) return;   // v523 : le coup charge part avant la feinte ; v524 : en retard -> apres
     S.planResume={v2seq:seq};
     S.animating=true; render();
@@ -2051,28 +2057,7 @@ function updatePerkBar(){
     var inf=PERK_INFO[p.perk];
     html+='<span class="perkinfo"><span class="perklbl">Perk of '+p.name+'</span><b class="perkname" style="color:#fff">'+inf.n+'</b><span class="perkdesc" style="color:#9fb6cd">'+inf.d+'</span><span class="perknote">always on</span></span>';   // v400 : regroupe (compact en vertical)
   }
-  // DEKE : un adversaire est colle au porteur (position EFFECTIVE = fantome en planification)
-  if(p.team===S.turn && p.type==='sk' && ownsPuck(p.id)){
-    var _base=S.planning?ghostOf(p):{c:p.c,r:p.r}, _adjG=false;
-    for(var _e=0;_e<S.pieces.length;_e++){ var _en=S.pieces[_e];
-      if(_en.onIce && _en.team!==p.team && _en.type==='g'
-         && Math.max(Math.abs(_en.c-_base.c),Math.abs(_en.r-_base.r))===1){ _adjG=true; break; } }
-    var _adjE=(_adjG || dekeTargets(p).length>0); if(_adjG && p.team===HUMAN_TEAM) tipTrigger('gdeke');   // v456   // gardien adjacent (tap direct) OU au moins une case de contournement d'un patineur
-    if(_adjE){
-      if(S.dangle){ html += '<button class="perkbtn cancel" onclick="cancelDangle()">Deke — cancel</button>'; }
-      else {
-        html += '<button class="perkbtn dgl" onclick="armDangle()">Deke</button>';
-        var _sel=byId(S.sel), _adjD=_sel?adjacentEnemySkater(_sel):null;
-        var _MENU_FEINTS=['toedrag','spin','fakeshot','betweenlegs','cutmiddle'];   // Task 4 = toe drag seulement ; Task 5 ajoute 'spin', Task 6 ajoute 'fakeshot' ; Vague 2 ajoute 'betweenlegs','cutmiddle'
-        if(_sel && _adjD && _sel.dekes){ for(var _fi=0;_fi<_sel.dekes.length;_fi++){ var _fid=_sel.dekes[_fi];
-          if(_MENU_FEINTS.indexOf(_fid)<0) continue;
-          var _fp=actionOdds(_sel,'feint:'+_fid,_adjD); if(_fp==null || _fp<=0) continue;
-          var _lbl={toedrag:'Toe drag',spin:'Spin-o-rama',fakeshot:'Fake shot',betweenlegs:'Between the legs',cutmiddle:'Cut inside'}[_fid];
-          html += '<button class="perkbtn dgl" onclick="armFeint(\''+_fid+'\')">'+_lbl+' '+_fp+'%</button>';
-        } }
-      }
-    }
-  }
+  // v651 : le Deke et ses feintes ne sont plus ici : bouton #btnDeke + liste #dekeList (sur telephone, ils etaient caches sous la barre GO)
   // ONE-TIMER : un coequipier tient la rondelle, lui est demarque en zone
   if(p.team===S.turn && p.type==='sk' && !ownsPuck(p.id) && ghostOwner() && canShootFrom(p)){
     if(S.oneTimer===p.id){ html+='<button class="perkbtn cancel" onclick="cancelOneTimer()">One-timer armed — cancel</button>'; }
@@ -2265,6 +2250,48 @@ function cutInside(p, list){
   for(var j=0;j<list.length;j++){ if(Math.abs(list[j].r-CTR_R)===best) out.push(list[j]); }
   return out;
 }
+// v651 (sa question : « je ne vois pas le deke et la liste de feintes ») : un bouton avec les actions, la liste par-dessus la glace ;
+// collee au gardien, la liste montre les feintes de la fusillade, selon le maniement
+function dekeAdjGoalie(p){ if(!p) return null; var b=S.planning?ghostOf(p):{c:p.c,r:p.r};
+  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce && e.team!==p.team && e.type==='g' && Math.max(Math.abs(e.c-b.c),Math.abs(e.r-b.r))===1) return e; }
+  return null; }
+function gFeintsFor(p){ var m=(p && p.maniement)||50; return SO_AI_FEINTS.filter(function(f){ return m>=f[1]; }).map(function(f){ return f[0]; }); }
+function gFeintProb(p, g, k){ var v=SO_FBASE+(((p && p.maniement)||50)-SO_MID)*0.006-(((g && g.arret100)||70)-70)*0.006+(k==='kane'?0.06:0)-0.10*feintSeenCount(g, 'g:'+k); return Math.max(0.05, Math.min(0.75, v)); }
+function dekeMenu(p){ var out=[]; if(!p || p.type!=='sk' || p.team!==S.turn || !ownsPuck(p.id)) return out;
+  var g=dekeAdjGoalie(p);
+  if(g) gFeintsFor(p).forEach(function(k){ out.push({label:SO_FEINTS[k].n, pct:Math.round(gFeintProb(p, g, k)*100), oc:"pickGFeint('"+k+"')"}); });
+  if(dekeTargets(p).length){ out.push({label:'Deke', pct:null, oc:'armDangle()'});
+    var d=adjacentEnemySkater(p), MF=['toedrag','spin','fakeshot','betweenlegs','cutmiddle'], LB={toedrag:'Toe drag',spin:'Spin-o-rama',fakeshot:'Fake shot',betweenlegs:'Between the legs',cutmiddle:'Cut inside'};
+    if(d && p.dekes) p.dekes.forEach(function(f){ if(MF.indexOf(f)<0) return; var o=actionOdds(p, 'feint:'+f, d); if(o==null || o<=0) return; out.push({label:LB[f], pct:o, oc:"armFeint('"+f+"')"}); }); }
+  return out; }
+function closeDekeList(){ var L=document.getElementById('dekeList'); if(L){ L.style.display='none'; L.innerHTML=''; L.removeAttribute('data-id'); } }
+function openDekeList(){ var p=byId(S.sel), L=document.getElementById('dekeList'), items=dekeMenu(p); if(!L || !items.length) return;
+  var h='<div class="dktitle">'+p.name+' — Deke</div>';
+  items.forEach(function(it){ h+='<button class="perkbtn dgl" onclick="closeDekeList();'+it.oc+'">'+it.label+(it.pct!=null?' · '+it.pct+'%':'')+'</button>'; });
+  h+='<button class="perkbtn cancel" onclick="closeDekeList()">Cancel</button>';
+  L.innerHTML=h; L.setAttribute('data-id', p.id); L.style.display='flex'; if(S.tut && typeof tutDecorateButtons==='function') tutDecorateButtons(); }
+function renderDekeBtn(sp){ var b=document.getElementById('btnDeke'), L=document.getElementById('dekeList'); if(!b) return;
+  var m=(sp && !S.animating) ? dekeMenu(sp) : [], armed=!!(sp && S.dangle), show=armed || m.length>0;
+  b.style.display=show?'inline-block':'none'; b.textContent=armed?'Deke — cancel':'🌀 Deke';
+  if(show && !armed && sp.team===HUMAN_TEAM && dekeAdjGoalie(sp)) tipTrigger('gdeke');
+  if(L && L.style.display!=='none' && (!show || armed || L.getAttribute('data-id')!==sp.id)) closeDekeList(); }
+function pickGFeint(k){ var p=byId(S.sel), g=dekeAdjGoalie(p); if(!p || !g || !ownsPuck(p.id)) return; S.dangle=false; S.dekeT=[]; S.armedFeint=null; doDangle(p, g, null, 0, k); }
+var G_FEINT_TG={fhbh:'B', bhfh:'B', fakeshot:'B', datsyuk:'B', forsberg:'B', nielsen:'T', kane:'T', legs:'5H'};
+function goalieFeint(p, g, k){ if(!SO_FEINTS[k]){ var ok=gFeintsFor(p); k=ok[Math.floor(Math.random()*ok.length)]; }   // sans feinte choisie (un toucher sur le gardien) : au hasard parmi celles permises
+  var pr=gFeintProb(p, g, k); markFeintSeen(g, 'g:'+k);
+  var goal=tutLuck(pr, p.team===HUMAN_TEAM), F=SO_FEINTS[k], sd=Math.random()<0.5?'L':'R', tg=G_FEINT_TG[k]==='5H'?'5H':(G_FEINT_TG[k]+sd), ts=tg==='5H'?'':tg.charAt(1), fs=p.hand==='D'?'R':'L', pct=Math.round(pr*100);
+  matchEv('deke', {id:p.id, on:g.id, feint:F.a+(F.side?((ts===''||ts===fs)?'_f':'_b'):''), ms:F.ms, so:1, g:g.id, bite:goal, fake:ts===''?'':(ts==='L'?'R':'L'), drop:!!F.drop, ok:goal});
+  S.animating=true; render();
+  setTimeout(function(){
+    matchEv('shot', {id:p.id, g:g.id, target:tg, guess:goal?soMirror(tg):tg, res:goal?'goal':'save', so:1}); hj3dSend('cue', 'release'); sfx('shot');
+    setTimeout(function(){ S.animating=false;
+      if(goal){ S.score[p.team]++; document.getElementById('outcome').innerHTML='GOAL on the '+F.n+' by '+p.name+' ('+pct+'%) — the goalie is beaten!';
+        pushLog('<b>GOAL</b> for the '+TEAM_NAME[p.team]+' : <b>'+p.name+'</b> beats '+g.name+' with the '+F.n+' — '+S.score.A+' a '+S.score.B+'.');
+        checkFx('whiff', g.c, g.r); render(); celebrate(p.team, p.name); return; }
+      S.puckOwner=g.id; document.getElementById('outcome').innerHTML=g.name+' stays square ('+pct+'%) and freezes the puck!';
+      pushLog(p.name+' tries the '+F.n+' — <b>'+g.name+'</b> does not move.');
+      checkFx('dekestop', g.c, g.r); render(); gainPuck(g.team); }, 600);
+  }, Math.round(F.ms*0.85)); }
 function armFeint(feintId){ var p=byId(S.sel); if(!p||S.puckOwner!==p.id||p.team!==S.turn) return;
   S.armedFeint=feintId; S.dangle=true;
   if(feintId==='toedrag' || feintId==='betweenlegs' || feintId==='cutmiddle'){ S.dekeT=(feintId==='cutmiddle') ? cutInside(p, dekeTargets(p)) : dekeTargets(p);   // v449 : la coupe va vers l'interieur
@@ -2275,17 +2302,7 @@ function doDangle(p,d,land,side,feintId){
   if(S.planning){ if(!ownsPuck(p.id)) return; S.dangle=false; S.dekeT=[]; planPush({kind:'dangle', id:p.id, target:d.id, land:land, side:side, feint:feintId||null}); return; }
   if(S.animating) return; if(S.puckOwner!==p.id) return; S.dangle=false; S.dekeT=[];
   if(foFirst(p, ({toedrag:'toe drag', betweenlegs:'between-the-legs move', cutmiddle:'cut inside'})[feintId] || 'deke')) return;   // v520
-  if(d.type==='g'){
-    var pg=Math.max(0.08, Math.min(0.42, 0.20+0.08*((p.off||3)-(d.arret||3))) - 0.15*feintSeenCount(d,'gdeke'));
-    markFeintSeen(d,'gdeke');
-    var okg=tutLuck(pg, p.team===HUMAN_TEAM);   /* v455 */ matchEv('deke', {id:p.id, on:d.id, feint:feintId||'deke', ok:okg});   // v447
-    if(okg){ S.score[p.team]++; document.getElementById('outcome').innerHTML='GOAL on the deke by '+p.name+' ('+Math.round(pg*100)+'%) — the goalie is beaten!';
-      pushLog('<b>GOAL</b> for the '+TEAM_NAME[p.team]+' : <b>'+p.name+'</b> dekes '+d.name+' — '+S.score.A+' a '+S.score.B+'.');
-      checkFx('whiff', d.c, d.r); render(); celebrate(p.team, p.name); return; }
-    S.puckOwner=d.id; document.getElementById('outcome').innerHTML=d.name+' shuts the door ('+Math.round(pg*100)+'%) and freezes the puck!';
-    pushLog(p.name+' tries the fake — <b>'+d.name+'</b> does not move.');
-    checkFx('dekestop', d.c, d.r); render(); gainPuck(d.team); return;   // deke stoppe par le gardien : DEKE STOPPED
-  }
+  if(d.type==='g') return goalieFeint(p, d, feintId);   // v651 : les feintes de la fusillade
   var bc, br, sd;
   if(land){ bc=land.c; br=land.r; sd=(typeof side==='number')?side:(Math.sign(land.r-d.r)||0); }
   else { bc=d.c+(d.c>p.c?1:(d.c<p.c?-1:0)); br=d.r+(d.r>p.r?1:(d.r<p.r?-1:0)); sd=0; }
@@ -2326,6 +2343,7 @@ function doDangle(p,d,land,side,feintId){
 // ---- Resolution unifiee des feintes nommees. land/side = case de contournement (slip) le cas echeant. ----
 function resolveFeint(p, d, feintId, land, side){
   if(!p || !d) return;
+  if(d.type==='g') return doDangle(p, d, null, 0, feintId);   // v651
   if(feintId==='toedrag' || feintId==='betweenlegs' || feintId==='cutmiddle'){ return doDangle(p, d, land, side, feintId); }   // slip specialise (Task 4 / Vague 2)
   if(feintId==='spin'){ return resolveSpin(p, d, land, side); }              // Task 5 ; v448 : il contourne (case d'arrivee)
   if(feintId==='fakeshot'){ return resolveFakeShot(p, d); }                  // Task 6
@@ -4554,7 +4572,7 @@ function planLabel(a){
   if(a.kind==='pivot')   return nm+' pivots';
   if(a.kind==='protect') return nm+' protects the puck';
   if(a.kind==='dump')    return nm+' dumps it in ('+a.toC+','+a.toR+')';
-  if(a.kind==='dangle')  return nm+(a.feint?(' — '+({toedrag:'toe drag',spin:'spin-o-rama',fakeshot:'fake shot',betweenlegs:'between the legs',cutmiddle:'cut inside'})[a.feint]||'feint'):' dekes '+(byId(a.target)?byId(a.target).name:'?'));
+  if(a.kind==='dangle')  return nm+(a.feint?(' — '+({toedrag:'toe drag',spin:'spin-o-rama',fakeshot:'fake shot',betweenlegs:'between the legs',cutmiddle:'cut inside'})[a.feint]||(SO_FEINTS[a.feint]?SO_FEINTS[a.feint].n:'feint')):' dekes '+(byId(a.target)?byId(a.target).name:'?'));
   if(a.kind==='dump')  return nm+' dumps it in';
   return nm;
 }
@@ -8950,6 +8968,7 @@ function render(){
   var sp=byId(S.sel);
   var carrier = sp && ownsPuck(sp.id);
   var canShoot = sp&&sp.onIce&&sp.type==='sk'&&carrier&&canShootFrom(sp)&&S.gestes>0&&!S.coachPush&&!S.animating&&!S.passBonus;
+  renderDekeBtn(sp);   // v651
   var bs=document.getElementById('btnShoot');
   bs.style.display=canShoot?'inline-block':'none';
   if(canShoot){ var _shp=oddsFromPlanPos(sp, function(){ return actionOdds(sp,'shot'); }); bs.textContent='🏒 Wrist shot · '+_shp+'%'; if(_shp<=6 && sp.team===HUMAN_TEAM) tipTrigger('farshot'); }   // v456   // % de marquer depuis la position projetee (glissement/fantome), info visible
@@ -9578,6 +9597,7 @@ function renderRoute(){
     c.setAttribute('fill','#ff8fbf'); c.setAttribute('opacity','0.9'); c.setAttribute('stroke','#fff'); c.setAttribute('stroke-width','5'); g.appendChild(c); }
 }
 
+document.getElementById('btnDeke').onclick=function(){ if(S.dangle){ cancelDangle(); return; } var L=document.getElementById('dekeList'); if(L && L.style.display!=='none') closeDekeList(); else openDekeList(); };   // v651
 document.getElementById('btnShoot').onclick=function(){ doShoot(); };
 document.getElementById('btnSlap').onclick=function(){ doShoot(false, true); };   // v649
 document.getElementById('btnBank').onclick=function(){ if(S.animating)return; if(!S.sel) return; S.bankMode=!S.bankMode; computeOptions(); render(); };
@@ -12231,7 +12251,7 @@ function tutTap(c,r){   // true = tap consomme par la lecon (geste non permis, o
 }
 function tutBtnKey(b){
   if(!b || b.getAttribute('data-tut') || b.classList.contains('cell')) return null;
-  var IDS={btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
+  var IDS={btnDeke:'deke', btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
   if(b.id && IDS[b.id]) return IDS[b.id];
   if(b.classList.contains('taim')) return 'corner:'+b.getAttribute('data-t');
   var oc=b.getAttribute('onclick')||'', mf=/armFeint\('(\w+)'\)/.exec(oc);
