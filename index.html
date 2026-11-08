@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v651</title>
+<title>Deck 3D v652</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1368,7 +1368,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v651';
+var GAME_VERSION='v652';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1664,7 +1664,7 @@ function resolveSeq(seq){
       else if(_pb2.mate){ atc=_pb2.spot.c; atr=_pb2.spot.r; pushLog(p.name+' pulls up behind '+_pb2.mate.name+'.'); } }   // v443
     var oc=p.c, orr=p.r, sp;
     var _om=null; S._ordTried=null;   // v614 : un ordre de coup croise en route -- le coup part pendant le patin (orderMeet)
-    if(_det){ var _dsp=detourSpot(p, _det); _om=orderMeet(p, _dsp.path); skateToSpot(p, _dsp); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
+    if(_det){ var _dsp=detourSpot(p, _det); _om=passByOr(p, _dsp.path, orderMeet(p, _dsp.path)); if(_om && _om.passBy==='trip') _dsp=passByCut(_dsp, _om); skateToSpot(p, _dsp); p._movedThisTurn=true; sp={c:p.c, r:p.r}; }   // v492 : il contourne
     else if(_crv){   // v408 : l'arc est revalide case par case (un joueur a pu s'y glisser) : il s'arrete avant
       var _rsp=routeContacts(p, routeSpot(p, a.path, 'atk'));   // v492 : contacts du contournement   // v410 : part de ce tour du trace, revalidee ; la suite est rangee sur le joueur
       if(!_rsp || _rsp.blocked) pushLog(p.name+' is cut off in his turn and stops short.');
@@ -1676,12 +1676,13 @@ function resolveSeq(seq){
         seq._rp={id:p.id, cells:_rsp.path.slice(_k), later:_rsp.rest, keep:_rsp.keep, blocked:_rsp.blocked, endMom:_rs0.endMom};
         _rsp={c:_rsp.path[_k-1].c, r:_rsp.path[_k-1].r, path:_rsp.path.slice(0,_k), keep:_rsp.keep, rest:[], kind:'atk'};
       }
-      if(_rsp) _om=orderMeet(p, _rsp.path);   // v614
+      if(_rsp){ _om=passByOr(p, _rsp.path, orderMeet(p, _rsp.path)); if(_om && _om.passBy==='trip') _rsp=passByCut(_rsp, _om); }   // v614 ; v652 : le poke au passage
       if(_rsp){ skateToSpot(p, _rsp); p._movedThisTurn=true; } else p.route=null;
       sp={c:p.c, r:p.r};
     } else {
       sp=_bend?{c:a.toC,r:a.toR}:landSpot(p, atc, atr, {});   // coude : arrivee = destination (chemin revalide) ; sinon on calcule
-      if(!_bend) _om=orderMeet(p, lineCells(oc, orr, sp.c, sp.r));   // v614
+      if(!_bend){ var _lc=lineCells(oc, orr, sp.c, sp.r); _om=passByOr(p, _lc, orderMeet(p, _lc)); if(_om && _om.passBy==='trip'){ sp={c:_om.cell.c, r:_om.cell.r}; _om.n=_om.k+1; } }   // v614 ; v652 : le poke au passage
+      else { var _b1=lineCells(oc, orr, a.viaC, a.viaR), _b2=_b1.concat(lineCells(a.viaC, a.viaR, sp.c, sp.r)); _om=passByMeet(p, _b2, null); if(_om && _om.passBy==='trip'){ sp={c:_om.cell.c, r:_om.cell.r}; _om.n=_om.k+1; if(_om.k<_b1.length) _bend=false; } }   // v652 : aussi sur un coude (la chute : il s'arrete sur le 1er ou le 2e segment)
       p.c=sp.c; p.r=sp.r;
       if(_bend){ addTrail(oc, orr, a.viaC, a.viaR); addSlide(p.id, a.viaC-sp.c, a.viaR-sp.r); }   // 1er segment trace + 2e segment (via -> dest) anime
       else addSlide(p.id, oc-sp.c, orr-sp.r);
@@ -1692,7 +1693,7 @@ function resolveSeq(seq){
     if(!a.cont) mirrorMoveNow(seq, p, oc, orr, sp.c, sp.r);   // le partenaire miroir suit gratuitement ; v410 : jamais sur une suite de trace
     var _mv=[]; for(var _mid in (S._rankMoves||{})){ var _mq=byId(_mid); if(_mq && _mq.team===p.team) _mv.push(_mid); } resolveCrossDuels(_mv);   // v432 : contact au croisement (sans rondelle)
     if(S.diag) pushLog(p.name+' : '+oc+','+orr+(_bend?(' \u2192 '+a.viaC+','+a.viaR):'')+(_crv?' (curve)':'')+' \u2192 '+p.c+','+p.r);
-    if(!_det && !_bend && !_crv && (sp.c!==atc||sp.r!==atr)) pushLog(p.name+' is cut off and stops short.');
+    if(!_det && !_bend && !_crv && (sp.c!==atc||sp.r!==atr) && !(_om && _om.passBy==='trip')) pushLog(p.name+' is cut off and stops short.');
     if(sp.c===oc && sp.r===orr && S.puckOwner===p.id) checkFx('stuffed', oc, orr);   // porteur stoppe net (aucune progression) : indice visuel STOPPED (grise)
     // v429 : RYTHME -- receveur d une passe in stride (dans la course / dans le trajet) arrive a la case : la passe part
     // AVEC son patinage (meme rendu), vole le temps du patinage, pas de pause. Sauf si un defenseur vient de se coller
@@ -1709,7 +1710,7 @@ function resolveSeq(seq){
       _omMs=Math.round(_tot*(_om.k+0.7)/_om.n); }   // v614 : quand il passe a cote du defenseur
     S.animating=true; sfx('skate'); render();
     brushPass(_om ? _om.d.id : null);   // v615 : les frolements de ce temps, apres l'instantane (la 3D a les glissements)
-    if(_om) setTimeout(function(){ _omRes=orderMeetTry(seq, p, _om); }, _omMs);
+    if(_om) setTimeout(function(){ _omRes=(_om.passBy==='trip') ? passByTrip(seq, p, _om) : orderMeetTry(seq, p, _om); }, _omMs);
     setTimeout(function(){
       if(_omRes && _omRes.success) return;   // v614 : le coup en route a reussi -- looseBall pilote (il tue la sequence)
       S.animating=false;
@@ -5875,7 +5876,7 @@ function commitHiddenDefense(){
 }
 // v399 : BULLES DE RESULTAT sur la glace (glace verticale). Au-dessus de la case de l'evenement, a l'endroit :
 // titre colore (sarcelle = reussi, rouge = rate) + la phrase du journal ; 2 bulles max ; disparait en ~2 s.
-var BUBBLE_T={post:'POST!',bar:'CROSSBAR!',onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',lift:'STICK LIFT',liftmiss:'LIFT MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
+var BUBBLE_T={post:'POST!',bar:'CROSSBAR!',onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',trip:'TRIPPED',lift:'STICK LIFT',liftmiss:'LIFT MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
   shot:'SHOT',wide:'WIDE',save:'SAVE',blockshot:'SHOT BLOCKED',blockpass:'PASS BLOCKED',battle:'BATTLE',dekestop:'DEKE STOPPED',
   dumpin:'DUMP IN',dumpoff:'DUMP OFF',shield:'PROTECTED',stuffed:'STOPPED',blockmiss:'BLOCK MISSED',whiff:'BEATEN',blowby:'BLOWN BY'};
 var BUBBLE_MISS={otwhiff:1,passmiss:1,pokemiss:1,liftmiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
@@ -6576,7 +6577,7 @@ function orderMeetTry(seq, p, m){
   S._ordTried=m.d.id;
   pushLog('<b>'+m.d.name+'</b> '+(m.o.order==='poke' ? 'pokes at' : (m.o.order==='lift' ? 'reaches for the stick of' : 'steps into'))+' '+p.name+' as he goes by.');
   p.c=m.cell.c; p.r=m.cell.r; S._holdRender=true;
-  var res=null; try{ res=resolveCheck(m.d, false); } finally { S._holdRender=false; }
+  var res=null; try{ res=m.passBy ? resolveCheck(m.d, false, false, true, true) : resolveCheck(m.d, false); } finally { S._holdRender=false; }   // v652 : le poke au passage est deja tire (passByMeet) : un poke, a coup sur
   m.o.used=true;   // servi APRES : resolveCheck lit l'ordre (hasOrder : check = mise en echec postee, poke = poke)
   S.planNext=_pn;
   if(!(res && res.success && res.body)){ p.c=fc; p.r=fr; }   // rate, ou poke reussi : il file jusqu'au bout (sans la rondelle)
@@ -6589,11 +6590,65 @@ function orderMeetTry(seq, p, m){
 // qui lance les glissements de ce temps, l'evenement 3D 'brush' (celui du contournement, v492) pour chaque paire qui se croise :
 // a 2 cases ou plus au depart et a l'arrivee, a 1 case en chemin (au meme moment : une case par pas pour tous). Rien ne change
 // dans le jeu. Pas de frolement si leurs trajets se coupent net (v432), ni avec le defenseur qui tente son coup (v614 : skip).
+function ptsAt(pts, s){ var i=Math.min(pts.length-1, Math.floor(s)), f=Math.min(pts.length-1, i+1), w=Math.min(1, s-i);
+  return {c:pts[i].c+(pts[f].c-pts[i].c)*w, r:pts[i].r+(pts[f].r-pts[i].r)*w}; }
+function ptsCut(a, b){ for(var i=0;i<a.length-1;i++) for(var j=0;j<b.length-1;j++) if(pathsCross(a[i], a[i+1], b[j], b[j+1])) return true; return false; }
+function ptsClosest(mp, mq){ var n=Math.max(mp.length, mq.length)-1, best=1e9, bs=0;   // au meme moment : une case par pas pour tous
+  for(var s=0;s<=n*8;s++){ var a=ptsAt(mp, s/8), b=ptsAt(mq, s/8), d=Math.hypot(a.c-b.c, a.r-b.r); if(d<best-1e-9){ best=d; bs=s/8; } }
+  return {best:best, bs:bs}; }
+// v652 (sa note : « quand le porteur passe pres d'un adversaire, il doit se passer quelque chose » ; ses choix, spec
+// 2026-11-08-poke-au-passage-design : « Poke au passage », « La moitie », « Chacun une fois » ; « aussi un risque de faire tomber
+// le joueur et donc une penalite, on doit voir le joueur tomber », « ca doit dependre du joueur qui poke, s'il est fache plus de
+// chance », « 3 % ») : l'adversaire SANS ORDRE que le porteur longe a une case (la detection du frolement v615). Un seul evenement
+// par deplacement : le premier sur le trajet qui reussit, ou l'ordre v614 s'il vient avant. Tire AVANT de bouger le porteur : la
+// chute coupe son trajet (la 3D recoit le glissement jusqu'a la case de la chute).
+var PASSBY_POKE=0.5, PASSBY_TRIP=0.03;
+function passPokeProb(d, p){ return pokeProb(d, p)*PASSBY_POKE; }
+function passTripProb(d, p){ var def=(typeof d.defense==='number')?d.defense:50, k=Math.max(0.5, Math.min(1.5, 1-(def-60)*0.015)), pr=PASSBY_TRIP*k*(1-0.05*speechK(d.team, 'dis'));
+  return stState(d)==='angry' ? pr*ST_PEN : pr; }
+function passByHasOrder(d){ var o=S.defOrders||[]; for(var i=0;i<o.length;i++) if(o[i].defId===d.id && (o[i].order==='check' || o[i].order==='poke' || o[i].order==='lift')) return true; return false; }
+// cells = le trajet sans la case de depart ; om = l'ordre v614 sur ce trajet (seulement ce qui vient avant lui) ; renvoie {k, n, cell, d, o, passBy} ou null.
+function passByMeet(p, cells, om){
+  if(!p || p.type!=='sk' || S.puckOwner!==p.id || S.tut || S.so || !cells || !cells.length) return null;
+  var mp=[{c:p.c, r:p.r}].concat(cells), L=S._rankMoves||{}, list=[], i;
+  for(i=0;i<S.pieces.length;i++){ var q=S.pieces[i];
+    if(!q.onIce || q.type!=='sk' || q.team===p.team || passByHasOrder(q) || raceLate(q.id) || chargedPending(q) || (S.feintBeaten && S.feintBeaten[q.id])) continue;
+    var mq=(L[q.id] && L[q.id].pts.length) ? L[q.id].pts : [{c:q.c, r:q.r}];
+    if(mq.length>1 && ptsCut(mp, mq)) continue;   // v432 : ils se coupent net -- la collision de toujours
+    if(cheb(mp[0], mq[0])<2 || cheb(mp[mp.length-1], mq[mq.length-1])<2) continue;   // colle au depart, ou a l'arrivee : le contact de toujours
+    var near=ptsClosest(mp, mq); if(near.best>1.45) continue;
+    var k=Math.max(0, Math.min(cells.length-1, Math.round(near.bs)-1));
+    if(om && k>=om.k) continue;
+    list.push({q:q, k:k, bs:near.bs}); }
+  list.sort(function(x, y){ return x.bs-y.bs; });
+  var fc=p.c, fr=p.r, fs=p.speed||0;
+  for(i=0;i<list.length;i++){ var t=list[i], cell=cells[t.k], pk=0, tr=0;
+    p.c=cell.c; p.r=cell.r; p.speed=Math.min(spdCap(p), fs+t.k+1);   // les chances a cet endroit, a cette vitesse
+    try { pk=passPokeProb(t.q, p); if(pk>0) tr=passTripProb(t.q, p); } finally { p.c=fc; p.r=fr; p.speed=fs; }
+    if(!(pk>0)) continue;
+    var kind=(Math.random()<tr) ? 'trip' : ((Math.random()<pk) ? 'poke' : null);
+    if(kind) return {k:t.k, n:cells.length, cell:{c:cell.c, r:cell.r}, d:t.q, o:{order:'poke'}, passBy:kind}; }
+  return null;
+}
+function passByOr(p, cells, om){ return passByMeet(p, cells, om) || om; }
+function passByCut(spot, m){ m.n=m.k+1; return {c:m.cell.c, r:m.cell.r, path:spot.path.slice(0, m.k+1), keep:false, rest:[], kind:spot.kind}; }   // la chute : le trajet s'arrete la
+function passByTrip(seq, p, m){
+  if(seq!==S.currentSeq || S.puckOwner!==p.id || !m.d.onIce) return null;
+  var d=m.d, cc=p.c, cr=p.r; S.planNext=null; S.animating=true; clearSel();
+  pushLog('<b>'+d.name+'</b> trips '+p.name+'!');
+  document.getElementById('outcome').innerHTML=d.name+' trips '+p.name+'!';
+  matchEv('hit', {id:d.id, on:p.id, body:false, ok:false, run:0, pen:true});   // ok:false : le geste, sans vol de rondelle au credit ; pen : la victime ne perd pas de moral
+  matchEv('fall', {id:p.id, by:d.id});   // v647 : on le voit tomber
+  p.mom=0; p.speed=0; p.route=null; p._skatedThisAction=false; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0; p._turnBase=null;
+  stSet(p, 'stun');
+  S._looseLoser=p.id; placeLooseNear(cc, cr); looseOffside(d.team, cc);
+  penTry(d, 1, 'trip');
+  render(); checkFx('trip', cc, cr);
+  setTimeout(function(){ looseBall(d.team); }, 700);
+  return {success:true};
+}
 function brushPass(skip){
-  var L=S._rankMoves||{}, B=S._rankBrush||(S._rankBrush={}), car=S.puckOwner;
-  function at(pts, s){ var i=Math.min(pts.length-1, Math.floor(s)), f=Math.min(pts.length-1, i+1), w=Math.min(1, s-i);
-    return {c:pts[i].c+(pts[f].c-pts[i].c)*w, r:pts[i].r+(pts[f].r-pts[i].r)*w}; }
-  function cut(a, b){ for(var i=0;i<a.length-1;i++) for(var j=0;j<b.length-1;j++) if(pathsCross(a[i], a[i+1], b[j], b[j+1])) return true; return false; }
+  var L=S._rankMoves||{}, B=S._rankBrush||(S._rankBrush={}), car=S.puckOwner, at=ptsAt, cut=ptsCut;
   for(var id in L){ var p=byId(id), mp=L[id].pts; if(!p || !p.onIce || p.type!=='sk' || mp.length<2) continue;
     for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.type!=='sk' || q.team===p.team) continue;
       var key=(p.id<q.id) ? p.id+'|'+q.id : q.id+'|'+p.id; if(B[key]) continue;
@@ -6601,8 +6656,7 @@ function brushPass(skip){
       var mq=(L[q.id] && L[q.id].pts.length) ? L[q.id].pts : [{c:q.c, r:q.r}];
       if(mq.length>1 && cut(mp, mq)) continue;   // v432 : ils se coupent net -- la collision de toujours
       if(cheb(mp[0], mq[0])<2 || cheb(mp[mp.length-1], mq[mq.length-1])<2) continue;   // colles au depart ou a l'arrivee : pas un croisement
-      var n=Math.max(mp.length, mq.length)-1, best=1e9, bs=0;
-      for(var s=0;s<=n*8;s++){ var a=at(mp, s/8), b=at(mq, s/8), d=Math.hypot(a.c-b.c, a.r-b.r); if(d<best-1e-9){ best=d; bs=s/8; } }
+      var _cl=ptsClosest(mp, mq), best=_cl.best, bs=_cl.bs;
       if(best>1.45) continue;   // a plus d'une case : rien
       B[key]=true;
       var who=p, other=q, wp=mp, wq=mq; if(q.id===car || (p.id!==car && mq.length>mp.length)){ who=q; other=p; wp=mq; wq=mp; }   // le porteur (sinon le plus lance) s'appuie
@@ -6694,7 +6748,7 @@ function bodyCheckOutcome(checker, C, cc, cr, run){
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
 var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_P_ROUGH=0.10, PEN_MAX=2;   /* v581 : rudesse (fache, mise en echec propre) */   // v497 : accrochage (choix du concepteur, 30 %)
 // v563 (le concepteur : « penalites plus longues, fini trop rapide » ; choix : 36 s, environ 6 jeux) : PEN_SECS 18 -> 36
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference'};   // v631 : goalie
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping'};   // v631 : goalie
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
@@ -6726,7 +6780,7 @@ function penFoul(checker, carrier, run){ if(carrier && carrier.type==='g') retur
 function penRisk(checker, carrier, run){ var f=penFoul(checker, carrier, run); if(f==='goalie') return 1; return f==='behind' ? PEN_P_BEHIND : (f==='charge' ? PEN_P_CHARGE : 0); }
 function penRiskShown(checker, carrier, run){ var r=penRisk(checker, carrier, run); return stState(checker)==='angry' ? (r ? r*ST_PEN : PEN_P_ROUGH) : r; }   // v581 : fache -> faute x1,5, sinon rudesse 10 %
 function penTry(p, prob, foul){   // l arbitre leve le bras
-  if(p && prob && foul!=='goalie') prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined » (v631 : pas sur le gardien : toujours appelee)
+  if(p && prob && foul!=='goalie' && foul!=='trip') prob*=1-0.05*speechK(p.team, 'dis');   // v504 : « Stay disciplined » (v631 : pas sur le gardien : toujours appelee ; v652 : il l'a fait tomber : toujours appelee)
   if(p && prob && foul!=='rough' && stState(p)==='angry') prob*=ST_PEN;   // v559 : fache, x1,5 (v581 : pas la rudesse)
   if(!p || !foul || !prob || S.gameEnded || !(Math.random()<prob)) return false;
   if(penCount(p.team)>=PEN_MAX) return false;   // deja 2 punis : pas de 3e
@@ -6794,7 +6848,7 @@ function renderPen(){ var P=S.pen; ['A','B'].forEach(function(t){ var el=documen
       mine.forEach(function(id){ var p=byId(id), left=0; P.box.forEach(function(b){ if(b.id===id) left+=Math.max(0,b.left); }); out.push((p?p.label:'?')+' '+fmtClock(Math.ceil(left))); });   // v589 : un puni, son temps total (double penalite)
       if(th>mine.length) out.unshift('PP'); if(penDelayedOn(t)) out.push('DELAYED'); if(P.pulled[t]) out.push('EMPTY NET'); }
     el.textContent=out.join(' '); }); }
-function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forcePoke = poke check assure (rondelle exposee sur le revers)
+function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v450 : forcePoke = poke check assure (rondelle exposee sur le revers) ; v652 : pokeOnly = le poke au passage (jamais une mise en echec ni un stick lift)
   if(typeof S!=='undefined'&&S)S._cineAction='hit';   // indice camera (lecture seule)
   var _pn=S.planNext; S.planNext=null;
   if(_pn && _pn.v2seq){
@@ -6812,10 +6866,10 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   // le gabarit (def) ne decide plus SI c'est un body check, il en pilote seulement la REUSSITE et la SEPARATION.
   // Un def<4 NON poste (simple contact au passage) fait encore un poke (le finaud ne charge pas tout seul).
   var _postedHit = (posted || !!hasOrder(checker.id,'check'));
-  var isBody=_postedHit || (checker.def>=4 && !hasOrder(checker.id,'poke') && !hasOrder(checker.id,'lift'));   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit ; v648 : Stick lift aussi
+  var isBody=!pokeOnly && (_postedHit || (checker.def>=4 && !hasOrder(checker.id,'poke') && !hasOrder(checker.id,'lift')));   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit ; v648 : Stick lift aussi
   if(C && C.type==='g' && (checker.team===AI_TEAM || !_postedHit)) isBody=false;   // v631 (match TRV, P3 0:08 ; son choix) : sur un gardien, l'IA fait un poke, jamais une mise en echec ; toi : seulement sur ton ordre (et c'est une penalite)
   var _liftO=hasOrder(checker.id,'lift'); if(_liftO) _liftO.used=true;   // v648 : l'ordre Stick lift sert une fois (de face : un poke)
-  var isLift=!isBody && !!C && C.type==='sk' && liftProb(checker, C)>0 && (!!_liftO || (!hasOrder(checker.id,'poke') && aiLift(checker, C)));
+  var isLift=!isBody && !pokeOnly && !!C && C.type==='sk' && liftProb(checker, C)>0 && (!!_liftO || (!hasOrder(checker.id,'poke') && aiLift(checker, C)));
   var _carGuard = carSpeedGuard(C);   // lire la vitesse du porteur AVANT toute casse (elle alimente les cotes) ; l'elan ne se casse QUE si le contact connecte (voir le bloc success plus bas)
   var _dist=Math.max(Math.abs(checker.c-C.c), Math.abs(checker.r-C.r));
   var _adj=(_dist<=1);
@@ -6870,7 +6924,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke){   // v450 : forc
   } else if(_sideMsg){
     pushLog('<b>'+checker.name+'</b> pokes at it — '+_sideMsg+'.');
   }
-  var _blowby=blowsBy(C, checker);   // DEBORDEMENT : un porteur lance qui passe un defenseur mal place le deborde -> check auto-rate
+  var _blowby=!pokeOnly && blowsBy(C, checker);   /* v652 : le poke au passage est deja tire (sinon : une echappee gratuite a chaque poke reussi) */ // DEBORDEMENT : un porteur lance qui passe un defenseur mal place le deborde -> check auto-rate
   var _feintBeat=!!(S.feintBeaten && S.feintBeaten[checker.id]);   // battu par une feinte cette sequence -> check auto-rate
   var success=(_blowby||_feintBeat) ? false : tutLuck(pr, checker.team===HUMAN_TEAM);   /* v451 : etape guidee */ /* v420 : tirage au pourcentage */ var cName=checker.name, carName=C.name, cc=C.c, cr=C.r; S.animating=true; clearSel();
   var _pen=false;
@@ -12595,7 +12649,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":561324,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":562348,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
