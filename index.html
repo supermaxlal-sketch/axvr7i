@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v649</title>
+<title>Deck 3D v650</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1362,7 +1362,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v649';
+var GAME_VERSION='v650';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6086,7 +6086,7 @@ function callFor(teammate){
 function doPass(p,targetId){
   if(S.planning){ planPush({kind:'pass', id:p.id, target:targetId}); return; }
   if(S.foPress && S.foPress.id===p.id) S.foPress=null;   // il fait la passe demandee : la pression de mise au jeu est levee
-  if(!S.animating) matchEv('pass', {id:p.id, to:targetId});   // v447 : la passe part (le resultat se lit ensuite : rondelle, possession)
+  if(!S.animating){ var _otT=byId(targetId), _otE=(S.oneTimer && S.oneTimer===targetId && _otT && _otT.type==='sk' && canShootFrom(_otT)); matchEv('pass', _otE ? (shotDist(_otT)>=6 ? {id:p.id, to:targetId, ot:true, slap:true} : {id:p.id, to:targetId, ot:true}) : {id:p.id, to:targetId}); }   // v447 ; v650 : ot -> la 3D le fait armer pendant la passe : la passe part (le resultat se lit ensuite : rondelle, possession)
   if(!S.coachPush && S.puckOwner===p.id && S.hiddenDef && S.defRevealIdx<S.hiddenDef.length){
     var _m=S.hiddenDef[S.defRevealIdx++], _df=_m?byId(_m.defId):null;
     var _sp=revealSpot(_m, _df);
@@ -7206,7 +7206,7 @@ function autoOneTimer(tid){
     S.oneTimerDeflect=null;
     pushLog('<b>One-timer</b>'+(ot.side==='fore'?' <span style="color:#7ee0a8">(forehand)</span>':'')+(tags.length?' ['+tags.join(', ').toLowerCase()+']':'')+': '+sh.name+' fires first time, right where he aimed!');
   }
-  setTimeout(function(){ onShotTarget(actual); }, reduced()?120:520);
+  setTimeout(function(){ onShotTarget(actual); }, 0);   // v650 (sa note « one-timer plus snappy ») : il tire a la reception (avant : 520 ms d'attente)
 }
 function onShotTarget(t){
   if(!S.aiming) return;
@@ -12575,7 +12575,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":557292,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":561324,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
