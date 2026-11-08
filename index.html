@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v648</title>
+<title>Deck 3D v649</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1010,7 +1010,8 @@ body:not(.vrink) .thumbx{display:none !important;}
   <div class="thumbx tbtop" id="tbTop" style="display:none"></div>
   <div class="controls">
     <div class="gestes" id="gestes"></div>
-    <button class="act shoot" id="btnShoot" style="display:none">🏒 SHOOT</button>
+    <button class="act shoot" id="btnShoot" style="display:none">🏒 Wrist shot</button>
+    <button class="act shoot" id="btnSlap" style="display:none">💥 Slap shot</button>
     <button class="act bank" id="btnBank" style="display:none">Bank pass</button>
     <button class="act selfbank" id="btnSelfBank" style="display:none">↪ Bank and go</button>
     <button class="act dump" id="btnDump" style="display:none">⤒ Dump in</button>
@@ -1361,7 +1362,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v648';
+var GAME_VERSION='v649';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1764,7 +1765,7 @@ function resolveSeq(seq){
     setTimeout(function(){ S.animating=false; render();
       if(seq!==S.currentSeq) return;
       killSeq(seq); S.currentSeq=null;
-      if(p.team===AI_TEAM){ aiShoot(p, true); } else { setSel(p.id); doShoot(true); }
+      if(p.team===AI_TEAM){ aiShoot(p, true); } else { setSel(p.id); doShoot(true, !!a.slap); }   // v649 : slap shot planifie
     }, TEMPO.slide+TEMPO.settle);
     return;
   }
@@ -2770,6 +2771,7 @@ function actionOdds(actor, action, target, side){
     case 'dump':     return target ? pctFromThr(dumpOdds(actor, target.c, target.r).thr) : null;  // {thr} /6
     case 'redirect': return target ? pctFromThr(redirectCleanThr(target, actor.c)) : null;        // seuil /6
     case 'shot':     return Math.round(shotOdds(actor)*100);                                       // esperance (visible)
+    case 'slap':     return Math.round(slapOdds(actor)*100);                                       // v649 : slap shot
     case 'pass':     return target ? passOdds(actor, target) : null;                               // % traverser le couloir
     case 'check':
     case 'hit':      return target ? pctFromThr(checkOdds(actor, target)) : null;                  // mise en echec (seuil /6)
@@ -2812,7 +2814,30 @@ function blockPassThr(def, passer){ return blockPassProb(def, passer)*6; }   // 
    (le tirage cache goalieGuess) — moyennee sur le VISIBLE seulement, jamais l'info cachee.
    N'est PAS le prob de resolution (un seul jet post-lecture) : c'est sa valeur attendue. */
 function shotOdds(sh){ return shotOddsDetail(sh).prob; }   // source unique = shotOddsDetail (voir le detail pour le diagnostic)
-function shotOddsDetail(sh){   // ventilation du % de tir (esperance realiste), pour l'affichage ET le diagnostic
+// v649 SLAP SHOT (sa demande ; ses choix, spec 2026-11-07-slap-shot-design) : x 1,25 pour le gardien, plafonds de loin 5 / 10 %,
+// wide +12 (max 70 %), poke +20 % d'un adversaire colle avant le tir, deviations x 1,5, rebonds x 1,3.
+var SLAP_K=1.25, SLAP_WIDE=0.12, SLAP_POKE=0.20, SLAP_REB=1.3;
+function slapOdds(sh){ return shotOddsDetail(sh, true).prob; }
+function wideOf(sh, slap){ var w=WIDE_BASE + shotAngle(sh).sev*0.42 + shotPenalty(shotDist(sh))*0.07; return slap ? Math.min(0.70, Math.min(0.58, w)+SLAP_WIDE) : Math.min(0.58, w); }
+function slapPokeProb(d, sh){ var p=pokeProb(d, sh); return p>0 ? Math.min(0.90, p+SLAP_POKE) : 0; }
+function slapRebound(r){ return Math.min(0.60, r*SLAP_REB); }
+function aiWantsSlap(sh){ return !!sh && !adjEnemySkater(sh) && slapOdds(sh) > shotOdds(sh); }
+// le tireur arme : chaque adversaire colle essaie un poke (reussi : rondelle libre, pas de tir) -> true si le tir est perdu
+function slapPokeTry(sh){
+  for(var i=0;i<S.pieces.length;i++){ var d=S.pieces[i];
+    if(!d.onIce || d.type!=='sk' || d.team===sh.team || cheb(d, sh)!==1) continue;
+    var pr=slapPokeProb(d, sh); if(!(pr>0)) continue;
+    if(!tutLuck(pr, d.team===HUMAN_TEAM)){ pushLog('<b>'+d.name+'</b> reaches in — too late, the slap shot is away.'); continue; }
+    S.aiming=null; S.oneTimerActive=false; S.deflector=null;
+    document.getElementById('shotOverlay').classList.remove('show'); document.getElementById('saim').style.display='none';
+    matchEv('hit', {id:d.id, on:sh.id, body:false, ok:true});
+    checkFx('poke', sh.c, sh.r);
+    document.getElementById('outcome').innerHTML='Poke check — '+d.name+' strips '+sh.name+' on the wind-up!';
+    pushLog('<b>Poke check</b>: '+d.name+dpos(d)+' pokes it away while '+sh.name+dpos(sh)+' winds up — no shot.');
+    S.puckOwner=null; S._looseLoser=sh.id; placeLooseToward(sh.c, sh.r, d.c, d.r);
+    S.animating=false; render(); looseBall(d.team); return true; }
+  return false; }
+function shotOddsDetail(sh, slap){   // ventilation du % de tir (esperance realiste), pour l'affichage ET le diagnostic ; v649 : slap = le slap shot
   if(!sh) return {prob:0, corner:'-', base:0, exp:0, boost:SHOT_BOOST, afterBoost:0, cleanFar:false, cdist:0, cap:null, wideP:0};
   var corners=['TL','TR','BL','BR','5H'], t=corners[0], bc=-1, w=[], sum=0, i;
   for(i=0;i<corners.length;i++){ var v=shotChance(sh,corners[i]); if(v>bc){ bc=v; t=corners[i]; }   // le tireur vise le coin le plus payant
@@ -2824,11 +2849,11 @@ function shotOddsDetail(sh){   // ventilation du % de tir (esperance realiste), 
     var pr = rel==='exact' ? base*0.28 : (rel==='adjacent' ? base*0.72 : Math.min(0.58, base+0.15));
     exp += pg*pr;
   }
-  var afterBoost=Math.min(0.90, exp*SHOT_BOOST), prob=afterBoost;
+  var afterBoost=Math.min(0.90, exp*SHOT_BOOST); if(slap) afterBoost=Math.min(0.90, afterBoost*SLAP_K); var prob=afterBoost;
   var line=shotLineInfo(sh), cleanFar=(!line.screen && !line.blocker);                               // trafic devant le gardien ? (visible)
   var cdist=(sh.team==='A'?(NET_A-sh.c):(sh.c-NET_B)), cap=null;
-  if(cleanFar && cdist>=3){ cap=(cdist>=4 ? 0.02 : 0.06); prob=Math.min(prob, cap); }                // tir de loin sans ecran : le gardien voit tout
-  var wideP=Math.min(0.58, WIDE_BASE + shotAngle(sh).sev*0.42 + shotPenalty(shotDist(sh))*0.07);     // rater le filet (visible : angle+distance)
+  if(cleanFar && cdist>=3){ cap=(cdist>=4 ? (slap?0.05:0.02) : (slap?0.10:0.06)); prob=Math.min(prob, cap); }   // tir de loin sans ecran : le gardien voit tout (v649 : le slap shot un peu moins)
+  var wideP=wideOf(sh, !!slap);     // rater le filet (visible : angle+distance) ; v649 : +12 au slap shot
   prob=Math.max(0, Math.min(1, prob*(1-wideP)));
   return {prob:prob, corner:t, base:base, exp:exp, boost:SHOT_BOOST, afterBoost:afterBoost,
           cleanFar:cleanFar, cdist:cdist, cap:cap, wideP:wideP,
@@ -4524,7 +4549,7 @@ function planLabel(a){
   if(a.kind==='pass')  return nm+' passes to '+(byId(a.target)?byId(a.target).name:'?');
   if(a.kind==='cycle') return nm+' cycles to '+(byId(a.target)?byId(a.target).name:'?');
   if(a.kind==='zoneout') return nm+' and his line get out of the zone';   // v578
-  if(a.kind==='shoot')   return nm+' SHOOTS';
+  if(a.kind==='shoot')   return nm+(a.slap?' SLAP SHOT':' SHOOTS');
   if(a.kind==='wrap')    return nm+' WRAPAROUND';
   if(a.kind==='pivot')   return nm+' pivots';
   if(a.kind==='protect') return nm+' protects the puck';
@@ -5439,8 +5464,9 @@ function aiShoot(sh, skipReveal){
   document.getElementById('shotOverlay').classList.add('show');
   S.animating=true; clearSel(); render();
   var best=aiBestShot(sh).t;
+  S.slapShot=aiWantsSlap(sh);   // v649 : le slap shot quand son % est meilleur et que personne n'est colle
   checkFx('shot', sh.c, sh.r);
-  pushLog('<b>Shot</b> by the '+TEAM_NAME[AI_TEAM]+': '+sh.name+' lance !');
+  pushLog('<b>'+(S.slapShot?'Slap shot':'Shot')+'</b> by the '+TEAM_NAME[AI_TEAM]+': '+sh.name+' lets it go!');
   setTimeout(function(){ onShotTarget(best); }, 480);
 }
 // v424 : une passe de l'exterieur de la zone offensive vers un coequipier deja DEDANS est hors-jeu : l'IA ne la planifie plus
@@ -7080,20 +7106,20 @@ function doSelfBank(){
     revealOutcome(out, function(){ S.animating=false; if(offside){ triggerOffside(pp.team,lr); } else { spend(); } });
   });
 }
-function doShoot(skipReveal){
+function doShoot(skipReveal, slap){   // v649 : slap = le slap shot (sinon le wrist shot)
   if(typeof S!=='undefined'&&S)S._cineAction='shot';   // indice camera (lecture seule, aucun effet sur la logique)
   if(S.animating || S.passBonus) return;
   var sh=byId(S.sel); if(!sh) return;
   if(sh.team===AI_TEAM){ aiShoot(sh, skipReveal); return; }   // jamais a toi de viser pour lIA
-  if(S.planning){ planPush({kind:'shoot', id:sh.id}); return; }
+  if(S.planning){ planPush(slap ? {kind:'shoot', id:sh.id, slap:true} : {kind:'shoot', id:sh.id}); return; }
   if(!canShootFrom(sh)) return;
-  S.aiming=sh.id;
+  S.aiming=sh.id; S.slapShot=!!slap;
   var g=goalieFor(sh);
   document.getElementById('netsvg').innerHTML=buildNetSVG(goalieColorFor(sh), gloveSceneSide(g), netSceneOpts(sh));
   var ang=shotAngle(sh); document.getElementById('sscene').style.transform = ang.tilt ? ('perspective(700px) rotateY('+ang.tilt.toFixed(1)+'deg)') : 'none';
   var targets=['TL','TR','BL','BR','5H'];
   for(var i=0;i<targets.length;i++){ var b=document.querySelector('#saim .taim[data-t="'+targets[i]+'"]'); if(b) b.textContent=Math.round(shotChance(sh,targets[i])*100)+'%'; }
-  document.getElementById('sctx').textContent=((S.scram&&S.scram.id===sh.id)?'GOALIE SCRAMBLING — ':'')+'Pick your corner — '+sh.name+' (Off '+sh.off+')';
+  document.getElementById('sctx').textContent=((S.scram&&S.scram.id===sh.id)?'GOALIE SCRAMBLING — ':'')+(slap?'Slap shot — ':'')+'Pick your corner — '+sh.name+' (Off '+sh.off+')';
   document.getElementById('sdice').innerHTML=''; document.getElementById('sresult').textContent=''; document.getElementById('sresult').className='sresult';
   document.getElementById('sflash').className='sflash';
   var puck=document.getElementById('spuck'); puck.style.transition='none'; puck.style.left='50%'; puck.style.top='90%';
@@ -7102,7 +7128,7 @@ function doShoot(skipReveal){
   S.aimClock=timersOn()?AIM_SECS:null; S.aimBeep=0; paintAimClock();
   S.animating=true; clearSel(); render();
 }
-function cancelAim(){ if(!S.aiming) return; S.deflectShot=false;   /* v459 */ S.aimClock=null; paintAimClock(); var shid=S.aiming; S.aiming=null; S.animating=false; document.getElementById('saim').style.display='none'; document.getElementById('shotOverlay').classList.remove('show'); if(S.oneTimerActive){ S.oneTimerActive=false; setSel(shid); spend(); return; } setSel(shid); }
+function cancelAim(){ if(!S.aiming) return; S.deflectShot=false; S.slapShot=false;   /* v649 */   /* v459 */ S.aimClock=null; paintAimClock(); var shid=S.aiming; S.aiming=null; S.animating=false; document.getElementById('saim').style.display='none'; document.getElementById('shotOverlay').classList.remove('show'); if(S.oneTimerActive){ S.oneTimerActive=false; setSel(shid); spend(); return; } setSel(shid); }
 // v401 ONE-TIMER REALISTE (spec 2026-09-26-one-timer-realiste). Facteurs calcules depuis la passe (from) et le
 // tireur, en % et stats /100 (pas de de) : angle de passe (deplacement du gardien), aile inversee, whiff,
 // pression d'un adversaire colle, type de tir selon la distance, precision. Valeurs = departs reglables.
@@ -7188,6 +7214,9 @@ function onShotTarget(t){
   var _keepScram=S.scram;
   var sh=byId(S.aiming); if(!sh){ S.aiming=null; return; }
   document.getElementById('saim').style.display='none';
+  var _slap=!!S.slapShot && !S.oneTimerActive; S.slapShot=false;   // v649 : le slap shot
+  if(_slap && slapPokeTry(sh)) return;                             // il arme : un adversaire colle peut le poker avant le tir
+  if(_slap) pushLog('<b>Slap shot</b>: '+sh.name+' winds up and lets it rip!');
   checkFx('shot', sh.c, sh.r);
   var base=shotChance(sh,t);
   if(S.tut && sh.team===HUMAN_TEAM) S.tut.shots=(S.tut.shots||0)+1;   // v453 : tirs de la lecon
@@ -7198,7 +7227,8 @@ function onShotTarget(t){
   var _dfs=S.deflectShot; S.deflectShot=false;   // v459 (ecart 2) : lu ici, avant son usage plus bas
   var _ot=S.oneTimerActive; S.oneTimerActive=false; var _otd=_ot?(S.oneTimerDeflect||null):null; S.oneTimerDeflect=null;
   var _oti=_ot?(S.otInfo||null):null; S.otInfo=null; var _noScene=!!S.otNoScene; S.otNoScene=false;   // v401
-  var _slapK=(_oti && _oti.type==='slap')?1.5:1;   // v401 : slapshot de la pointe -> deviations/tips plus frequentes avec du trafic
+  var _slapK=((_oti && _oti.type==='slap') || _slap)?1.5:1;   // v401 : slapshot de la pointe -> deviations/tips plus frequentes avec du trafic ; v649 : le slap shot aussi
+  var _slap3=_slap || !!(_oti && _oti.type==='slap');   // v649 : le geste du slap shot en 3D (one-timer frappe compris)
   var _line=shotLineInfo(sh), _scrTag='', _defl=null, _scrB=0;
   // --- adversaire dans la trajectoire : il peut bloquer, sinon il voile son propre gardien ---
   if(_line.blocker){ var _bk=_line.blocker;
@@ -7210,7 +7240,7 @@ function onShotTarget(t){
       document.getElementById('shotOverlay').classList.remove('show');
       document.getElementById('outcome').innerHTML='SHOT BLOCKED by '+_bk.name+' !';
       pushLog('<b>Shot blocked</b>: '+_bk.name+' throws himself in front of the shot from '+shName+'.');
-      matchEv('shot', {id:sh.id, target:t, res:'block', by:_bk.id});   // v447
+      matchEv('shot', {id:sh.id, target:t, res:'block', by:_bk.id, slap:_slap3});   // v447 ; v649 : slap
       checkFx('block', _bk.c, _bk.r);
       S.puckOwner=null; placeLooseNear(_bk.c, _bk.r);
       S.animating=false; render(); looseBall(_bk.team); return;
@@ -7241,7 +7271,7 @@ function onShotTarget(t){
         document.getElementById('shotOverlay').classList.remove('show');
         document.getElementById('outcome').innerHTML='Blocked by his own man — '+_sc.name+' was in the way!';
         pushLog('<b>Shot blocked</b>: '+shName+' hits his own teammate '+_sc.name+'.');
-        matchEv('shot', {id:sh.id, target:t, res:'block', by:_sc.id});   // v479 : bloque par son coequipier -> la 3D le montre aussi (comme un bloc adverse)
+        matchEv('shot', {id:sh.id, target:t, res:'block', by:_sc.id, slap:_slap3});   // v479 : bloque par son coequipier -> la 3D le montre aussi (comme un bloc adverse)
         checkFx('block', _sc.c, _sc.r);
         S.puckOwner=null; placeLooseNear(_sc.c, _sc.r);
         S.animating=false; render(); looseBall(_sc.team, _sc.team==='A'?'B':'A'); return;
@@ -7262,7 +7292,7 @@ function onShotTarget(t){
   var relEff = _defl ? 'far' : rel;
   // TIR RATE (WIDE) : rater le filet est plus probable de LOIN et de mauvais ANGLE ("but plus petit de loin").
   // Une deviation / one-timer / tip-in ne rate pas wide (la rondelle est deja redirigee vers le filet).
-  var _wideP = (!_defl && !_ot) ? Math.min(0.58, WIDE_BASE + shotAngle(sh).sev*0.42 + shotPenalty(shotDist(sh))*0.07) : 0;   // rater le filet : rare a bout portant de face, frequent de loin / de mauvais angle (~LNH) -> on voit souvent le rebond sur la bande
+  var _wideP = (!_defl && !_ot) ? wideOf(sh, _slap) : 0;   /* v649 : +12 au slap shot */   // rater le filet : rare a bout portant de face, frequent de loin / de mauvais angle (~LNH) -> on voit souvent le rebond sur la bande
   S._wideP = _wideP;
   if(_wideP > 0 && tutLuck(_wideP, sh.team!==HUMAN_TEAM)){   // v453 : etape guidee -> pas a cote
     S.aiming=null; S.oneTimerActive=false; S.deflector=null;
@@ -7276,7 +7306,7 @@ function onShotTarget(t){
     document.getElementById('outcome').innerHTML = shName+' shoots WIDE!';
     var _ww=wideWhere(team, _rb.rest);   // v515 : le message dit ou elle s'arrete vraiment
     pushLog('<b>'+shName+'</b> misses the net — the puck rings off the boards'+(_rb.bounces>1?' and bounces around':'')+(_ww==='corner'?' into the corner.':(_ww==='behind'?' and slides behind the net.':' and comes back out into the zone.')));
-    matchEv('shot', {id:sh.id, target:t, res:'wide', near:_near});   // v447 ; v584 : near
+    matchEv('shot', {id:sh.id, target:t, res:'wide', near:_near, slap:_slap3});   // v447 ; v584 : near ; v649 : slap
     S._puckCell={c:sh.c, r:sh.r}; S.puckOwner=null; S.puckLoose=null; S.animating=true; render();
     flyPuckPath(_rb.pts, function(){
       placeLooseNear(_rb.rest.c, _rb.rest.r); S.puckOwner=null; S.animating=false; sfx('drop'); render(); looseBall(team, null);
@@ -7292,16 +7322,17 @@ function onShotTarget(t){
     var _otb=0.15*(1-0.16*_pen)*(1-0.55*_sev)*_sf*_lat*_ow*_ru; prob=Math.min(_lat>=2?0.60:0.55, prob+Math.max(S.otSide==='back'?0.0:0.03,_otb)); }
   prob=Math.min(0.62+_scr, prob + _scrB + (_defl?0.06:0));
   prob=Math.min(0.90, prob*SHOT_BOOST);   // reglage global du volume de buts (~LNH) ; le plafond des tirs de loin sans trafic s'applique APRES (ligne suivante)
+  if(_slap) prob=Math.min(0.90, prob*SLAP_K);   // v649 : le slap shot, plus dur a arreter
   var _cleanFar = !_defl && !_line.screen && !_line.blocker && _scrB<=0;   // aucun trafic devant le gardien
   var _cdist = (team==='A'?(NET_A-sh.c):(sh.c-NET_B));
-  if(_cleanFar && _cdist>=3 && !_ot){ prob = Math.min(prob, _cdist>=4 ? 0.02 : 0.06); }   // tir de loin (ligne bleue+) sans ecran : le gardien voit tout -> arrete quasi a coup sur ; il faut du trafic devant pour marquer de loin
+  if(_cleanFar && _cdist>=3 && !_ot){ prob = Math.min(prob, _cdist>=4 ? (_slap?0.05:0.02) : (_slap?0.10:0.06)); }   // tir de loin (ligne bleue+) sans ecran : le gardien voit tout -> arrete quasi a coup sur ; il faut du trafic devant pour marquer de loin
   prob = Math.min(0.95, prob + feintSpaceBonus(sh.id)); consumeFeintSpace(sh.id);   // spin-o-rama : espace ouvert par la feinte -> +10% sur ce tir, consomme une fois
   prob = Math.min(0.97, prob + cycleShotBonus()); resetCycle();   // cycle : defense brouillee -> +10% par cycle (plafond +30%), consomme sur le tir
   prob = angleProb((_defl && _defl.team===sh.team) ? _defl : sh, prob);   // v575 : l'angle, apres TOUS les bonus (une deviation d'un adversaire reste sous le plafond du tireur ; celle d'un coequipier : son angle a lui)
   S._shotProb = prob;   // expose pour tests/diagnostic
   var rl=Math.random();
   var res;
-  var _rebP=Math.max(0.14, Math.min(0.46, 0.34-((g.arret||3)-3)*0.06 + (shotDist(sh)<=2?0.08:0)));
+  var _rebP=Math.max(0.14, Math.min(0.46, 0.34-((g.arret||3)-3)*0.06 + (shotDist(sh)<=2?0.08:0))); if(_slap) _rebP=slapRebound(_rebP);   // v649 : plus de rebonds
   if(tutGuided() ? (team===HUMAN_TEAM) : (rl<prob)) res='goal';   // v453 : etape guidee -> le tir du joueur marque
   else if(relEff==='exact') res='catch';
   else res = (Math.random()<_rebP) ? 'rebound' : 'save';
@@ -7313,7 +7344,7 @@ function onShotTarget(t){
   var relTxt = _defl ? ('Tipped by '+_defl.name+' — the goalie has no chance') : (rel==='exact' ? ('Goalie READ your shot ('+gShort+')') : (rel==='adjacent' ? ('Goalie right there ('+gShort+')') : ('Goalie went the wrong way ('+gShort+')')));
   var spec={noScene:_noScene, gc:gc, gr:gr, sid:sh.id, sc:sh.c, sr:sh.r, nc:goalCol(team), target:t, guess:guess, rel:rel, pct:pct, rollPct:Math.round(rl*100), res:res, quick:_ot, ctx:_scrTag+(_ot?((_otd?'ONE-TIMER tipped — ':'ONE-TIMER — ')+targetLabel(t)):'Aim '+targetLabel(t))+' — '+pct+'% · '+shName};
   countShotOnGoal(team);   // v438 : tir cadre (but, arret, rebond)
-  matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null, near:_near});   /* v584 : near */   // v447 ; v495 : iron (poteau et dedans)
+  matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null, near:_near, slap:_slap3});   /* v584 : near ; v649 : slap */   // v447 ; v495 : iron (poteau et dedans)
   S._shotFly=true;   // v595 : le chrono attend le tir (son issue compte au lancer)
   animateShot2(spec, function(){ S._shotFly=false;
     if(res!=='goal' && prob>=MOM_SAVE_P) momAdd(gteam, MOM_SAVE);   // v554 : un gros arret fait basculer le momentum
@@ -8921,7 +8952,8 @@ function render(){
   var canShoot = sp&&sp.onIce&&sp.type==='sk'&&carrier&&canShootFrom(sp)&&S.gestes>0&&!S.coachPush&&!S.animating&&!S.passBonus;
   var bs=document.getElementById('btnShoot');
   bs.style.display=canShoot?'inline-block':'none';
-  if(canShoot){ var _shp=oddsFromPlanPos(sp, function(){ return actionOdds(sp,'shot'); }); bs.textContent='🏒 SHOT · '+_shp+'%'; if(_shp<=6 && sp.team===HUMAN_TEAM) tipTrigger('farshot'); }   // v456   // % de marquer depuis la position projetee (glissement/fantome), info visible
+  if(canShoot){ var _shp=oddsFromPlanPos(sp, function(){ return actionOdds(sp,'shot'); }); bs.textContent='🏒 Wrist shot · '+_shp+'%'; if(_shp<=6 && sp.team===HUMAN_TEAM) tipTrigger('farshot'); }   // v456   // % de marquer depuis la position projetee (glissement/fantome), info visible
+  var _bsl=document.getElementById('btnSlap'); if(_bsl){ _bsl.style.display=canShoot?'inline-block':'none'; if(canShoot) _bsl.textContent='💥 Slap shot · '+oddsFromPlanPos(sp, function(){ return actionOdds(sp,'slap'); })+'%'; }   // v649
   var st=document.getElementById('shootTarget');
   if(canShoot){ var pen=shotPenalty(shotDist(sp)); var sz=[34,28,23,18,14,12][pen]||12;
     st.style.display='block'; st.style.width=sz+'px'; st.style.height=sz+'px';
@@ -9547,6 +9579,7 @@ function renderRoute(){
 }
 
 document.getElementById('btnShoot').onclick=function(){ doShoot(); };
+document.getElementById('btnSlap').onclick=function(){ doShoot(false, true); };   // v649
 document.getElementById('btnBank').onclick=function(){ if(S.animating)return; if(!S.sel) return; S.bankMode=!S.bankMode; computeOptions(); render(); };
 document.getElementById('btnSelfBank').onclick=function(){ if(S.animating)return; armBankGo(); };   // v457
 document.getElementById('lsSound').onclick=function(){ var b=document.getElementById('btnSound'); b.onclick.call(b); this.textContent=SOUND_ON?'🔊':'🔇'; };
@@ -12198,7 +12231,7 @@ function tutTap(c,r){   // true = tap consomme par la lecon (geste non permis, o
 }
 function tutBtnKey(b){
   if(!b || b.getAttribute('data-tut') || b.classList.contains('cell')) return null;
-  var IDS={btnShoot:'shoot', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
+  var IDS={btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
   if(b.id && IDS[b.id]) return IDS[b.id];
   if(b.classList.contains('taim')) return 'corner:'+b.getAttribute('data-t');
   var oc=b.getAttribute('onclick')||'', mf=/armFeint\('(\w+)'\)/.exec(oc);
@@ -12542,7 +12575,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":555372,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":557292,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
