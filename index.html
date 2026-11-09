@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v652</title>
+<title>Deck 3D v653</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -694,6 +694,7 @@ button.act:active,button.cbtn:active,.perkbtn:active,.fobtn:active,.dconfirm:act
 .cell.mv::after{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:0;width:46%;height:46%;background:var(--blue);box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 4px rgba(10,30,50,.35);}
 .cell.mv-far::after{background:var(--amber);}   /* v603 : case du porteur a 2 actions (plus de 3 cases : il ne lance plus apres) -- plus de jaune a reculons */
 .cell.mv-pivot::after{background:var(--purp);}
+.cell.mv-cost::after{background:#7fb6e3;}   /* v653 : il y va, mais il doit freiner, virer sec ou pivoter */
 .cell.mv-curve::after{background:#35c6b0;border-radius:50% 50% 50% 0;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(53,198,176,.4);}   /* v408 : case de COURBE (virage serre, elan garde) */
 .cell.mv-cut::after{background:#ff8fbf;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(255,143,191,.45);}
 .cell.bendvia::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);width:34%;height:34%;background:#ff8fbf;box-shadow:0 0 0 2px rgba(255,255,255,.95),0 0 10px 2px rgba(255,143,191,.7);z-index:3;}
@@ -1368,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v652';
+var GAME_VERSION='v653';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3175,9 +3176,7 @@ function fillPassTargets(p){
 // v384 : portee d'un deplacement COUDE : l'elan garde au 1er segment, puis au virage du coude (doux = gratuit)
 function bendBudget(p, fc, fr, viaC, viaR, toC, toR){
   if(!p) return 0; if(p.type==='g') return 1;
-  var st=planState(p), d1={dc:Math.sign(viaC-fc), dr:Math.sign(viaR-fr)};
-  var m=keptMom(keptMom(st.mom, st.vel, d1.dc, d1.dr), d1, Math.sign(toC-viaC), Math.sign(toR-viaR));
-  return Math.min(ceilingMom(p), m+accelStep(p));
+  return inWalk(p, fc, fr, inLineCells(fc,fr,viaC,viaR,false).concat(inLineCells(viaC,viaR,toC,toR,false)), planState(p)).n;   // v653 : la regle de pas
 }
 // Un chemin coude (depart -> via -> dest) tient en 1 action si sa longueur totale <= stepMax et que
 // chaque segment est degage (pas de traverse d'un joueur). Reutilise pathBlocked pour la ligne.
@@ -3227,9 +3226,32 @@ function routeAddCell(c, r){   // le doigt entre dans la case (c,r)
     var nx={c:tip.c+Math.sign(c-tip.c), r:tip.r+Math.sign(r-tip.r)};
     if(!routeCellOK(p, nx.c, nx.r)) break;                   // case interdite : le trace s'arrete la
     var _sv=P.slice(); P.push(nx); routeSmoothTail(p, P, S.route.from);
-    if(routeStep(p, S.route.from.c, S.route.from.r, P, _st).n < P.length){ P.length=0; for(var _k=0;_k<_sv.length;_k++) P.push(_sv[_k]); break; }   // v446 : au-dela de la portee de ce tour (ou virage serre) : le trace s'arrete
+    if(routeStep(p, S.route.from.c, S.route.from.r, P, _st).n < P.length){ P.length=0; for(var _k=0;_k<_sv.length;_k++) P.push(_sv[_k]);   // v446 : au-dela de la portee de ce tour (ou virage serre) : le trace s'arrete
+      if(!routeAutoPivot(p, P, S.route.from, c, r, _st)) break; }   // v653 : sauf s'il pointe derriere son deplacement : le pivot arriere
     tip=routeTip();
   }
+}
+// v653 (« le pivot de reculons seulement lorsque [on] pointe dans une direction arriere ») : le pas est refuse et le doigt est derriere
+// son deplacement : le trace file sur ses cases de freinage, pivote en angle du cote du doigt ; il recule ensuite vers lui
+function routeAutoPivot(p, P, from, x, y, st){
+  function walk(){ return inWalk(p, from.c, from.r, P, st); }
+  function tip(){ return P.length ? P[P.length-1] : from; }
+  function diff(a, b){ var d=Math.abs(a-b)%8; return Math.min(d, 8-d); }
+  var w0=P.length?walk():null, s0=inState(p, st, from.c, from.r), v=w0?w0.endVel:s0.v;
+  if((w0?w0.back:s0.back) || !v || (!v.dc && !v.dr)) return false;
+  var h=dirIdx(v.dc, v.dr), t0=tip(), want=dirIdx(Math.sign(x-t0.c), Math.sign(y-t0.r));
+  if(h<0 || want<0 || diff(h, want)<3) return false;
+  var sv=P.slice();
+  for(var k=0;k<=3;k++){ var t=tip(), wn=dirIdx(Math.sign(x-t.c), Math.sign(y-t.r)), opts=(wn>=0 && diff(h,wn)===3)?[wn]:[(h+3)%8,(h+5)%8];
+    opts.sort(function(a,b){ function dd(o){ var cx=t.c+DIR8R[o][0], cy=t.r+DIR8R[o][1]; return (cx-x)*(cx-x)+(cy-y)*(cy-y); } return dd(a)-dd(b); });
+    for(var o=0;o<opts.length;o++){ var q={c:t.c+DIR8R[opts[o]][0], r:t.r+DIR8R[opts[o]][1]};
+      if(!routeCellOK(p, q.c, q.r)) continue;
+      P.push(q); var w=walk(); if(w.n===P.length && w.back) return true; P.pop(); }
+    var nx={c:t.c+DIR8R[h][0], r:t.r+DIR8R[h][1]};
+    if(!routeCellOK(p, nx.c, nx.r)) break;
+    P.push(nx); if(walk().n!==P.length) break; }
+  P.length=0; for(var i=0;i<sv.length;i++) P.push(sv[i]);
+  return false;
 }
 // v411 : LISSAGE -- un doigt qui fait un arc passe par la case voisine avant la diagonale (escalier). Deux pas en
 // angle droit deviennent un pas en diagonale, sauf si cette diagonale creait elle-meme un angle droit avec le pas
@@ -3268,6 +3290,7 @@ function routeCommit(){   // lever le doigt : le trace devient une action (plan)
   if(!S.route) return;
   var R=S.route; S.route=null;
   if(!R.path.length) return;
+  var _rp0=byId(R.id); if(_rp0 && inWalk(_rp0, R.from.c, R.from.r, R.path, R.def?null:planState(_rp0)).short){ setHint('Too fast to stop here. Skate farther.'); render(); return; }   // v653 : ses cases de freinage
   if(R.def){ defPickRoute(R.id, R.path); return; }
   if(R.loose){ var _lp=byId(R.id); if(_lp && isHumanLoose()) doMoveRouteLoose(_lp, R.path.slice()); return; }   // v415 : trace en rondelle libre
   if(S.bankGoAim===R.id){ var _bgp=byId(R.id); if(_bgp) bankGoSetRun(_bgp, R.path.slice()); return; }   // v457
@@ -3278,7 +3301,7 @@ function routeCancel(){ S.route=null; }
 // long de l'arc ; s'il passe SUR la rondelle il s'arrete dessus et la ramasse ; la suite tombe (la phase change vite).
 function isHumanLoose(){ return !S.planning && !S.defCommit && !!S.puckLoose && !S.puckOwner && S.turn===HUMAN_TEAM && S.gestes>0 && !S.animating && !S.paused && !S.gameEnded; }
 function doMoveRouteLoose(p, path, det){
-  var sp=routeSpot(p, path, 'atk'); if(sp && det){ sp.around=lineBlockers(p.c, p.r, sp.c, sp.r, whoAt(p.id)); }   // v492 : le contournement propose (rondelle libre)
+  var sp=routeSpot(p, path, 'atk', undefined, undefined, det); if(sp && det){ sp.around=lineBlockers(p.c, p.r, sp.c, sp.r, whoAt(p.id)); }   // v492 : le contournement propose (rondelle libre)
   sp=routeContacts(p, sp); clearSel();
   if(!sp){ spend(); return; }
   var L=S.puckLoose, cut=null;
@@ -3308,6 +3331,7 @@ function computeOptions(){
   var _rng=planBudget(p);   // v382 : en planification, la portee grandit avec les deplacements deja planifies
   if(S.planning && planHasId(p.id) && !canGo(p.id)) _rng=0;   // v430 : le va apres sa passe garde sa portee   // v396 : il a deja patine ce plan -> plus de patinage, seulement un jeu attache
   var _st0=S.planning?ghostOf(p):{c:p.c,r:p.r};
+  var _pst0=planState(p);
   var _seen={}; _seen[_st0.c+','+_st0.r]=1; var _front=[{c:_st0.c,r:_st0.r}];
   for(var _st=1;_st<=_rng;_st++){
     var _next=[];
@@ -3321,18 +3345,19 @@ function computeOptions(){
         var _mf=facingOf(p);
         var _mkind=(_mdc===-_mf.dc)?'back':'fwd';   // binaire : plus de pivot, pleine portee des deux cotes
         _seen[_key]=1; _next.push({c:x,r:y});
-        if(Math.max(Math.abs(x-_st0.c),Math.abs(y-_st0.r)) > planBudget(p, Math.sign(x-_st0.c), Math.sign(y-_st0.r))) continue;   // v384 : ligne de course
+        var _w0=inTry(p, _st0.c, _st0.r, x, y, _pst0); if(!_w0 || _w0.short || _w0.man) continue;   // v653 : la regle de pas (une manoeuvre : le trajet d'inReach, plus bas)
         if(!lineClearOf(_st0.c, _st0.r, x, y, function(a,b){ return S.planning ? !!ghostBusy(a,b,p.id) : occBy(p.id)(a,b); })){   // v443 : personne ne traverse personne...
           var _dp=detourPath(p, _st0.c, _st0.r, x, y, S.planning ? function(a,b){ return ghostBusy(a,b,p.id); } : whoAt(p.id));   // v492 : ... mais on contourne
           if(_dp && _dp.path.length<=planBudget(p, Math.sign(x-_st0.c), Math.sign(y-_st0.r))) S.moves.push({c:x, r:y, kind:_mkind, curve:true, path:_dp.path, detour:true});
           continue; }
-        S.moves.push({c:x,r:y,kind:_mkind});
+        S.moves.push({c:x,r:y,kind:_mkind,cost:_w0.cost});
       }
     }
     _front=_next;
   }
-  if(_rng>0){ var _cvs=curvePaths(p, _st0.c, _st0.r, planState(p), function(x,y){ return S.planning?ghostBusy(x,y,p.id):!!(pieceAt(x,y) && pieceAt(x,y).id!==p.id); });   // v408 : COURBE (virage serre, elan garde)
-    for(var _ci=0;_ci<_cvs.length;_ci++) S.moves.push({c:_cvs[_ci].c, r:_cvs[_ci].r, kind:'fwd', curve:true, path:_cvs[_ci].path}); }
+  if(_rng>0){ var _inr=inReach(p, _st0.c, _st0.r, _pst0, function(x,y){ return S.planning?ghostBusy(x,y,p.id):!!(pieceAt(x,y) && pieceAt(x,y).id!==p.id); });   // v653 : les arrivees qui demandent un trajet (grand virage, virage brusque, pivot)
+    for(var _ci=0;_ci<_inr.length;_ci++){ var _o=_inr[_ci], _dup=false; for(var _mi=0;_mi<S.moves.length;_mi++){ if(S.moves[_mi].c===_o.c && S.moves[_mi].r===_o.r){ _dup=true; break; } }
+      if(!_dup) S.moves.push({c:_o.c, r:_o.r, kind:'fwd', curve:true, walk:true, path:_o.path, cost:_o.cost}); } }
   if(ownsPuck(p.id)) fillPassTargets(p);
   if(S.planning && ownsPuck(p.id)) fillRoutePassTargets(p);   // v428 : passe dans le trajet
   for(var dc=-1;dc<=1;dc++)for(var dr=-1;dr<=1;dr++){ if(!dc&&!dr) continue;
@@ -3903,56 +3928,143 @@ function moveBudget(p){ if(p && p.type==='g') return 1; var _b=Math.min(ceilingM
 var DIR8R=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];   // les 8 directions dans l'ordre du cercle
 function dirIdx(dc,dr){ for(var i=0;i<8;i++){ if(DIR8R[i][0]===dc && DIR8R[i][1]===dr) return i; } return -1; }
 function turnSteps(v, dc, dr){ if(!v || (!v.dc && !v.dr) || (!dc && !dr)) return 0; var a=dirIdx(v.dc,v.dr), b=dirIdx(dc,dr); if(a<0||b<0) return 0; var d=Math.abs(a-b)%8; return Math.min(d, 8-d); }
-function keptMom(mom, v, dc, dr){ var t=turnSteps(v,dc,dr); return t<=1 ? mom : (t===2 ? Math.floor(mom/2) : 0); }
 // v552 (le concepteur : « je ne veux pas qu'on patine toute la patinoire de reculons ») : a reculons (oppose a l'orientation),
 // 3 cases au plus par tour, meme lance ; de l'avant, rien ne change. Pour aller plus loin : pivoter (gratuit).
 var BACK_MAX=4;   // v624 (« Toutes +1 ») : etait 3
-function dirBudget(p, dc, dr, st){ var _b=dirBudget0(p, dc, dr, st); _b=(p && p.type==='sk' && dc && dc===-facingOf(p).dc) ? Math.min(BACK_MAX, _b) : _b; _b-=stStep(p, _b); return (p && S && S._huntSlow===p.id && _b>1) ? _b-1 : _b; }   /* v559 : sonne ; v560 : le chasseur seme par un plus rapide */
-function dirBudget0(p, dc, dr, st){ if(p && p.type==='g') return 1; var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
-  if(p && turnSteps(v, dc, dr)>=3){ var _fo=facingOf(p);
-    // v409 : RECUL FACE AU JEU -- il reculait en regardant le jeu (patin arriere) et remonte la ou il regarde :
-    // arret-depart, pas un demi-tour -> il garde la moitie de son elan (comme un virage a 90 deg)
-    if(turnSteps(_fo, v.dc, v.dr)>=3 && turnSteps(_fo, dc, dr)<=1) return Math.min(ceilingMom(p), Math.floor(m/2) + accelStep(p));
-    if(m>=BRAKE_MOM) return BRAKE_STEP; }   // v408 : FREINAGE -- lance, un demi-tour en ligne droite = BRAKE_STEP case(s) (il derape) ; pour garder l'elan : la COURBE
-  return Math.min(ceilingMom(p), keptMom(m, v, dc, dr) + accelStep(p)); }
+// v653 : L'INERTIE (sa note : « si t'es rapide, tu pourras pas tourner a 90 degres pour aller le chercher » ; spec
+// docs/superpowers/specs/2026-11-08-inertie-etape-1-design.md). UNE seule regle de pas pour tous les patineurs, copiee de stepOf
+// (docs/inertie-simulateur.html, reglee au doigt). s=vitesse, sc=cases droites depuis le dernier virage, m=cases de freinage restantes,
+// r=cases restantes, back=il recule. Toute portee, courbe, trace et l'IA passent par ici.
+var BACK_SPEED=3, INERT_ANG=[4,4,2,1,1,1,1], INERT_STR=[0,0,0,1,1,2,2];
+function inBrake(s){ return s>0 ? Math.min(3, Math.ceil(s/3)) : 0; }
+function inState(p, st, fc, fr){
+  var s=Math.max(0, Math.min(6, st?(st.mom||0):((p&&p.mom)||0))), v=st?st.vel:(p&&p.vel);
+  if(!s || (v && !v.dc && !v.dr)) v=null;
+  var run=(st&&st.run!=null)?st.run:((p&&p._run!=null)?p._run:3), cap=ceilingMom(p), b=Math.min(cap, s+accelStep(p));
+  b-=stStep(p, b); if(p && S && S._huntSlow===p.id && b>1) b--;   /* v559 : sonne ; v560 : le chasseur seme par un plus rapide */
+  var back=!!v && !!((st&&st.back!=null)?st.back:(p&&p._back)), m=v?inBrake(s):0;
+  return {s:s, sc:Math.min(3,run), m:m, m0:m, r:back?Math.min(BACK_MAX,b):b, cap:cap, back:back, v:v, n:0, man:0, sp:[], tags:[], kind:'', x:fc, y:fr};
+}
+function inStep(a, t){
+  if(a.back && t>=3) return {s:1, sc:0, r:a.r-1, m:0, back:false, kind:'front'};
+  var free=(a.s===0) || (a.back && t<=2) || (t<=INERT_ANG[a.s] && (t===0 || a.sc>=INERT_STR[a.s]));
+  if(free){ var v=a.s===0?1 : t===0?Math.min(a.cap,a.s+1) : t===1?Math.max(1,a.s) : t===2?Math.max(1,Math.floor(a.s/2)) : 1;
+    if(a.back) v=Math.min(BACK_SPEED, Math.max(v,a.s));
+    return {s:v, sc:(a.s===0||t>0)?0:Math.min(3,a.sc+1), r:a.r-1, m:Math.max(0,a.m-1), back:a.back, kind:''}; }
+  if(a.m>0) return null;
+  if(t<=2) return {s:Math.max(1,Math.ceil(a.s*2/3)), sc:0, r:a.r-1, m:0, back:false, kind:'sharp'};
+  if(t===4) return null;
+  return {s:Math.max(1,Math.min(BACK_SPEED,Math.ceil(a.s/2))), sc:0, r:Math.min(a.r-1,BACK_MAX-1), m:0, back:true, kind:'pivot'};
+}
+// un pas de plus : '' s'il passe, sinon pourquoi non ('far' : plus de portee ; 'turn' : virage ; 'wide' : droit derriere)
+function inPush(a, p, dc, dr){
+  if(a.r<=0) return 'far';
+  var t=a.v?turnSteps(a.v,dc,dr):0;
+  if(!a.n && !a.back && dc && p && dc===-facingOf(p).dc && (!a.v || a.v.dc===dc)){ a.back=true; a.r=Math.min(a.r,BACK_MAX); }   // derriere son regard, sans virage : il recule (v552)
+  var nx=inStep(a, t); if(!nx) return t===4?'wide':'turn';
+  a.s=nx.s; a.sc=nx.sc; a.r=nx.r; a.m=nx.m; a.back=nx.back; a.kind=nx.kind; a.v={dc:dc, dr:dr}; a.n++; a.x+=dc; a.y+=dr;
+  if(nx.kind) a.man++;
+  if(a.sp){ a.sp.push(nx.s); a.tags.push(nx.kind); }
+  return '';
+}
+function inWall(a){ return !!a.v && !onIce(a.x+a.v.dc, a.y+a.v.dr); }
+function inEndMom(a){ return (inWall(a) && a.m>0) ? 0 : Math.min(a.cap, a.s, a.n); }   // patiner court = freiner ; la bande avant ses cases de freinage : arrete
+function inCost(a){ return a.man>0 || a.s-Math.min(a.s,a.n)>=2; }   // il a du freiner, virer sec ou pivoter : case pale
+function inShort(a){ return a.n>0 && a.n<a.m0 && !inWall(a) && !pieceAt(a.x+a.v.dc, a.y+a.v.dr); }      // pas assez de cases pour s'arreter (la bande ou un joueur juste devant l'arretent)
+function inWalk(p, fc, fr, path, st){
+  var a=inState(p, st, fc, fr), v0=st?st.vel:(p&&p.vel), why='', cx=fc, cy=fr, k=0;
+  for(;k<path.length;k++){ var q=path[k];
+    while(cx!==q.c || cy!==q.r){ var dc=Math.sign(q.c-cx), dr=Math.sign(q.r-cy); why=inPush(a, p, dc, dr); if(why) break; cx+=dc; cy+=dr; }
+    if(why) break; }
+  var stop=(why==='turn' || why==='wide');
+  return {n:k, sp:a.sp, tags:a.tags, man:a.man, why:why, need:stop?a.m:0, stop:stop, gentle:!a.man, back:a.back, short:inShort(a), cost:inCost(a),
+    endMom:a.n?inEndMom(a):a.s, endVel:a.v||v0, endRun:a.sc};
+}
+function inLine(p, dc, dr, st){ var a=inState(p, st, 0, 0); while(!inPush(a, p, dc, dr)){} return a.n; }
+// les cases d'une arrivee sans trajet : la diagonale d'abord, ou le droit d'abord
+function inLineCells(fc, fr, tc, tr, straightFirst){
+  var dx=tc-fc, dy=tr-fr, ax=Math.abs(dx), ay=Math.abs(dy), nd=Math.min(ax,ay), ns=Math.max(ax,ay)-nd, sx=Math.sign(dx), sy=Math.sign(dy), o=[], c=fc, r=fr;
+  function add(a, b, n){ for(var i=0;i<n;i++){ c+=a; r+=b; o.push({c:c, r:r}); } }
+  var sa=ax>ay?sx:0, sb=ax>ay?0:sy;
+  if(straightFirst){ add(sa,sb,ns); add(sx,sy,nd); } else { add(sx,sy,nd); add(sa,sb,ns); }
+  return o;
+}
+function inTry(p, fc, fr, tc, tr, st){   // le moins de manoeuvres des deux ordres
+  var A=inLineCells(fc, fr, tc, tr, false), w=inWalk(p, fc, fr, A, st), ok=w.n===A.length;
+  if(ok) w.path=A;
+  if((ok && !w.man) || tc===fc || tr===fr || Math.abs(tc-fc)===Math.abs(tr-fr)) return ok?w:null;
+  var B=inLineCells(fc, fr, tc, tr, true), w2=inWalk(p, fc, fr, B, st);
+  if(w2.n===B.length && (!ok || w2.man<w.man)){ w2.path=B; return w2; }
+  return ok?w:null;
+}
+// toutes les arrivees : le moins de manoeuvres, puis le plus court (largeur d'abord)
+function inReach(p, fc, fr, st, busy){
+  var a0=inState(p, st, fc, fr), best={}, seen=new Map(), front=[{a:a0, path:[]}], out=[];
+  a0.sp=null; a0.tags=null;
+  while(front.length){ var next=[];
+    for(var i=0;i<front.length;i++){ var nd=front[i];
+      for(var k=0;k<8;k++){ var d=DIR8R[k], x=nd.a.x+d[0], y=nd.a.y+d[1];
+        if(!onIce(x,y) || busy(x,y)) continue;
+        var b0=nd.a, a={s:b0.s, sc:b0.sc, m:b0.m, m0:b0.m0, r:b0.r, cap:b0.cap, back:b0.back, v:b0.v, n:b0.n, man:b0.man, sp:null, tags:null, kind:'', x:b0.x, y:b0.y};
+        if(inPush(a, p, d[0], d[1])) continue;
+        var key=(((((((x*12+y)*8+k)*7+a.s)*4+a.sc)*4+a.m)*7+a.r)*2+(a.back?1:0));   // 12 : ROWS+1
+        var _sn=seen.get(key); if(_sn!=null && _sn<=a.man) continue;
+        seen.set(key, a.man);
+        var path=nd.path.concat([{c:x, r:y}]), cell=x+','+y, b=best[cell];
+        if((x!==fc || y!==fr) && !inShort(a) && (!b || a.man<b.man)) best[cell]={c:x, r:y, path:path, man:a.man, cost:inCost(a)};
+        next.push({a:a, path:path});
+      } }
+    front=next; }
+  for(var c in best) out.push(best[c]);
+  return out;
+}
+// la case permise la plus proche d'une cible interdite (IA : elle n'anticipe pas encore)
+function inNearest(p, tc, tr){
+  var R=Math.max(1, moveBudget(p)), best={c:p.c, r:p.r}, bd=1e9, bf=-1;
+  for(var c=p.c-R;c<=p.c+R;c++) for(var r=p.r-R;r<=p.r+R;r++){
+    if((c===p.c && r===p.r) || !onIce(c,r) || !reachOK(p, p.c, p.r, c, r)) continue;
+    var d=(c-tc)*(c-tc)+(r-tr)*(r-tr), f=Math.max(Math.abs(c-p.c),Math.abs(r-p.r));
+    if(d<bd || (d===bd && f>bf)){ bd=d; bf=f; best={c:c, r:r}; } }
+  return best;
+}
+// le deplacement reel, cellule par cellule : la vitesse courante, le regard, ce qui reste d'un tour a l'autre
+function inMark(p, fc, fr, tc, tr){
+  if(!p._inA) p._inA=inState(p, null, fc, fr);
+  var a=p._inA, A=inLineCells(fc, fr, tc, tr, false);
+  if(tc!==fc && tr!==fr && Math.abs(tc-fc)!==Math.abs(tr-fr)){   // une arrivee hors des 8 lignes : l'ordre qui respecte la regle, avec le moins de manoeuvres
+    var B=inLineCells(fc, fr, tc, tr, true);
+    var cost=function(L){ var b={}; for(var f in a) b[f]=a[f]; b.sp=null; b.tags=null; var cx=fc, cy=fr, m0=b.man; for(var i=0;i<L.length;i++){ if(inPush(b, p, Math.sign(L[i].c-cx), Math.sign(L[i].r-cy))) return 99; cx=L[i].c; cy=L[i].r; } return b.man-m0; };
+    if(cost(B)<cost(A)) A=B; }
+  var x=fc, y=fr;
+  for(var k=0;k<A.length;k++){ var dc=Math.sign(A[k].c-x), dr=Math.sign(A[k].r-y); x=A[k].c; y=A[k].r;
+    if(inPush(a, p, dc, dr)){   // hors regle (contact, chemin impose) : il passe quand meme, a sa vitesse
+      a.sc=(a.v && turnSteps(a.v,dc,dr)>0)?0:Math.min(3,a.sc+1); a.s=Math.max(1,a.s); a.m=Math.max(0,a.m-1); a.r=Math.max(0,a.r-1); a.v={dc:dc, dr:dr}; a.n++; a.x+=dc; a.y+=dr; a.kind=''; continue; }
+    var fo=facingOf(p);
+    if(a.kind==='front'){ if(dc) p.facing={dc:dc, dr:0}; }
+    else if(a.back){ if(dc && dc!==-fo.dc) p.facing={dc:-dc, dr:0}; }
+    else if(dc && dc===-fo.dc) p.facing={dc:dc, dr:0};
+  }
+  p._run=a.sc; p._back=a.back;
+}
+function dirBudget(p, dc, dr, st){ if(p && p.type==='g'){ var _g=1; return _g-stStep(p,_g); } return inLine(p, dc, dr, st); }
+function dirBudget0(p, dc, dr, st){ return dirBudget(p, dc, dr, st); }
 // v408 : COURBE (virage serre) -- un joueur LANCE qui veut aller vers l'arriere peut tourner de 45 deg par case
 // (avant-cote, cote, arriere-cote, puis arriere) sans perdre son elan : il paie en detour, pas en vitesse.
 // Les arrivees proposees sont celles qu'il n'atteint PAS en ligne droite (derriere lui). Les deux equipes.
-var BRAKE_MOM=3;
-var BRAKE_STEP=2;   // v624 (« Toutes +1 ») : le derapage, 2 cases (etait 1)
 function curvePaths(p, fc, fr, st, busy){
-  var out=[]; if(!p || p.type!=='sk') return out;
+  if(!p || p.type!=='sk') return [];
   if(fc==null){ fc=p.c; fr=p.r; }
-  var m=st?st.mom:(p.mom||0), v=st?st.vel:p.vel;
-  if(m<BRAKE_MOM || !v || (!v.dc && !v.dr)) return out;
-  var a=dirIdx(v.dc, v.dr); if(a<0) return out;
-  var B=Math.min(ceilingMom(p), m+accelStep(p));
   busy=busy||function(x,y){ var o=pieceAt(x,y); return !!(o && o.id!==p.id); };
-  for(var s=-1;s<=1;s+=2){
-    var path=[], c=fc, r=fr;
-    for(var n=1;n<=B;n++){
-      var d=DIR8R[((a+s*Math.min(n,4))%8+8)%8]; c+=d[0]; r+=d[1];
-      if(!onIce(c,r) || busy(c,r)) break;
-      path.push({c:c, r:r});
-      if(n>=3 && !reachOK(p, fc, fr, c, r, st)) out.push({c:c, r:r, path:path.slice(), side:s});
-    }
-  }
-  return out;
+  return inReach(p, fc, fr, st, busy).filter(function(o){ return !reachOK(p, fc, fr, o.c, o.r, st); });
 }
 function curveTo(p, tc, tr, st, fc, fr, busy){ var o=curvePaths(p, fc, fr, st, busy); for(var i=0;i<o.length;i++){ if(o[i].c===tc && o[i].r===tr) return o[i]; } return null; }
-// execute une courbe : la piece suit l'arc (trace + glissement par etapes), l'elan est garde (_curveKeep)
+// execute une courbe : la piece suit l'arc (trace + glissement par etapes) ; v653 : regard et vitesse suivent la regle de pas (inMark)
 function skateCurve(p, cv){
-  var oc=p.c, orr=p.r, prev={c:oc, r:orr}, keep=p.mom||0, pts=[];
+  var oc=p.c, orr=p.r, prev={c:oc, r:orr}, pts=[];
   for(var i=0;i<cv.path.length;i++){ var q=cv.path[i]; markSkated(p, prev.c, prev.r, q.c, q.r); prev=q; }
   addCurveTrail([{c:oc, r:orr}].concat(cv.path));   // v411 : une trace de patins courbe (plus des segments)
   var end=cv.path[cv.path.length-1];
-  if(cv.keep!==false) p._curveKeep=Math.max(p._curveKeep||0, keep);   // v410 : un trace avec un virage franc ne garde pas l'elan
   p.c=end.c; p.r=end.r;
-  // v552 : un demi-tour en courbe (135 deg et plus le long du trajet) : il arrive TOURNE vers sa nouvelle direction (v408 :
-  // « il y arrive tourne vers l'arriere ») -- sinon il patinerait a reculons, plafonne a 3 cases
-  var _all=[{c:oc, r:orr}].concat(cv.path), _n=_all.length;
-  if(_n>=3){ var _d0={dc:Math.sign(_all[1].c-_all[0].c), dr:Math.sign(_all[1].r-_all[0].r)}, _d1={dc:Math.sign(_all[_n-1].c-_all[_n-2].c), dr:Math.sign(_all[_n-1].r-_all[_n-2].r)};
-    if(_d1.dc && _d1.dc===-facingOf(p).dc && turnSteps(_d0, _d1.dc, _d1.dr)>=3) p.facing={dc:_d1.dc, dr:0}; }
   p._lastKind=classifyMove(p, oc, orr, end.c, end.r).kind;   // v552 : le porteur qui recule
   var _smp=routeSample([{c:oc, r:orr}].concat(cv.path), 4);   // v411 : le pion glisse le long de la courbe (spline), plus de case en case
   for(var j=0;j<_smp.length-1;j++) pts.push({dx:_smp[j].c-end.c, dy:_smp[j].r-end.r});
@@ -3975,29 +4087,13 @@ function skateToSpot(p, spot){
 var ROUTE_MAX=16;
 function routeStep(p, fc, fr, path, st){
   var m=st?st.mom:((p&&p.mom)||0), v=st?st.vel:(p&&p.vel);
-  var out={n:0, stop:false, gentle:true, endMom:m, endVel:v};
-  if(!p || !path || !path.length) return out;
-  var cur={c:fc, r:fr}, last=null;
-  var d0={dc:Math.sign(path[0].c-fc), dr:Math.sign(path[0].r-fr)};
-  var lim=dirBudget(p, d0.dc, d0.dr, st);
-  if(v && (v.dc||v.dr) && turnSteps(v, d0.dc, d0.dr)>=2) out.gentle=false;
-  for(var i=0;i<path.length;i++){
-    var d={dc:Math.sign(path[i].c-cur.c), dr:Math.sign(path[i].r-cur.r)};
-    if(last){ var t=turnSteps(last, d.dc, d.dr);
-      if(t>=3){ out.stop=true; out.gentle=false; break; }
-      if(t===2){ out.gentle=false; lim=Math.min(lim, out.n+Math.floor(Math.max(m, out.n)/2)+accelStep(p)); } }
-    if(out.n>=lim) break;
-    out.n++; cur=path[i]; last=d;
-  }
-  var cap=ceilingMom(p);
-  out.endMom=out.gentle ? Math.min(cap, Math.max(out.n, m)) : Math.min(cap, out.n);
-  out.endVel=last||v;
-  return out;
+  if(!p || !path || !path.length) return {n:0, stop:false, gentle:true, endMom:m, endVel:v};
+  return inWalk(p, fc, fr, path, st);   // v653 : la regle de pas
 }
 // part de ce tour revalidee case par case (un joueur sur le chemin l'arrete juste avant ; le reste tombe alors)
-function routeSpot(p, path, kind, avoidC, avoidR){
+function routeSpot(p, path, kind, avoidC, avoidR, det){
   if(!p || !path || !path.length) return null;
-  var rs=routeStep(p, p.c, p.r, path), cells=[], blocked=false, around=[];
+  var rs=det?{n:path.length, gentle:false}:routeStep(p, p.c, p.r, path), cells=[], blocked=false, around=[];
   for(var i=0;i<rs.n;i++){ var q=path[i], o=pieceAt(q.c,q.r); if(o && raceLate(o.id)) o=null;   /* v570 : trop tard */
     if(o && o.id!==p.id && i+1<rs.n && (canBypass(p, o) || raceCut(o.id))){   /* v570 : arrive le premier : la rencontre */   // v492 : un joueur s'est mis sur le trace -> un pas de cote, le trace reprend
       var sd=routeSide(p, cells.length?cells[cells.length-1]:{c:p.c, r:p.r}, path[i+1], q, avoidC, avoidR);
@@ -4023,13 +4119,15 @@ function routeContacts(p, sp){
     if(p._detourLoss>1){ sp.rest=[]; sp.keep=false; } }
   return sp;
 }
-function reachOK(p, fc, fr, tc, tr, st){ var d=Math.max(Math.abs(tc-fc),Math.abs(tr-fr)); if(!d) return true; return d <= dirBudget(p, Math.sign(tc-fc), Math.sign(tr-fr), st); }
+function reachOK(p, fc, fr, tc, tr, st){ var d=Math.max(Math.abs(tc-fc),Math.abs(tr-fr)); if(!d) return true; if(!p || p.type!=='sk') return d <= dirBudget(p, Math.sign(tc-fc), Math.sign(tr-fr), st); var w=inTry(p, fc, fr, tc, tr, st); return !!w && !w.short; }   // v653 : la regle de pas, cases de freinage comprises
 // v381 : une cible au-dela du budget d'elan est RAMENEE sur la trajectoire (on avance au max vers elle)
 // au lieu d'etre annulee. Sert a landSpot ET revealSpot -> tous les chemins d'arrivee (attaque, defense, IA).
 function clampToBudget(p, tc, tr){
   var dx=tc-p.c, dy=tr-p.r, d=Math.max(Math.abs(dx),Math.abs(dy)), lim=dirBudget(p, Math.sign(dx), Math.sign(dy));   // v384 : portee selon la direction
-  if(d<=lim) return {c:tc, r:tr};
-  var t=lim/d; return {c:p.c+Math.round(dx*t), r:p.r+Math.round(dy*t)};
+  if(p.type!=='sk'){ if(d<=lim) return {c:tc, r:tr}; var t0=lim/d; return {c:p.c+Math.round(dx*t0), r:p.r+Math.round(dy*t0)}; }
+  if(reachOK(p, p.c, p.r, tc, tr)) return {c:tc, r:tr};
+  if(d>lim && lim>0){ var t=lim/d, o={c:p.c+Math.round(dx*t), r:p.r+Math.round(dy*t)}; if(onIce(o.c,o.r) && reachOK(p, p.c, p.r, o.c, o.r)) return o; }
+  return inNearest(p, tc, tr);   // v653 : la case visee est interdite -> la case permise la plus proche
 }
 // v381 : un deplacement REEL par patinage (attaque, repli defensif, chasse de rondelle, bataille) : la piece
 // construira son elan a la fin du geste (resolveGlide) et retient la DIRECTION du mouvement -- l'inertie
@@ -4044,13 +4142,13 @@ function markSkated(p, fromC, fromR, toC, toR){
     if(!_lt || _lt.c!==fromC || _lt.r!==fromR) _m=_L[p.id]={pts:[{c:fromC, r:fromR}]};
     var _x=fromC, _y=fromR; while(_x!==toC || _y!==toR){ _x+=Math.sign(toC-_x); _y+=Math.sign(toR-_y); _m.pts.push({c:_x, r:_y}); } }
   p._skatedThisAction=true;
-  p._turnBase=keptMom((p._turnBase!=null)?p._turnBase:(p.mom||0), p.vel, dc, dr);   // v384 : elan garde selon l'angle ; les segments d'un meme geste (coude) s'enchainent
+  inMark(p, fromC, fromR, toC, toR);   // v653 : la regle de pas (avant que vel change)
   p._skatedDist=(p._skatedDist||0)+Math.max(Math.abs(toC-fromC), Math.abs(toR-fromR));   // v407 : cases patinees pendant ce geste (coude = somme)
   p.vel={dc:dc, dr:dr};
 }
 // v407 : ELAN = DISTANCE PATINEE (plafonnee). Avant : +1 cran d'acceleration par patinage, meme pour 1 case
 // (2 petits pas = pleine vitesse). Patiner a fond accelere comme avant (2 -> 4 -> 5) ; patiner court = freiner.
-function skatedMom(p){ return Math.max(0, Math.min(ceilingMom(p), Math.max(p._skatedDist||0, p._curveKeep||0)) - (p._detourLoss||0)); }   /* v492 : -1 apres un contournement (accroche : tout) */   // v408 : une COURBE garde l'elan d'entree
+function skatedMom(p){ var d=p._skatedDist||0, e=(p._inA && !p._detourLoss)?inEndMom(p._inA):d; return Math.max(0, Math.max(Math.min(ceilingMom(p), d, e), p._inKeep||0) - (p._detourLoss||0)); }   /* v653 : la vitesse courante ; un contournement reste comme avant (v492) */   /* v492 : -1 apres un contournement (accroche : tout) */   // v408 : une COURBE garde l'elan d'entree
 // GLISSEMENT / inertie visible (v379) : apres chaque geste, les pieces non commandees derivent sur leur elan.
 function clampGlideOffside(p, spot){
   // s'arrete avant la bleue si l'entree en zone offensive serait illegale (jamais de sifflet)
@@ -4085,7 +4183,7 @@ function glide(p){
     for(var k=1;k<=n;k++){ var x=p.c+sx*k, y=p.r+sy*k;
       if(x===L.c && y===L.r){ var _hold=battleHolds(p); spot = (back||_hold) ? {c:x-sx, r:y-sy} : {c:x, r:y}; got=!back && !_hold; break; } }   // v497 : bataille -> il s'arrete juste avant
   }
-  if(spot.c!==p.c || spot.r!==p.r){ var oc=p.c, orr=p.r; p.c=spot.c; p.r=spot.r; addSlide(p.id, oc-p.c, orr-p.r); }
+  if(spot.c!==p.c || spot.r!==p.r){ var oc=p.c, orr=p.r; p.c=spot.c; p.r=spot.r; addSlide(p.id, oc-p.c, orr-p.r); p._run=3; }   /* v653 : la glisse, c'est tout droit */
   if(got){ var ot=pickupLoose(p, p.c, p.r); if(S.puckOwner===p.id) return {p:p, ot:ot||null}; }
   return null;
 }
@@ -4097,7 +4195,7 @@ function resolveGlide(){
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction){ p.mom=skatedMom(p); }   // v384 : depuis l'elan garde (angle)
     else if((p.mom||0)>0){ var g=glide(p); if(g && !got) got=g; p.mom=Math.max(0, p.mom-2); }   // v384 : frottement -2
-    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0;
+    p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0;
   }
   return got;
 }
@@ -4117,18 +4215,16 @@ function seqStepMomentum(){
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction){ p.mom=skatedMom(p); p._skatedLastStep=true; p._skatedInPlan=true; }   // v384 : depuis l'elan garde (angle) ; v393 : a patine pendant ce plan
     else p._skatedLastStep=false;
-    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0;
+    p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0;
   }
 }
-// v384 : elan de depart d'un joueur qui vient de patiner = l'elan GARDE selon l'angle de son virage (markSkated)
-function skatedBase(p){ return (p._turnBase!=null) ? p._turnBase : (p.mom||0); }
 // v393 : au debut d'un nouvel echange, les gestes d'une sequence coupee avant sa fin (killSeq) n'ont pas
 // encore construit leur elan : on le fait ici (meme calcul que seqStepMomentum), puis on remet les marques a zero.
 function flushPlanMomentum(){
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction) p.mom=skatedMom(p);
-    p._skatedThisAction=false; p._turnBase=null; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0; p._skatedLastStep=false; p._skatedInPlan=false;
+    p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0; p._skatedLastStep=false; p._skatedInPlan=false;
   }
 }
 function seqEndGlide(){
@@ -4146,19 +4242,15 @@ function seqEndGlide(){
 // planifies (2 -> 4 -> 5) ; sinon = moveBudget
 // v384 : etat d'elan SIMULE apres les deplacements deja planifies de p (elan + direction, coudes compris)
 function planState(p){
-  var st={mom:(p&&p.mom)||0, vel:p?p.vel:null};
+  var st={mom:(p&&p.mom)||0, vel:p?p.vel:null, run:p?p._run:null, back:p?!!p._back:false};
   if(!S.planning || !p || p.type==='g') return st;
   var cur={c:p.c, r:p.r};
-  function seg(fc,fr,tc,tr){ var dc=Math.sign(tc-fc), dr=Math.sign(tr-fr); return (dc||dr)?{dc:dc,dr:dr}:null; }
   for(var i=0;i<(S.atkPlan||[]).length;i++){ var a=S.atkPlan[i]; if((a.kind!=='move' && a.kind!=='bankgo') || a.id!==p.id) continue;   /* v457 : la course du bank and go compte pour l'elan */
-    if(a.path && a.path.length){ var _rs=routeStep(p, cur.c, cur.r, a.path, st);   // v408 courbe / v410 trace libre : part de ce tour
-      st.mom=_rs.endMom; if(_rs.endVel) st.vel=_rs.endVel; cur={c:a.toC, r:a.toR}; continue; }
-    var bent=(a.viaC!=null && a.viaR!=null);
-    var d1=bent?seg(cur.c,cur.r,a.viaC,a.viaR):seg(cur.c,cur.r,a.toC,a.toR);
-    var base=d1?keptMom(st.mom, st.vel, d1.dc, d1.dr):st.mom, vEnd=d1;
-    if(bent){ var d2=seg(a.viaC,a.viaR,a.toC,a.toR); if(d2){ base=keptMom(base, d1, d2.dc, d2.dr); vEnd=d2; } }
-    var _dist=bent ? (cheb(cur,{c:a.viaC,r:a.viaR})+cheb({c:a.viaC,r:a.viaR},{c:a.toC,r:a.toR})) : cheb(cur,{c:a.toC,r:a.toR});
-    if(_dist>0) st.mom=Math.min(ceilingMom(p), _dist); if(a.detour) st.mom=Math.max(0, st.mom-1); if(vEnd) st.vel=vEnd;   /* v492 : -1 elan apres un contournement */   // v407 : elan = distance patinee (base/angle : deja dans la portee autorisee)
+    var hasPath=!!(a.path && a.path.length), bent=(a.viaC!=null && a.viaR!=null);
+    var path=hasPath ? a.path : (bent ? inLineCells(cur.c,cur.r,a.viaC,a.viaR,false).concat(inLineCells(a.viaC,a.viaR,a.toC,a.toR,false)) : inLineCells(cur.c,cur.r,a.toC,a.toR,false));
+    if(path.length){ var w=inWalk(p, cur.c, cur.r, path, st);   // v653 : la regle de pas (vitesse, direction, cases droites, reculons)
+      st.mom=w.n?w.endMom:Math.min(ceilingMom(p), path.length); if(w.endVel) st.vel=w.endVel; st.run=w.endRun; st.back=w.back;
+      if(!hasPath && a.detour) st.mom=Math.max(0, st.mom-1); }   /* v492 : -1 elan apres un contournement */
     cur={c:a.toC, r:a.toR};
   }
   return st;
@@ -4245,7 +4337,6 @@ function canReachLoose(p, L){
   // action pour aller la chercher (vraie course) -- l'elan ne permet plus d'aspirer une rondelle a 2-5 cases.
   if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r))>1) return false;
   // le trajet doit etre DEGAGE : on ne traverse ni un adversaire ni un coequipier
-  if(!reachOK(p, p.c, p.r, L.c, L.r)) return false;   // v384 : portee selon la direction
   var pb=pathBlocked(p, L.c, L.r);
   return (pb.spot.c===L.c && pb.spot.r===L.r);
 }
@@ -5155,10 +5246,10 @@ function defMovesFor(p, oc, orr){
         var key=x+','+y; if(seen[key]) continue;
         if(pieceAt(x,y)) continue;
         seen[key]=1; next.push({c:x,r:y});
-        if(!reachOK(p, oc, orr, x, y)) continue;   // v384 : portee selon la direction (ligne de course)
+        var _dw=inTry(p, oc, orr, x, y); if(!_dw || _dw.short) continue;   // v653 : la regle de pas
         var taken=false;
         for(var i=0;i<_pk.length;i++){ if(_pk[i].toC===x&&_pk[i].toR===y){taken=true;break;} }
-        if(!taken) out.push({c:x,r:y});
+        if(!taken) out.push(_dw.man ? {c:x,r:y,curve:true,walk:true,path:_dw.path,cost:true} : {c:x,r:y,cost:_dw.cost});
       }
     }
     front=next;
@@ -5166,7 +5257,7 @@ function defMovesFor(p, oc, orr){
   if(oc===p.c && orr===p.r){ var _cvs=curvePaths(p);   // v408 : COURBE -- cases derriere atteignables en virage serre (elan garde)
     for(var _ci=0;_ci<_cvs.length;_ci++){ var _o=_cvs[_ci], _tk=false;
       for(var _pi=0;_pi<_pk.length;_pi++){ if(_pk[_pi].toC===_o.c&&_pk[_pi].toR===_o.r){_tk=true;break;} }
-      if(!_tk) out.push({c:_o.c, r:_o.r, curve:true, path:_o.path}); } }
+      if(!_tk) out.push({c:_o.c, r:_o.r, curve:true, walk:true, path:_o.path, cost:_o.cost}); } }
   return out;
 }
 function defCommitPiece(p){ if(!S.defCommit) return; if(!p||p.team!==HUMAN_TEAM||p.type!=='sk'||!p.onIce) return;
@@ -6084,7 +6175,7 @@ function routePassRest(seq){
   if(!cells.length){ pushLog(p.name+' is cut off and stops short.'); next(); return; }
   var pre=teammateInOffZone(p.team, p.id), oc=p.c, orr=p.r, end=cells[cells.length-1];
   skateToSpot(p, {c:end.c, r:end.r, path:cells, keep:R.keep && !blocked, rest:blocked?[]:(R.later||[]), kind:'atk'});
-  if(!blocked) p._curveKeep=Math.max(p._curveKeep||0, R.endMom);   // meme elan de fin que le trajet sans passe
+  if(!blocked) p._inKeep=R.endMom;   // meme elan de fin que le trajet sans passe
   p._movedThisTurn=true; S.carrierMoved=true;
   S.animating=true; render();
   setTimeout(function(){ S.animating=false;
@@ -6509,7 +6600,7 @@ function crossDuelProb(a, b, la, lb){ return Math.max(0.10, Math.min(0.90, 0.50 
 function stopAtCrossing(p, pts, idx){   // le perdant s arrete juste avant le croisement (case libre la plus proche en remontant sa course)
   for(var s=idx;s>=0;s--){ var c=pts[s], o=pieceAt(c.c,c.r);
     if(!o || o.id===p.id){ if(p.c!==c.c || p.r!==c.r){ p.c=c.c; p.r=c.r; addSlide(p.id, pts[0].c-c.c, pts[0].r-c.r); } break; } }
-  p.mom=0; p.speed=0; p._skatedThisAction=false; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0; p._turnBase=null; p.route=null;
+  p.mom=0; p.speed=0; p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0; p.route=null;
 }
 // sans rondelle : duel physique au croisement ; le gagnant passe, le perdant est stoppe ; note pour les penalites
 function resolveCrossDuels(ids){
@@ -6639,7 +6730,7 @@ function passByTrip(seq, p, m){
   document.getElementById('outcome').innerHTML=d.name+' trips '+p.name+'!';
   matchEv('hit', {id:d.id, on:p.id, body:false, ok:false, run:0, pen:true});   // ok:false : le geste, sans vol de rondelle au credit ; pen : la victime ne perd pas de moral
   matchEv('fall', {id:p.id, by:d.id});   // v647 : on le voit tomber
-  p.mom=0; p.speed=0; p.route=null; p._skatedThisAction=false; p._skatedDist=0; p._curveKeep=0; p._detourLoss=0; p._turnBase=null;
+  p.mom=0; p.speed=0; p.route=null; p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0;
   stSet(p, 'stun');
   S._looseLoser=p.id; placeLooseNear(cc, cr); looseOffside(d.team, cc);
   penTry(d, 1, 'trip');
@@ -9071,12 +9162,12 @@ function render(){
   var _bd=document.getElementById('board'); if(_bd){ _bd.style.aspectRatio=COLS+'/'+ROWS;
     var _cr=28*0.3048/2*MARK_SCALE; _bd.style.borderRadius=(100*_cr/COLS).toFixed(1)+'%/'+(100*_cr/ROWS).toFixed(1)+'%'; }   // v387 : coins NHL (28 pi) a l'echelle de la glace
   paintRink();
-  var mset={}, _msel=byId(S.sel); for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=S.moves[m].curve?'curve':(moveFar(_msel, S.moves[m])?'far':(S.moves[m].kind||'fwd'));   // v408 : case de courbe   // v603 : case du porteur a 2 actions
+  var mset={}, _msel=byId(S.sel); for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=(S.moves[m].curve&&!S.moves[m].walk)?'curve':(moveFar(_msel, S.moves[m])?'far':(S.moves[m].cost?'cost':(S.moves[m].kind||'fwd')));   // v408 : case de courbe   // v603 : case du porteur a 2 actions
   var _hunt=huntShown();   // v629
   for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
     var cell=document.createElement('button'); cell.className='cell'; cell.setAttribute('aria-label','square '+(c+1)+','+(r+1));
     var p=pieceAt(c,r), key=c+','+r, clickable=false;
-    if(mset[key]){ cell.className+=' mv'+(mset[key]==='far'?' mv-far':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':'')))); clickable=true; }
+    if(mset[key]){ cell.className+=' mv'+(mset[key]==='far'?' mv-far':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':(mset[key]==='cost'?' mv-cost':''))))); clickable=true; }
     if(isDekeApproach(c,r)){ cell.className+=' dka'; clickable=true; }   // guide mauve : va la pour deker
     if(S.dumpAim){ cell.className+=' dmpaim'; clickable=true; if(isDumpTarget(c,r)) cell.className+=' dmpt'; }
     if(S.cycleAim){ var _cap=byId(S.cycleAim); if(_cap && p && cycleTargets(_cap).indexOf(p.id)>=0){ cell.className+=' cyct'; clickable=true; } }
@@ -12649,7 +12740,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":562348,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":562396,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
