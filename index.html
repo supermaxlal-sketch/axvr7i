@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v659</title>
+<title>Deck 3D v660</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v659';
+var GAME_VERSION='v660';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9090,7 +9090,7 @@ function matchPtsU(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ce
 function matchPts(pts, max){ var out=[], n=pts.length, step=Math.max(1, Math.ceil(n/(max||40)));   // trajectoire allegee (cases, 2 decimales ; b = contact)
   for(var i=0;i<n;i++){ var q=pts[i]; if(i%step && i!==n-1 && !q.b) continue; var a=[Math.round(q.c*100)/100, Math.round(q.r*100)/100]; if(q.b) a.push(1); out.push(a); } return out; }
 function matchRoster(){ var out=[]; for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
-    out.push({id:p.id, team:p.team, type:p.type, name:p.name, label:p.label, hand:p.hand||null, size:p.size||'M', pos:p.pos||null}); } return out; }
+    out.push({id:p.id, team:p.team, type:p.type, name:p.name, label:p.label, hand:p.hand||null, size:p.size||'M', cm:p.cm||0, lb:playerLb(p), pos:p.pos||null}); } return out; }   /* v660 : ses cm et ses livres */
 function matchActs(list){ var out=[]; for(var i=0;i<(list||[]).length;i++){ var a=list[i]; if(!a){ out.push('-'); continue; }
     if(a.defId){ out.push('def:'+a.defId+(a.toC!=null?'@'+a.toC+','+a.toR:'')+(a.path?'~'+a.path.length:'')+(a.order?'!'+a.order:'')+(a.role?'#'+a.role:'')+(a.mate?'+'+a.mate.defId+'@'+a.mate.toC+','+a.mate.toR:'')+(a.backup?'/backup':'')); continue; }   // v622
     out.push(a.kind+':'+a.id+(a.target?'>'+a.target:'')+(a.toC!=null?'@'+a.toC+','+a.toR:'')+(a.path?'~'+a.path.length:'')+(a.feint?'/'+a.feint:'')+(a.stride?'/stride':'')+(a.routeK?'/k'+a.routeK:'')+(a.go?'/go':'')+(a.att?'/att':'')); }
@@ -9561,16 +9561,16 @@ var HJ3D={ cb:null, last:'', failed:false, k:1, title:(typeof document!=='undefi
 function hj3dBench(){   // v505 : les joueurs hors glace de chaque equipe (pas au banc des punitions), 10 au plus
   var box={}, out={A:[], B:[]}; ((S.pen && S.pen.box) || []).forEach(function(b){ box[b.id]=1; });
   S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10) return;   // v517 : pas les places vides
-    out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M', name:q.name||'', look:q.look||''}); });   /* v535 : son look au banc */
+    out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||''}); });   /* v535 : son look au banc */   /* v660 : ses cm et ses livres */
   return out;
 }
 function hj3dBox(){   // v605 (son choix A) : les punis de chaque equipe, assis au banc des penalites (en face des bancs) ; une double penalite = un seul joueur
-  var out={A:[], B:[]}; ['A','B'].forEach(function(t){ penBoxedIds(t).forEach(function(id){ var q=byId(id); if(q) out[t].push({id:q.id, hand:q.hand||null, size:q.size||'M', name:q.name||'', look:q.look||''}); }); });
+  var out={A:[], B:[]}; ['A','B'].forEach(function(t){ penBoxedIds(t).forEach(function(id){ var q=byId(id); if(q) out[t].push({id:q.id, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||''}); }); });   /* v660 */
   return out;
 }
 function hj3dRoom(){   // v507 : la chambre -- tous les joueurs de chaque equipe (18 au plus), avec leur nom (au-dessus du casier)
   var out={A:[], B:[]};
-  S.pieces.forEach(function(q){ if(!out[q.team] || out[q.team].length>=18) return; out[q.team].push({id:q.id, type:q.type, hand:q.hand||null, size:q.size||'M', name:q.name||'', look:q.look||''}); });   /* v535 : son look dans la chambre */
+  S.pieces.forEach(function(q){ if(!out[q.team] || out[q.team].length>=18) return; out[q.team].push({id:q.id, type:q.type, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||''}); });   /* v535 : son look dans la chambre */   /* v660 */
   return out;
 }
 function hj3dActive(){ return typeof HJ3D!=='undefined' && !!HJ3D && !!HJ3D.cb && !!VIEW3D_ON && !HJ3D.failed; }
@@ -9618,15 +9618,15 @@ function hj3dSnapshot(slides){
   var grid=document.getElementById('grid'), cells=[], ghosts=[], pawnCls={};
   if(grid){ for(var i=0;i<grid.children.length;i++){ var el=grid.children[i], c=i%COLS, r=Math.floor(i/COLS), pw=el.querySelector('.pawn');
       if(pw && pw.classList.contains('ghostpawn')){ var gq=ghostAt(c,r); if(gq){ var gf=facingOf(gq);
-          ghosts.push({id:gq.id, team:gq.team, type:gq.type, c:c, r:r, dc:gf.dc, dr:gf.dr||0, hand:gq.hand||null, size:gq.size||'M'}); } }
+          ghosts.push({id:gq.id, team:gq.team, type:gq.type, c:c, r:r, dc:gf.dc, dr:gf.dr||0, hand:gq.hand||null, size:gq.size||'M', cm:gq.cm||0, lb:playerLb(gq)}); } }   /* v660 : son fantome a son corps */
       else if(pw) pawnCls[pw.getAttribute('data-pid')]=pw.className;
       if(el.className==='cell') continue;
       var o={c:c, r:r, k:el.className}, b=el.querySelector('.oddsbadge'), dn=el.getAttribute('data-dn'), tg=el.getAttribute('data-tag');
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:q.mom||0, role:hj3dRole(q)};
-    if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */
+    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:q.mom||0, role:hj3dRole(q)};
+    if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
   if(focus==null && S.faceoff && S.faceoff.dotC!=null) focus=S.faceoff.dotC;   // v477 : pendant une mise au jeu, la camera 3D va au point de mise au jeu
@@ -12834,7 +12834,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":582940,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":600700,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
