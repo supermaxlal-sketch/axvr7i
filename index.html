@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v656</title>
+<title>Deck 3D v657</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v656';
+var GAME_VERSION='v657';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2001,7 +2001,7 @@ function overall(p){
 }
 function cmToFtIn(cm){ var inch=Math.round((cm||0)/2.54); var ft=Math.floor(inch/12), i=inch%12; return ft+"'"+i+'"'; }   // taille en pieds/pouces
 // GABARIT : leger modificateur (grand +physique/-deke, petit -physique/+deke, moyen neutre).
-function effPhys(p){ return ((p && typeof p.physique==='number') ? p.physique : 60) + sizeMod(p||{}, 'phys'); }   // v469 : Physique + gabarit (mise en echec, bataille, duel au croisement)
+function effPhys(p){ var b=(p && typeof p.physique==='number') ? p.physique : 60; return (!p || p.type==='g' || !p.cm) ? b : b+0.8*(playerLb(p)-185); }   // v657 (ses choix, « Poids 8 ») : Physique + 0,8 par livre autour de 185 ; remplace la lettre S/M/L (v469) dans les 4 contacts
 function sizeMod(p, kind){
   var big = (p.size==='L') ? 1 : ((p.size==='S') ? -1 : 0);
   if(!big) return 0;
@@ -2328,11 +2328,11 @@ function doDangle(p,d,land,side,feintId){
     document.getElementById('outcome').innerHTML=d.name+' flattens '+p.name+' — the '+_fname+' ('+Math.round(pd*100)+'%) does not work against him !';
     pushLog('<b>'+d.name+'</b> reads the '+_fname+' from '+p.name+' — a clean body check knocks the puck loose.');
     checkFx('body', d.c, d.r);
-    p.speed=0; d.speed=0; p.mom=0; d.mom=0; killContactRoutes(p, d);   // un contact qui CONNECTE tue l'elan des deux (meme regle que resolveCheck isBody)
-    bodyCheckOutcome(d, p, p.c, p.r, 0);
+    var _hs=contactSpd(p); p.speed=0; d.speed=0; p.mom=0; d.mom=0; killContactRoutes(p, d);   // un contact qui CONNECTE tue l'elan des deux (meme regle que resolveCheck isBody)
+    var _ho=bodyCheckOutcome(d, p, p.c, p.r, 0, _hs); pushLog(hitLog(_ho.res, d.name, p.name));
     S.animating=true;
     render();
-    setTimeout(function(){ looseBall(d.team); }, 700);
+    setTimeout(function(){ hitNext(_ho, d.team, true); }, 700);
     return;
   }
   if(feintId==='cutmiddle' && Math.sign(br-p.r)!==0 && Math.sign(br-p.r)!==stickSide(p)){   // v450 : coupe sur le revers ratee -> poke check assure
@@ -2382,10 +2382,10 @@ function resolveSpin(p,d,land,side){
   if(d.def>=4){   // rate contre un body-checkeur : rien ne le sauve, meme convention que le toe drag (Task 4) — pas de 2e jet de des
     pushLog('<b>'+p.name+'</b> tries a spin-o-rama — '+d.name+' reads it and flattens him, the puck comes loose.');
     checkFx('body', d.c, d.r);
-    p.speed=0; d.speed=0; p.mom=0; d.mom=0; killContactRoutes(p, d);   // un contact qui CONNECTE tue l'elan des deux (meme regle que resolveCheck isBody)
-    bodyCheckOutcome(d, p, p.c, p.r, 0);
+    var _hs=contactSpd(p); p.speed=0; d.speed=0; p.mom=0; d.mom=0; killContactRoutes(p, d);   // un contact qui CONNECTE tue l'elan des deux (meme regle que resolveCheck isBody)
+    var _ho=bodyCheckOutcome(d, p, p.c, p.r, 0, _hs); pushLog(hitLog(_ho.res, d.name, p.name));
     render();
-    setTimeout(function(){ looseBall(d.team); }, 700);
+    setTimeout(function(){ hitNext(_ho, d.team, true); }, 700);
     return;
   }
   pushLog('<b>'+p.name+'</b> tries a spin-o-rama — '+d.name+' does not bite.');
@@ -2411,10 +2411,10 @@ function resolveFakeShot(p, d){
     document.getElementById('outcome').innerHTML=d.name+' reads the fake and flattens '+p.name+' — the fake shot ('+Math.round(pd*100)+'%) does not work against him!';
     pushLog('<b>'+d.name+'</b> reads the fake shot from '+p.name+' — a clean body check knocks the puck loose.');
     checkFx('body', d.c, d.r);
-    p.speed=0; d.speed=0; p.mom=0; d.mom=0; killContactRoutes(p, d);   // un contact qui CONNECTE tue l'elan des deux (meme regle que resolveCheck isBody)
-    bodyCheckOutcome(d, p, p.c, p.r, 0);
+    var _hs=contactSpd(p); p.speed=0; d.speed=0; p.mom=0; d.mom=0; killContactRoutes(p, d);   // un contact qui CONNECTE tue l'elan des deux (meme regle que resolveCheck isBody)
+    var _ho=bodyCheckOutcome(d, p, p.c, p.r, 0, _hs); pushLog(hitLog(_ho.res, d.name, p.name));
     render();
-    setTimeout(function(){ looseBall(d.team); }, 700);
+    setTimeout(function(){ hitNext(_ho, d.team, true); }, 700);
     return;
   }
   document.getElementById('outcome').innerHTML=d.name+' does not bite on the fake ('+Math.round(pd*100)+'%).';
@@ -3908,7 +3908,7 @@ function targetPct(sel, c, r){
   if(pc && passEntry(pc.id)) return oddsFromPlanPos(sel, function(){ return oddsFromPlanPos(pc, function(){ return actionOdds(sel,'pass', pc); }); });   // projeter AUSSI le receveur vers sa case fantome : le badge suit ou il ARRIVE, pas ou il est
   return null;
 }
-function gainPuck(team){ S._hitRecover=null;   /* v468 : le bonus du plaqueur ne vaut que pour cette rondelle */ if(penStop(team)) return;   /* v445 : l equipe fautive touche la rondelle -> sifflet */ decaySpeed(S.turn); S.aiZoneTurns=0;   /* v437 : nouvelle possession */ for(var _gi=0;_gi<S.pieces.length;_gi++) S.pieces[_gi].route=null;   /* v410 : changement de possession -> les traces tombent */ S.foEdge=null; S.loosePrio=null; S._looseLoser=null; S.foPress=null; S._stratDef=null; S._pressLogged=false;
+function gainPuck(team){ S._bothDown=null; S._hitRecover=null;   /* v468 : le bonus du plaqueur ne vaut que pour cette rondelle */ if(penStop(team)) return;   /* v445 : l equipe fautive touche la rondelle -> sifflet */ decaySpeed(S.turn); S.aiZoneTurns=0;   /* v437 : nouvelle possession */ for(var _gi=0;_gi<S.pieces.length;_gi++) S.pieces[_gi].route=null;   /* v410 : changement de possession -> les traces tombent */ S.foEdge=null; S.loosePrio=null; S._looseLoser=null; S.foPress=null; S._stratDef=null; S._pressLogged=false;
   if(S.foDrawPending){ var _fp=S.foDrawPending; S.foDrawPending=null; var _fo=S.puckOwner?byId(S.puckOwner):null;   // recuperation d'un scramble de mise au jeu : le recuperateur pres du point, avec un adversaire colle, est sous pression et doit passer
     if(_fo && _fo.type==='sk' && Math.max(Math.abs(_fo.c-_fp.c),Math.abs(_fo.r-_fp.r))<=2){ var _fopp=nearestSkater(_fo.team==='A'?'B':'A', _fp.c, _fp.r);
       if(_fopp && Math.max(Math.abs(_fopp.c-_fo.c),Math.abs(_fopp.r-_fo.r))<=1){ S.foPress={id:_fo.id, oppId:_fopp.id}; pushLog('<b>'+_fo.name+'</b> digs it out of the scramble — '+_fopp.name+' is right on him.'); } } }
@@ -4374,7 +4374,7 @@ function findBattlePair(L){
   // BATAILLE seulement si les deux camps ont un joueur COLLE sur la rondelle (1 case)
   var bestA=null, bestB=null, sa=-1e9, sb=-1e9;
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
-    if(!p.onIce || p.type!=='sk') continue;
+    if(!p.onIce || p.type!=='sk' || (S._bothDown && S._bothDown.indexOf(p.id)>=0)) continue;   // v657 : les deux au sol ne se battent pas pour cette rondelle
     if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r)) > 1) continue;
     var sc=battleScore(p,L);
     if(p.team==='A'){ if(sc>sa){ sa=sc; bestA=p; } }
@@ -4384,7 +4384,7 @@ function findBattlePair(L){
 }
 var BATTLE_SEQ=0;
 var BATTLE_ROUNDS=1;   // 1 choc et BANG, resolution : batailles rapides et intenses
-function canReachLoose(p, L){
+function canReachLoose(p, L){ if(S._bothDown && S._bothDown.indexOf(p.id)>=0) return false;   /* v657 : au sol */
   // v398 (choix du concepteur) : RAMASSAGE AUTOMATIQUE seulement si COLLE (1 case). Plus loin, il faut une
   // action pour aller la chercher (vraie course) -- l'elan ne permet plus d'aspirer une rondelle a 2-5 cases.
   if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r))>1) return false;
@@ -4578,6 +4578,7 @@ function looseBall(team, prio){ decaySpeed(S.turn); S.foPress=null; S.seqDef=nul
       // personne ne conteste de proche : le mieux place la ramasse
       if(takeLooseSolo(_L, function(p){ gainPuck(p.team); })) return;
     }
+    S._bothDown=null;   // v657 : ils se relevent pour la suite
     cineExit();   // v501 (rapport du concepteur) : phase de CHOIX -> la camera 3D remonte (avant : elle restait en bas, dans l'action)
     setHint('Loose puck — one move each until someone picks it up.'); tipTrigger('loose');   // v456
     render(); }, TEMPO.slide); }
@@ -6865,32 +6866,52 @@ function stickSide(p){
    - Recul du PORTEUR : 1 case au plus (v647), 0 si coup flat-footed ; chute sur la glace si elan + PHYSIQUE >= 3.
    - Recul du CHECKEUR : un checkeur bien moins physique que le porteur rebondit en arriere.
    Retourne {knock, fall, recoil, puck}. */
-function bodyCheckOutcome(checker, C, cc, cr, run){
-  var pushC=Math.sign(cc-checker.c), pushR=Math.sign(cr-checker.r);      // sens du coup (checkeur -> porteur)
-  var dphys=effPhys(checker)-effPhys(C);                     // avantage de gabarit du checkeur (v469 : Physique + gabarit)
-  var power=run + (dphys>=15?1:0) + (dphys<=-15?-1:0);                    // elan + physique
-  // v647 (ses notes : « une mise en echec te fait tomber une case plus loin, pas 2 » ; « tomber sur la glace lors de tres gros
-  // contacts, sinon pas plus de 1 case de recul » ; choix « Lance 3 cases + », « Seulement sonne ») : recul 1 case au plus ;
-  // un tres gros coup (power >= 3 : 3 cases d'elan, ou 2 et nettement plus costaud) le fait TOMBER (evenement fall pour la 3D).
-  var fall=power>=3;
-  var steps=power>=1?1:0, nx=cc, ny=cr;                                  // pousse le porteur d'une case, si libre
-  for(var s=0;s<steps;s++){ var tx=nx+pushC, ty=ny+pushR;
-    if((pushC||pushR) && onIce(tx,ty) && !pieceAt(tx,ty)){ nx=tx; ny=ty; } else break; }   // v647 : pas dans un coin arrondi (hors glace)
-  if(nx!==cc||ny!==cr){ C.c=nx; C.r=ny; addSlide(C.id, cc-nx, cr-ny); }
-  // PLUS DE RECUL DU CHECKEUR (choix design "le check gagne la rondelle") : un body check REUSSI le laisse
-  // plante au POINT D'IMPACT. Ainsi c'est LUI le plus proche de la rondelle ejectee -> il la reprend, au lieu
-  // de rebondir en arriere et de laisser le porteur depossede reprendre SA rondelle.
-  var recoil=0;
-  // La rondelle reste au POINT D'IMPACT (cc,cr) : le porteur vient d'en etre EJECTE par le contact
-  // (bodyCheckOutcome l'a pousse de 'steps' cases plus haut). Ainsi, sous « le plus proche gagne » :
-  // un coup SOLIDE (steps>=1) decolle le porteur -> c'est le checkeur qui est le plus pres et la reprend ;
-  // un coup FLAT-FOOTED (steps=0) laisse le porteur DESSUS -> il la garde. En angle, petit squirt cote baton.
-  var pc=cc, pr=cr;
-  if(pushR!==0) pr=cr+stickSide(C);                                      // hit en angle : la rondelle squirte du cote du baton
-  if(onIce(pc,pr) && !pieceAt(pc,pr)){ S.puckLoose={c:pc,r:pr}; S.puckOwner=null; }   // v397 : pas sur la bande
-  else placeLooseNear(pc,pr);
-  if(fall) matchEv('fall', {id:C.id, by:checker.id});
-  return {knock:steps, fall:fall, recoil:recoil, puck:{c:S.puckLoose.c,r:S.puckLoose.r}};
+// v657 (ses choix, spec 2026-11-09-poids-dans-les-contacts) : le resultat d'une mise en echec reussie. Remplace le recul de v647 : recul rare, chute sans recul.
+function hitGap(checker, C){ return (checker && C && checker.cm && C.cm) ? playerLb(checker)-playerLb(C) : 0; }   // livres du checkeur - livres du porteur
+function hitPower(checker, C, run){ var d=effPhys(checker)-effPhys(C); return run+(d>=15?1:0)+(d<=-15?-1:0); }   // elan + force (ecart 15)
+function contactSpd(C){ return Math.max(0, Math.min(6, Math.max((C&&C.mom)||0, (C&&C.speed)||0))); }   // sa vitesse au contact (avant que le contact la tue)
+function hitResult(checker, C, run){   // 'onto' | 'hold' | 'fall' | 'back' | 'take' ; un jet = random >= 1 - chance (un test qui force la reussite avec un petit nombre : il encaisse)
+  if(S.tut || !checker || !C || checker.type!=='sk' || C.type!=='sk') return 'take';
+  var gap=hitGap(checker, C), roll=function(x){ return Math.random()>=1-x; };
+  if(gap>=0 && roll(0.05)) return 'onto';                                      // il tombe SUR le plaque
+  if(gap<=-15 && roll(Math.min(95, 35-gap)/100)) return 'hold';                // le gros tient
+  if(hitPower(checker, C, run)>=3 && roll(gap>=30?0.60:(gap<=-30?0.15:0.35))) return 'fall';   // tres gros coup : il tombe, sans reculer
+  if(gap>=30 && run>=2 && roll(0.25)) return 'back';                           // reculer : rare
+  return 'take';                                                               // le plus souvent : il encaisse sur place
+}
+function hitSlideCell(C, checker, cc, cr){   // il arrive vite : elle glisse d'une case dans son sens, voisine des deux (la bataille)
+  var v=(C.vel && (C.vel.dc||C.vel.dr)) ? C.vel : facingOf(C), dc=Math.sign(v.dc||0), dr=Math.sign(v.dr||0), best=null, bs=-1;
+  for(var i=0;i<DIRS8.length;i++){ var x=cc+DIRS8[i][0], y=cr+DIRS8[i][1], t=DIRS8[i][0]*dc+DIRS8[i][1]*dr;
+    if(onIce(x,y) && !pieceAt(x,y) && Math.max(Math.abs(x-checker.c),Math.abs(y-checker.r))<=1 && t>bs){ bs=t; best={c:x,r:y}; } }
+  if(best && bs>=0) return best;
+  return (onIce(cc+dc,cr+dr) && !pieceAt(cc+dc,cr+dr)) ? {c:cc+dc,r:cr+dr} : null;
+}
+function hitLog(res, cName, carName){
+  if(res==='hold') return carName+' holds his ground — he keeps the puck.';
+  if(res==='fall') return carName+' goes down — the puck comes loose.';
+  if(res==='back') return carName+' is shoved back — the puck comes loose.';
+  if(res==='onto') return cName+' falls on '+carName+' — both players are down. The puck is loose.';
+  return carName+' takes the hit — the puck comes loose.';
+}
+function hitHead(res, cName, carName){ return res==='hold' ? (carName+' holds his ground!') : (res==='onto' ? 'Both players are down!' : ('Body check! '+cName+' knocks '+carName+' off the puck.')); }
+function hitSeqKill(){ S.foPress=null; S.seqDef=null; S.feintBeaten=null; S.feintSpace=null; S.cycleN=0; S.stepDone=null; S.wearId=null; S.wearN=0; S.lunge=null; S.slide=null; S.anticip=null; S.planning=false; S.atkPlan=[]; S.ghost={}; S.planNext=null; S.aiPlan=null; S.planResume=null; S.currentSeq=null; renderPlanBar(); }   // comme looseBall : la sequence en cours est morte
+function hitNext(o, team, feint){ if(o.keep){ if(feint) hitSeqKill(); S.animating=false; spend(); } else if(o.gain){ hitSeqKill(); S.animating=false; gainPuck(team); } else { looseBall(team); } }   // apres le contact : il la garde, le checkeur l'a, ou rondelle libre
+function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
+  res=res || hitResult(checker, C, run);
+  var pushC=Math.sign(cc-checker.c), pushR=Math.sign(cr-checker.r), steps=0;      // sens du coup (checkeur -> porteur)
+  var mine=function(){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; S._hitRecover=null; S._looseLoser=C.id; };
+  if(res==='hold'){ S._hitRecover=null; S._looseLoser=null; return {res:res, knock:0, fall:false, recoil:0, keep:true}; }
+  if(res==='onto'){ S._hitRecover=null; S._looseLoser=null; placeLooseNear(cc, cr); S._bothDown=[C.id, checker.id];
+    matchEv('fall', {id:C.id, by:checker.id}); matchEv('fall', {id:checker.id, by:C.id, onto:true});
+    return {res:res, knock:0, fall:true, recoil:0}; }
+  if(res==='fall'){ matchEv('fall', {id:C.id, by:checker.id}); mine(); return {res:res, knock:0, fall:true, recoil:0, gain:true}; }
+  if(res==='back'){ var tx=cc+pushC, ty=cr+pushR;
+    if((pushC||pushR) && onIce(tx,ty) && !pieceAt(tx,ty)){ C.c=tx; C.r=ty; addSlide(C.id, cc-tx, cr-ty); steps=1; }
+    mine(); return {res:res, knock:steps, fall:false, recoil:0, gain:true}; }
+  // il encaisse : plus il arrivait vite, moins le checkeur a la rondelle ; sinon elle glisse et il y a bataille (la bataille habituelle)
+  if(Math.random() < Math.max(0, 100-15*(spd||0))/100){ mine(); return {res:res, knock:0, fall:false, recoil:0, gain:true}; }
+  var L=hitSlideCell(C, checker, cc, cr); if(L){ S.puckLoose=L; S.puckOwner=null; } else placeLooseNear(cc, cr);
+  return {res:res, knock:0, fall:false, recoil:0, slide:true};
 }
 // v445 : PENALITES (spec 2026-09-30-penalites-design.md) -- seule une mise en echec VOULUE (ordre Body check ; pour l IA,
 // son chasseur) peut etre sifflee. DIFFEREE : sifflet quand l equipe fautive touche la rondelle (ou arret de jeu) ; un
@@ -7080,17 +7101,18 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   var _pen=false;
   if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))){ var _pf=penFoul(checker, C, _run);   // v445 : penalite (mise en echec VOULUE seulement)
     _pen=_pf ? penTry(checker, penRisk(checker, C, _run), _pf) : (stState(checker)==='angry' && penTry(checker, PEN_P_ROUGH, 'rough')); }   // v581 : fache, meme propre -> rudesse 10 %
-  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift});   // v447   // v581 : pen   // v648 : lift
+  var _hr=(success && isBody) ? hitResult(checker, C, _run) : null, _hs=contactSpd(C);   // v657 : le resultat, avant l'evenement (le sonne en depend) ; sa vitesse, avant que le contact la tue
+  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift, res:_hr});   // v447   // v581 : pen   // v648 : lift
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
-  if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run); looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML='Body check! '+cName+' knocks '+carName+' off the puck.'; pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+(_out.fall?' with a full head of steam — '+carName+' is knocked to the ice!':(_out.knock===1?' — '+carName+' is shoved back.':' — the puck comes loose.'))+(_out.recoil?' '+cName+' bounces off the bigger man!':'')); }
+  if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run, _hs, _hr); if(S.puckLoose) looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML=hitHead(_out.res, cName, carName); pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+'. '+hitLog(_out.res, cName, carName)); }
     else if(isLift){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; careerTrack('steal', {id:checker.id}); document.getElementById('outcome').innerHTML='Stick lift! '+cName+' takes the puck from '+carName+'.'; pushLog('<b>Stick lift</b>: '+cName+dpos(checker)+' lifts the stick of '+carName+dpos(C)+' and takes the puck.'); }   // v648
     else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); looseOffside(checker.team, cc); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
   else if(_blowby){ if(C.team===HUMAN_TEAM) tipTrigger('blowby');   /* v460 */ bonusTrigger(C, 'speed'); /* v438 : echappee */ document.getElementById('outcome').innerHTML=carName+' blows by '+cName+'!'; pushLog('<b>'+carName+'</b> blows by '+cName+dpos(checker)+' with speed — beaten flat.'); }
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
   else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (isLift ? (carName+' keeps his stick on the puck.') : (carName+' shields the puck.')); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : (isLift ? ('<b>Stick lift</b> missed: '+carName+' keeps the puck away from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.'))); }
   render(); checkFx(success?(isBody?'body':(isLift?'lift':'poke')):(_blowby?'blowby':(_feintBeat?'dekestop':(_shielded?'shield':(isBody?'checkmiss':(isLift?'liftmiss':'pokemiss'))))), cc, cr);   /* rate nomme l'action : PROTECTED si bouclier, sinon CHECK MISSED / POKE MISSED */ if(anticipated){ var ocp=document.getElementById('outcome'); ocp.innerHTML='Pressure read! '+ocp.innerHTML; } var activeHas=!!(S.puckOwner && byId(S.puckOwner) && byId(S.puckOwner).team===activeTeam); var lost=activeHad && !activeHas;
-  setTimeout(function(){ if(success && isBody){ looseBall(checker.team); } else if(success && !isBody){ if(isLift || hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450);
+  setTimeout(function(){ if(success && isBody){ hitNext(_out, checker.team); } else if(success && !isBody){ if(isLift || hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450);
   return {success:!!success, body:!!isBody}; }   // v614 : pour le coup en route (orderMeetTry)
 function nearEnemySkater(p){ for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce&&e.type==='sk'&&e.team!==p.team&&cheb(p,e)<=2) return e; } return null; }
 function selfBankLanding(p){ var d=dir(p.team), cand=[[2*d,0],[2*d,-1],[2*d,1],[1*d,-1],[1*d,1],[1*d,0]]; for(var i=0;i<cand.length;i++){ var c=p.c+cand[i][0], r=p.r+cand[i][1]; if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!pieceAt(c,r)) return {c:c,r:r}; } return null; }
@@ -7700,7 +7722,7 @@ function morTrack(e, d){   // depuis matchEv : les tirs, les feintes, les contac
   else if(e==='hit'){ var ck=byId(d.id), cv=byId(d.on);
     if(d.body){ if(d.ok) morAdd(ck, MOR_HIT, 0); }
     else morAdd(ck, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM);
-    if(d.ok){ stGood(ck); if(cv && !d.pen) stErr(cv); if(cv && d.body && !d.pen) stSet(cv, 'stun'); }   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
+    if(d.ok){ stGood(ck); if(cv && !d.pen) stErr(cv); if(cv && d.body && !d.pen && d.res!=='hold' && d.res!=='onto') stSet(cv, 'stun'); }   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
     if(d.ok && cv && !d.pen) morAdd(cv, -MOR_ACT, -MOR_TEAM); }   // v581 : la victime d une faute sifflee : rien (la penalite suffit)
 }
 // v559 (le moral et le momentum, morceau 4 : les etats des joueurs ; choix du concepteur : sonne, fache, en confiance, panique ;
@@ -12803,7 +12825,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":571404,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":571180,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
