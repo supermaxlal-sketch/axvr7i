@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v653</title>
+<title>Deck 3D v654</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v653';
+var GAME_VERSION='v654';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1522,7 +1522,9 @@ function resolveSeqDefStepCore(seq){
 }
 // un coup d'embuscade : le joueur glisse vers sa case (meme chemin pour le partenaire de Back up) ; null s'il ne bouge pas
 function defStepMove(seq, dMove, df){
+  aiDropStale(dMove, df);   // v654
   if(dMove.role){ var _rt=defRoleTarget(dMove.role); if(_rt){ dMove.toC=_rt.c; dMove.toR=_rt.r; } }   // v383 : cible recalculee au moment du coup
+  if(dMove.aimRole && !dMove.path){ var _am=aiAim(df, dMove.toC, dMove.toR); if(_am){ dMove.toC=_am.c; dMove.toR=_am.r; if(_am.path) dMove.path=_am.path; } }   // v654 : poste a role, jet reussi a la pose (pas de nouveau jet) : il anticipe vers la cible du moment
   var pb=dMove.path ? {blocker:null} : pathBlocked(df, dMove.toC, dMove.toR);   // v410 : un trace se revalide case par case
   var _ddt=(!dMove.path && (pb.blocker||pb.mate)) ? detourPath(df, df.c, df.r, dMove.toC, dMove.toR, whoAt(df.id)) : null;   // v492 : la defense contourne aussi
   var tc=(pb.blocker&&!_ddt)?pb.spot.c:dMove.toC, tr=(pb.blocker&&!_ddt)?pb.spot.r:dMove.toR;
@@ -4046,6 +4048,37 @@ function inMark(p, fc, fr, tc, tr){
   }
   p._run=a.sc; p._back=a.back;
 }
+// v654 (etape 2 de l'inertie, ses choix) : l'IA anticipe deux tours, selon sa stat
+var AI_AIM_TOP=10;
+function aiAnticipates(p){ if(!p || p.type!=='sk') return false; var s=(S.puckOwner===p.id)?p.maniement:p.defense; if(typeof s!=='number') s=50; return Math.random()*100<s; }
+function aiNextDist(p, c, r, tc, tr, st, chase){   // chase : la cible bouge ou se ramasse au passage, inutile de pouvoir s'y arreter
+  if(c===tc && r===tr) return 0;
+  var w=inTry(p, c, r, tc, tr, st); if(w && (chase || !w.short)) return 0;
+  var T={c:tc, r:tr}, bd=cheb({c:c, r:r}, T);
+  for(var k=0;k<8;k++){ var dc=DIR8R[k][0], dr=DIR8R[k][1], a=inState(p, st, c, r), x=c, y=r;
+    while(!inPush(a, p, dc, dr)){ x+=dc; y+=dr; if(!onIce(x,y)) break; var d=cheb({c:x, r:y}, T); if(d<bd) bd=d; } }
+  return chase ? bd : Math.max(1, bd);   // passer dessus sans pouvoir s'y arreter n'est pas l'atteindre
+}
+function aiAim(p, tc, tr, taken, busy, accept, chase){
+  if(!p || p.type!=='sk' || p.team!==AI_TEAM || S.tut || (p.c===tc && p.r===tr)) return null;
+  var T={c:tc, r:tr}, bz=busy||function(x,y){ var o=pieceAt(x,y); return !!(o && o.id!==p.id); };
+  var L=inReach(p, p.c, p.r, null, bz).filter(function(o){ return !(taken && taken[o.c+','+o.r]) && (!accept || accept(o)); });
+  if(!L.length) return null;
+  function d2(o){ return (o.c-tc)*(o.c-tc)+(o.r-tr)*(o.r-tr); }
+  L.sort(function(a,b){ return (cheb(a,T)-cheb(b,T)) || (d2(a)-d2(b)) || (a.man-b.man); });
+  var best=null, bk=null;
+  for(var i=0;i<L.length && i<AI_AIM_TOP;i++){ var o=L[i], w=inWalk(p, p.c, p.r, o.path, null);
+    var n=aiNextDist(p, o.c, o.r, tc, tr, {mom:w.endMom, vel:w.endVel, run:w.endRun, back:w.back}, chase), k=[n, cheb(o,T), o.man, -w.endMom];
+    var better=!bk; for(var j=0;j<4 && !better;j++){ if(k[j]!==bk[j]){ better=k[j]<bk[j]; break; } }
+    if(better){ bk=k; best={c:o.c, r:o.r, path:(o.man>0 || !reachOK(p, p.c, p.r, o.c, o.r))?o.path:null, aim:true, man:o.man, endMom:w.endMom, next:n}; } }
+  return best;
+}
+function aiSlide(e, tc, tr, taken, chase){
+  if(e && e.team===AI_TEAM && !S.tut && aiAnticipates(e)){ var a=aiAim(e, tc, tr, taken, null, null, chase); if(a) return a; }
+  return slideToward(e, tc, tr, taken);
+}
+// une pioche d'embuscade dont le depart a change, ou dont l'arrivee est prise : plus de trajet (comportement de v653)
+function aiDropStale(m, df){ if(!m || m.aimC==null || !m.path || !df) return; var o=pieceAt(m.toC, m.toR); if(df.c!==m.aimC || df.r!==m.aimR || (o && o.id!==df.id)) m.path=null; }
 function dirBudget(p, dc, dr, st){ if(p && p.type==='g'){ var _g=1; return _g-stStep(p,_g); } return inLine(p, dc, dr, st); }
 function dirBudget0(p, dc, dr, st){ return dirBudget(p, dc, dr, st); }
 // v408 : COURBE (virage serre) -- un joueur LANCE qui veut aller vers l'arriere peut tourner de 45 deg par case
@@ -4578,6 +4611,7 @@ function announceReset(defTeam){   // v459 (ecart 9) : le texte dit ce qui se pa
   document.getElementById('outcome').innerHTML='<b>Too many rebounds</b> — collapse in front of your net and block the shot.';
 }
 function revealSpot(m, df, fc, fr){
+  aiDropStale(m, df);   // v654
   if(m && m.path && m.path.length && df && df.onIce){ var _rt=routeSpot(df, m.path, 'def', fc, fr); if(_rt) return _rt; return null; }   // v410 : trace dessine en embuscade
   var _res=revealSpotStraight(m, df, fc, fr); if(!df||!df.onIce||!m) return _res;
   var _cv=slideToward(df, m.toC, m.toR, {}), _T={c:m.toC, r:m.toR};   // v408 : la COURBE si elle rapproche plus que le freinage
@@ -5207,9 +5241,9 @@ function backupTargets(team){
 // les coups d'embuscade : 2, 2, 1 (un partenaire bouge au meme temps) ; chacun au plus loin vers sa case (portee d'aujourd'hui)
 function backupPicks(team){
   var tg=backupTargets(team), taken={}, mv=[], out=[], i;
-  for(i=0;i<tg.length;i++){ var q=byId(tg[i].id), l=slideToward(q, tg[i].c, tg[i].r, taken); taken[l.c+','+l.r]=1; mv.push({defId:q.id, toC:l.c, toR:l.r}); }
+  for(i=0;i<tg.length;i++){ var q=byId(tg[i].id), l=aiSlide(q, tg[i].c, tg[i].r, taken); taken[l.c+','+l.r]=1; var _mv={defId:q.id, toC:l.c, toR:l.r}; if(l.aim && l.path){ _mv.path=l.path; _mv.aimC=q.c; _mv.aimR=q.r; } mv.push(_mv); }   // v654 : aiSlide
   var pairs=Math.max(0, mv.length-PLAN_N);
-  while(mv.length){ var a=mv.shift(), k={defId:a.defId, kind:'move', toC:a.toC, toR:a.toR, order:null, backup:true};
+  while(mv.length){ var a=mv.shift(), k={defId:a.defId, kind:'move', toC:a.toC, toR:a.toR, order:null, backup:true}; if(a.path){ k.path=a.path; k.aimC=a.aimC; k.aimR=a.aimR; }
     if(pairs>0 && mv.length){ k.mate=mv.shift(); pairs--; }
     out.push(k); }
   return out;
@@ -5399,7 +5433,7 @@ function markPursue(marker, marked, from, hunt){   // le marqueur se deplace ver
   if(!marker||!marked||!marker.onIce||!marked.onIce) return false;
   var cell=markGoalSideCell(from||marked, marker.team), oc=marker.c, orr=marker.r;   // v560 : le chasseur, un pas en retard (from)
   S._huntSlow=(hunt && huntOutrun(marked, marker)) ? marker.id : null;   // v560 : plus rapide que lui -> 1 case de moins
-  var spot=slideToward(marker, cell.c, cell.r, {}); S._huntSlow=null;
+  var spot=aiSlide(marker, cell.c, cell.r, {}, hunt); S._huntSlow=null;   /* v654 : l'IA anticipe (selon sa defense) */
   if(spot.c===oc && spot.r===orr) return false;
   skateToSpot(marker, spot);   // v383 : suivre son homme = patiner (il prend de la vitesse) ; v408 : courbe possible
   return true;
@@ -5618,7 +5652,8 @@ function aiBuildPlan(){
       var g=gp(q); if(g.c===c&&g.r===r) return true; }
     return false;
   }
-  function movesFrom(p){
+  function aiPlanMove(q, a){ var s={kind:'move', id:q.id, toC:a.c, toR:a.r}; if(a.path){ s.path=a.path.slice(); s.n=a.path.length; } plan.push(s); gh[q.id]={c:a.c, r:a.r}; }   // v654
+  function movesFrom(p, wide){   // v654 : wide = ce qu'il veut, sans la regle de pas (il anticipe : aiAim trouve le chemin)
     var st=gp(p), out=[], seen={}; seen[st.c+','+st.r]=1; var front=[{c:st.c,r:st.r}];
     var _sm=moveBudget(p);   // v381 : l'IA planifie avec la portee d'elan (plus de coups annules a l'execution)
     function reachable(x,y){
@@ -5637,7 +5672,7 @@ function aiBuildPlan(){
         var x=front[f].c+DIRS8[k][0], y=front[f].r+DIRS8[k][1];
         if(!onIce(x,y)) continue;
         var ky=x+','+y; if(seen[ky]||busy(x,y,p.id)) continue;
-        seen[ky]=1; nx.push({c:x,r:y}); if(reachable(x,y) && reachOK(p, st.c, st.r, x, y)) out.push({c:x,r:y}); }   // v384 : portee selon la direction
+        seen[ky]=1; nx.push({c:x,r:y}); if(reachable(x,y) && (wide || reachOK(p, st.c, st.r, x, y))) out.push({c:x,r:y}); }   // v384 : portee selon la direction
       front=nx; }
     return out;
   }
@@ -5827,7 +5862,8 @@ function aiBuildPlan(){
     }
 
     // 3. avancer le porteur vers le filet
-    var opts=movesFrom(car), bo=null, bs=1e9;
+    var _cw=!gh[car.id] && aiAnticipates(car);   // v654 : il anticipe (son maniement)
+    var opts=movesFrom(car, _cw), bo=null, bs=1e9;
     if(!inOffZone(AI_TEAM,cg.c) && mateOffside(car.id)) opts=opts.filter(function(o){ return !inOffZone(AI_TEAM,o.c); });   // v436 : il attend la remise en jeu a la bleue (etait une simple penalite)
     var _rd=!inOffZone(AI_TEAM,cg.c);   // v444 PORTEUR QUI LIT : hors zone, il evite les cases menacees (0,3 x le % de mise en echec)
     for(var i=0;i<opts.length;i++){ var o=opts[i];
@@ -5866,6 +5902,7 @@ function aiBuildPlan(){
       var _orc=car.c, _orr=car.r; car.c=o.c; car.r=o.r; var _ook=shotOK(car), _osp=_ook?aiBestShot(car).p:0; car.c=_orc; car.r=_orr;
       if(_ook && _osp>=(((S.aiZoneTurns||0)>=2)?0:0.16) && _osp>_cbp){ _cbp=_osp; _cb=o; } }   // v437 : 16 % (l enclave a 10 % se joue au tour suivant, apres la passe) ; rebond : tout tir
     if(_cb){ plan.push({kind:'move', id:car.id, toC:_cb.c, toR:_cb.r}); gh[car.id]={c:_cb.c,r:_cb.r}; plan.push({kind:'shoot', id:car.id, att:true}); break; }
+    if(_cw && bo && bs<cur){ var _ca=aiAim(car, bo.c, bo.r, null, function(x,y){ return busy(x,y,car.id); }, function(o){ return !(!inOffZone(AI_TEAM,cg.c) && mateOffside(car.id) && inOffZone(AI_TEAM,o.c)); }); if(_ca){ aiPlanMove(car, _ca); continue; } }   // v654
     if(bo && bs<cur && reachOK(car, cg.c, cg.r, bo.c, bo.r)){   /* v384 : portee selon la direction */
       plan.push({kind:'move', id:car.id, toC:bo.c, toR:bo.r}); gh[car.id]={c:bo.c,r:bo.r}; continue; }
 
@@ -5885,12 +5922,14 @@ function aiBuildPlan(){
       if(gh[m.id] || _acted(m.id)) continue;   // v386 : un joueur deja utilise dans le plan n'agit plus
       var d=Math.abs(gp(m).c-nc); if(d<wd){ wd=d; wing=m; } }
     if(wing){
-      var wo=movesFrom(wing), wb=null, ws=1e9, _wg0=gp(wing), _wTag=aiTagUp(_wg0, cg.c);   // v433 : jamais hors-jeu
+      var _ww=!gh[wing.id] && aiAnticipates(wing);   // v654
+      var wo=movesFrom(wing, _ww), wb=null, ws=1e9, _wg0=gp(wing), _wTag=aiTagUp(_wg0, cg.c);   // v433 : jamais hors-jeu
       for(var i=0;i<wo.length;i++){ var o=wo[i]; if(!aiOnsideMove(_wg0, o, cg.c)) continue;
         var sco2=_wTag ? aiTagScore(o) : Math.abs(o.c-nc)*10+Math.abs(o.r-CTR_R);
         if(inOffZone(AI_TEAM,o.c) && !inOffZone(AI_TEAM,cg.c)) sco2+=45;
         if(sco2<ws){ ws=sco2; wb=o; } }
       var wg=gp(wing);
+      if(_ww && wb){ var _wa=aiAim(wing, wb.c, wb.r, null, function(x,y){ return busy(x,y,wing.id); }, function(o){ return aiOnsideMove(_wg0, o, cg.c); }); if(_wa){ aiPlanMove(wing, _wa); continue; } }   // v654
       if(wb && reachOK(wing, wg.c, wg.r, wb.c, wb.r)){   /* v384 : portee selon la direction */
         plan.push({kind:'move', id:wing.id, toC:wb.c, toR:wb.r}); gh[wing.id]={c:wb.c,r:wb.r}; continue; }
     }
@@ -5915,6 +5954,7 @@ function aiScrambleMove(){
   if(!S.puckLoose){ return; }
   var L=S.puckLoose, arr=onIceSkaters(AI_TEAM); if(!arr.length){ passTurn(); return; }
   var b=arr[0]; for(var i=1;i<arr.length;i++){ if(cheb(arr[i],L)<cheb(b,L)) b=arr[i]; }
+  if(aiAnticipates(b)){ var _a=aiAim(b, L.c, L.r, null, null, null, true); if(_a){ if(_a.path) doMoveRouteLoose(b, _a.path); else doMove(b, _a.c, _a.r); return; } }   // v654
   var opts=aiMovesFor(b), bo=null, bs=1e9;
   for(var i=0;i<opts.length;i++){
     var o=opts[i];
@@ -5932,7 +5972,7 @@ function commitHiddenDefense(){
   var _gk1=(carrier.type==='g');   // v462 : gardien porteur -> la defense ne pose qu'un coup
   if(defTeam===AI_TEAM && !_gk1){ var _aiDef=aiMaybeStrategy(AI_TEAM); if(_aiDef && STRATS[_aiDef].side==='def'){ callStrategyDef(AI_TEAM,_aiDef); pushLog('<b>'+TEAM_NAME[AI_TEAM]+'</b> set a grouped ambush: '+STRATS[_aiDef].name+'.'); return; } }
   if(defTeam===AI_TEAM && !_gk1 && aiWantsBackup(AI_TEAM)){   // v622 : prise en avant -> le repli, a la place du chasseur et des postes
-    S.hiddenDef=backupPicks(AI_TEAM).map(function(k){ var h={defId:k.defId, toC:k.toC, toR:k.toR, order:null, role:null, backup:true}; if(k.mate) h.mate={defId:k.mate.defId, toC:k.mate.toC, toR:k.mate.toR}; return h; });
+    S.hiddenDef=backupPicks(AI_TEAM).map(function(k){ var h={defId:k.defId, toC:k.toC, toR:k.toR, order:null, role:null, backup:true}; if(k.path){ h.path=k.path; h.aimC=k.aimC; h.aimR=k.aimR; } if(k.mate){ h.mate={defId:k.mate.defId, toC:k.mate.toC, toR:k.mate.toR}; if(k.mate.path){ h.mate.path=k.mate.path; h.mate.aimC=k.mate.aimC; h.mate.aimR=k.mate.aimR; } } return h; });
     pushLog('<b>Back up!</b> The '+TEAM_NAME[AI_TEAM]+' head back on defense.'); return; }
   var defs=onIceSkaters(defTeam).slice().sort(function(a,b){ return cheb(a,carrier)-cheb(b,carrier); });
   if(!defs.length) return;
@@ -5963,7 +6003,7 @@ function commitHiddenDefense(){
   }
   if(_gk1) targets=targets.slice(0, (defTeam===AI_TEAM && hunter) ? 0 : 1);   // v480 : sans chasseur, l'IA garde un coup   // v462 : l'IA a deja son chasseur (son seul coup) ; sinon le 1er coup
   var taken={};
-  for(var i=0;i<Math.min(PLAN_N,targets.length);i++){ var d=targets[i].d; var land=slideToward(d, targets[i].tc, targets[i].tr, taken); taken[land.c+','+land.r]=1; S.hiddenDef.push({defId:d.id, toC:land.c, toR:land.r, order:targets[i].ord||null, role:targets[i].role||null}); }
+  for(var i=0;i<Math.min(PLAN_N,targets.length);i++){ var d=targets[i].d; var land=aiSlide(d, targets[i].tc, targets[i].tr, taken); taken[land.c+','+land.r]=1; var _hp={defId:d.id, toC:land.c, toR:land.r, order:targets[i].ord||null, role:targets[i].role||null}; if(land.aim && targets[i].role) _hp.aimRole=true; else if(land.aim && land.path){ _hp.path=land.path; _hp.aimC=d.c; _hp.aimR=d.r; } S.hiddenDef.push(_hp); }   // v654 : aiSlide, la pioche garde son trajet
 }
 // v399 : BULLES DE RESULTAT sur la glace (glace verticale). Au-dessus de la case de l'evenement, a l'endroit :
 // titre colore (sarcelle = reussi, rouge = rate) + la phrase du journal ; 2 bulles max ; disparait en ~2 s.
