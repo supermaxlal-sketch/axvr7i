@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v654</title>
+<title>Deck 3D v655</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v654';
+var GAME_VERSION='v655';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4031,7 +4031,7 @@ function inNearest(p, tc, tr){
 }
 // le deplacement reel, cellule par cellule : la vitesse courante, le regard, ce qui reste d'un tour a l'autre
 function inMark(p, fc, fr, tc, tr){
-  if(!p._inA) p._inA=inState(p, null, fc, fr);
+  if(!p._inA){ p._inA=inState(p, null, fc, fr); p._inA.s00=p._inA.s; }
   var a=p._inA, A=inLineCells(fc, fr, tc, tr, false);
   if(tc!==fc && tr!==fr && Math.abs(tc-fc)!==Math.abs(tr-fr)){   // une arrivee hors des 8 lignes : l'ordre qui respecte la regle, avec le moins de manoeuvres
     var B=inLineCells(fc, fr, tc, tr, true);
@@ -4040,7 +4040,7 @@ function inMark(p, fc, fr, tc, tr){
   var x=fc, y=fr;
   for(var k=0;k<A.length;k++){ var dc=Math.sign(A[k].c-x), dr=Math.sign(A[k].r-y); x=A[k].c; y=A[k].r;
     if(inPush(a, p, dc, dr)){   // hors regle (contact, chemin impose) : il passe quand meme, a sa vitesse
-      a.sc=(a.v && turnSteps(a.v,dc,dr)>0)?0:Math.min(3,a.sc+1); a.s=Math.max(1,a.s); a.m=Math.max(0,a.m-1); a.r=Math.max(0,a.r-1); a.v={dc:dc, dr:dr}; a.n++; a.x+=dc; a.y+=dr; a.kind=''; continue; }
+      a.sc=(a.v && turnSteps(a.v,dc,dr)>0)?0:Math.min(3,a.sc+1); a.s=Math.max(1,a.s); a.m=Math.max(0,a.m-1); a.r=Math.max(0,a.r-1); a.v={dc:dc, dr:dr}; a.n++; a.x+=dc; a.y+=dr; a.kind=''; if(a.sp){ a.sp.push(a.s); a.tags.push(''); } continue; }
     var fo=facingOf(p);
     if(a.kind==='front'){ if(dc) p.facing={dc:dc, dr:0}; }
     else if(a.back){ if(dc && dc!==-fo.dc) p.facing={dc:-dc, dr:0}; }
@@ -4079,6 +4079,17 @@ function aiSlide(e, tc, tr, taken, chase){
 }
 // une pioche d'embuscade dont le depart a change, ou dont l'arrivee est prise : plus de trajet (comportement de v653)
 function aiDropStale(m, df){ if(!m || m.aimC==null || !m.path || !df) return; var o=pieceAt(m.toC, m.toR); if(df.c!==m.aimC || df.r!==m.aimR || (o && o.id!==df.id)) m.path=null; }
+// v655 (etape 3 de l'inertie) : le profil du pas pour la 3D -- la vitesse a chaque case, la manoeuvre, l'elan de fin
+function inProfTail(P, n){ var k=P.sp.length-n; return {s0:k?P.sp[k-1]:P.s0, sp:P.sp.slice(k), tg:P.tg.slice(k), end:P.end}; }
+function inProfFor(p, n){ var P=p&&p._prof; if(!P || !n || P.sp.length<n || P.c!==p.c || P.r!==p.r) return null; return inProfTail(P, n); }
+function inProfNote(p, n0, fc, fr, tc, tr){
+  var a=p._inA; if(!a || !a.sp) return; var P=p._prof;
+  if(!n0 || !P || P.c!==fc || P.r!==fr) P=p._prof={s0:n0?a.sp[n0-1]:a.s00, sp:[], tg:[], end:0, c:fc, r:fr};
+  for(var i=n0;i<a.sp.length;i++){ P.sp.push(a.sp[i]); P.tg.push(a.tags[i]||''); }
+  P.end=inEndMom(a); P.c=tc; P.r=tr;
+  var ev=S.match&&S.match.events, L=ev&&ev[ev.length-1];   // addSlide a deja ecrit l'evenement : on le complete
+  if(L && L.e==='skate' && L.id===p.id && !L.sp && L.pts && L.pts.length===2 && L.pts[0][0]===fc && L.pts[0][1]===fr && L.pts[1][0]===tc && L.pts[1][1]===tr){ var n=Math.max(Math.abs(tc-fc), Math.abs(tr-fr)); if(P.sp.length>=n){ var q=inProfTail(P, n); L.s0=q.s0; L.sp=q.sp; L.tg=q.tg; L.end=q.end; } }
+}
 function dirBudget(p, dc, dr, st){ if(p && p.type==='g'){ var _g=1; return _g-stStep(p,_g); } return inLine(p, dc, dr, st); }
 function dirBudget0(p, dc, dr, st){ return dirBudget(p, dc, dr, st); }
 // v408 : COURBE (virage serre) -- un joueur LANCE qui veut aller vers l'arriere peut tourner de 45 deg par case
@@ -4102,7 +4113,7 @@ function skateCurve(p, cv){
   var _smp=routeSample([{c:oc, r:orr}].concat(cv.path), 4);   // v411 : le pion glisse le long de la courbe (spline), plus de case en case
   for(var j=0;j<_smp.length-1;j++) pts.push({dx:_smp[j].c-end.c, dy:_smp[j].r-end.r});
   if(!S.slides) S.slides={}; S.slides[p.id]={dx:oc-end.c, dy:orr-end.r, pts:pts, cells:cv.path.length}; sfx('skate');
-  matchEv('skate', {id:p.id, pts:[[oc, orr]].concat(cv.path.map(function(q){ return [q.c, q.r]; }))});   // v447 : courbe (cases)
+  matchEv('skate', Object.assign({id:p.id, pts:[[oc, orr]].concat(cv.path.map(function(q){ return [q.c, q.r]; }))}, inProfFor(p, cv.path.length)||{}));   // v447 : courbe (cases) ; v655 : le profil du pas
   return {oc:oc, orr:orr};
 }
 // deplacement generique vers une case calculee : courbe si la case vient d'un arc (spot.path), sinon ligne droite
@@ -4175,7 +4186,9 @@ function markSkated(p, fromC, fromR, toC, toR){
     if(!_lt || _lt.c!==fromC || _lt.r!==fromR) _m=_L[p.id]={pts:[{c:fromC, r:fromR}]};
     var _x=fromC, _y=fromR; while(_x!==toC || _y!==toR){ _x+=Math.sign(toC-_x); _y+=Math.sign(toR-_y); _m.pts.push({c:_x, r:_y}); } }
   p._skatedThisAction=true;
+  var _n0=(p._inA && p._inA.sp)?p._inA.sp.length:0;
   inMark(p, fromC, fromR, toC, toR);   // v653 : la regle de pas (avant que vel change)
+  inProfNote(p, _n0, fromC, fromR, toC, toR);   // v655
   p._skatedDist=(p._skatedDist||0)+Math.max(Math.abs(toC-fromC), Math.abs(toR-fromR));   // v407 : cases patinees pendant ce geste (coude = somme)
   p.vel={dc:dc, dr:dr};
 }
@@ -9556,8 +9569,8 @@ function hj3dSlides(sl){   // glissements de ce render (S.slides : decalage depa
   var out={}; if(!sl) return out;
   for(var id in sl){ var s=sl[id], p=byId(id); if(!s || !p) continue;
     if(s.pts){ var pts=[]; for(var i=0;i<s.pts.length;i++) pts.push([p.c+s.pts[i].dx, p.r+s.pts[i].dy]); pts.push([p.c, p.r]);
-      out[id]={pts:pts, ms:s.ms || Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE}; }   // v537 : une duree imposee (l'approche de la fusillade)   // courbe : duree du pion 2D (v411, v463)
-    else if(s.dx || s.dy) out[id]={pts:[[p.c+s.dx, p.r+s.dy],[p.c, p.r]], ms:s.ms || 1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE};   // --slidedur de la 2D ; v633 : le retardataire (s.ms)
+      out[id]={pts:pts, ms:s.ms || Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE}; if(s.cells){ var _pc=inProfFor(p, s.cells); if(_pc) out[id].prof=_pc; } }   // v537 : une duree imposee (l'approche de la fusillade)   // courbe : duree du pion 2D (v411, v463)
+    else if(s.dx || s.dy){ out[id]={pts:[[p.c+s.dx, p.r+s.dy],[p.c, p.r]], ms:s.ms || 1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE}; var _ps=inProfFor(p, Math.max(Math.abs(s.dx),Math.abs(s.dy))); if(_ps) out[id].prof=_ps; }   // --slidedur de la 2D ; v633 : le retardataire (s.ms)
   }
   return out;
 }
@@ -12780,7 +12793,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":562396,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":571404,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
