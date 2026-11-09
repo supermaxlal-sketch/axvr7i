@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v658</title>
+<title>Deck 3D v659</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v658';
+var GAME_VERSION='v659';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9604,6 +9604,15 @@ function hj3dSlides(sl){   // glissements de ce render (S.slides : decalage depa
 }
 var HJ3D_ROLES=['C','LW','RW','LD','RD'];   // v577 : l'ordre de S.lineup (C, AG, AD, DG, DD)
 function hj3dRole(q){ var L=S.lineup && S.lineup[HUMAN_TEAM]; if(q.team!==HUMAN_TEAM || q.type!=='sk' || !L) return ''; var i=L.indexOf(q.id); return i>=0 ? HJ3D_ROLES[i] : ''; }
+// v659 : l'eventail -- les cases permises de SON patineur choisi, en deux listes pour la 3D : keep (il garde sa vitesse) et
+// cost (il freine, vire sec ou pivote : m.cost, v653). La couleur de la pastille ne compte pas (sous le jaune du porteur aussi).
+function hj3dFan(){
+  var p=byId(S.sel); if(!p || p.type!=='sk' || p.team!==HUMAN_TEAM || !hasPos(p) || !S.moves || !S.moves.length) return null;
+  var by={}, keep=[], cost=[];
+  for(var i=0;i<S.moves.length;i++){ var m=S.moves[i]; by[m.c+','+m.r]=m; }   // une case, une reponse (la derniere, comme la pastille)
+  for(var k in by){ var q=by[k]; (q.cost ? cost : keep).push([q.c, q.r]); }
+  return {c:p.c, r:p.r, keep:keep, cost:cost};
+}
 function hj3dSnapshot(slides){
   piecesLooks();   // v529 : chaque joueur a sa recette
   var grid=document.getElementById('grid'), cells=[], ghosts=[], pawnCls={};
@@ -9624,7 +9633,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -12825,7 +12834,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":575180,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":582940,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
