@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v655</title>
+<title>Deck 3D v656</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v655';
+var GAME_VERSION='v656';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2034,7 +2034,7 @@ function playerCardBig(p){
     + '<div class="pcard-hd"><span class="pcard-ovr">'+ovr+'</span>'
       + '<div class="pcard-idcol"><div class="pcard-name">'+p.name+'</div>'
       + '<div class="pcard-sub"><span class="dcp-arch">'+ai.e+' '+ai.n+'</span></div>'
-      + '<div class="pcard-meta">'+pos+' · '+hand+'H · '+p.size+' '+cmToFtIn(p.cm)+'</div></div>'
+      + '<div class="pcard-meta">'+pos+' · '+hand+'H · '+p.size+' '+cmToFtIn(p.cm)+' '+playerLb(p)+' lb</div></div>'
       + '<img class="pcard-photo" src="'+img+'" alt="">'
     + '</div>'
     + '<div class="pcard-bars">'+bars+'</div>'
@@ -3924,7 +3924,7 @@ function stepMax(p){ return (p && p.type==='g') ? 1 : MAX_STEP; }   // patineurs
 // ELAN / INERTIE (v378) : la portee de PATINAGE depend de l'elan mom (separe du speed tir/contact).
 function accelStep(p){ return ((p && p.acceleration100) || 55) >= 70 ? 4 : 3; }   // pas d'accel : 3 ou 4 (v416 : +1 pour tous, etait 1 ou 2 ; v624 : encore +1, « 1 case de plus de mouvement minimum a tout le monde »)
 function ceilingMom(p){ return ((p && p.spd) || 4) >= 5 ? 6 : 5; }                 // plafond de portee = vitesse de pointe (v624 : 5 ou 6, son choix « Max +1 aussi »)
-function moveBudget(p){ if(p && p.type==='g') return 1; var _b=Math.min(ceilingMom(p), ((p&&p.mom)||0) + accelStep(p)); return _b-stStep(p, _b); }   /* v559 : sonne, 1 case de moins */   // cases atteignables ce tour (TOUT DROIT : le max)
+function moveBudget(p){ if(p && p.type==='g') return 1; var _b=Math.min(ceilingMom(p), ((p&&p.mom)||0) + accelStep(p)), _r=_b-stStep(p, _b), _h=gabH(p); return _h?Math.max(1,_r+_h):_r; }   /* v559 : sonne, 1 case de moins */   // cases atteignables ce tour (TOUT DROIT : le max)
 // v384 LIGNE DE COURSE : l'elan garde depend de l'angle avec la direction du dernier deplacement (p.vel).
 // 0 ou 1 cran de 45 (tout droit / virage doux) = tout ; 2 crans (angle droit) = moitie ; 3-4 (serre / demi-tour) = rien.
 var DIR8R=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];   // les 8 directions dans l'ordre du cercle
@@ -3938,23 +3938,29 @@ var BACK_MAX=4;   // v624 (« Toutes +1 ») : etait 3
 // (docs/inertie-simulateur.html, reglee au doigt). s=vitesse, sc=cases droites depuis le dernier virage, m=cases de freinage restantes,
 // r=cases restantes, back=il recule. Toute portee, courbe, trace et l'IA passent par ici.
 var BACK_SPEED=3, INERT_ANG=[4,4,2,1,1,1,1], INERT_STR=[0,0,0,1,1,2,2];
-function inBrake(s){ return s>0 ? Math.min(3, Math.ceil(s/3)) : 0; }
+// v656 (etape 4 de l'inertie) : le gabarit -- le poids est calcule une seule fois ; Leger <=175, Lourd >=200 ; Petit S, Grand L ; le gardien est moyen partout
+function lbCalc(p){ return Math.round(2.2046*(p.cm-100+0.3*(((typeof p.physique==='number')?p.physique:60)-60))); }
+function playerLb(p){ if(!p || !p.cm) return 0; if(p.lb==null) p.lb=lbCalc(p); return p.lb; }
+function gabW(p){ if(!p || p.type==='g' || !p.cm) return 0; var w=playerLb(p); return w<=175?-1:w>=200?1:0; }
+function gabH(p){ if(!p || p.type==='g') return 0; return p.size==='S'?-1:p.size==='L'?1:0; }
+function inBrake(s, w){ return s>0 ? Math.max(0, Math.min(3, Math.ceil(s/3)+(w||0))) : 0; }
 function inState(p, st, fc, fr){
   var s=Math.max(0, Math.min(6, st?(st.mom||0):((p&&p.mom)||0))), v=st?st.vel:(p&&p.vel);
   if(!s || (v && !v.dc && !v.dr)) v=null;
   var run=(st&&st.run!=null)?st.run:((p&&p._run!=null)?p._run:3), cap=ceilingMom(p), b=Math.min(cap, s+accelStep(p));
   b-=stStep(p, b); if(p && S && S._huntSlow===p.id && b>1) b--;   /* v559 : sonne ; v560 : le chasseur seme par un plus rapide */
-  var back=!!v && !!((st&&st.back!=null)?st.back:(p&&p._back)), m=v?inBrake(s):0;
-  return {s:s, sc:Math.min(3,run), m:m, m0:m, r:back?Math.min(BACK_MAX,b):b, cap:cap, back:back, v:v, n:0, man:0, sp:[], tags:[], kind:'', x:fc, y:fr};
+  var gw=gabW(p), gh=gabH(p); if(gh) b=Math.max(1, b+gh);   /* v656 : grand, une case de plus ; petit, une de moins */
+  var back=!!v && !!((st&&st.back!=null)?st.back:(p&&p._back)), m=v?inBrake(s,gw):0;
+  return {s:s, sc:Math.min(3,run), m:m, m0:m, r:back?Math.min(BACK_MAX,b):b, cap:cap, gw:gw, gh:gh, back:back, v:v, n:0, man:0, sp:[], tags:[], kind:'', x:fc, y:fr};
 }
 function inStep(a, t){
   if(a.back && t>=3) return {s:1, sc:0, r:a.r-1, m:0, back:false, kind:'front'};
-  var free=(a.s===0) || (a.back && t<=2) || (t<=INERT_ANG[a.s] && (t===0 || a.sc>=INERT_STR[a.s]));
+  var free=(a.s===0) || (a.back && t<=2) || (t<=INERT_ANG[a.s] && (t===0 || a.sc>=Math.max(0,Math.min(3,INERT_STR[a.s]+(a.gh||0)))));
   if(free){ var v=a.s===0?1 : t===0?Math.min(a.cap,a.s+1) : t===1?Math.max(1,a.s) : t===2?Math.max(1,Math.floor(a.s/2)) : 1;
     if(a.back) v=Math.min(BACK_SPEED, Math.max(v,a.s));
     return {s:v, sc:(a.s===0||t>0)?0:Math.min(3,a.sc+1), r:a.r-1, m:Math.max(0,a.m-1), back:a.back, kind:''}; }
   if(a.m>0) return null;
-  if(t<=2) return {s:Math.max(1,Math.ceil(a.s*2/3)), sc:0, r:a.r-1, m:0, back:false, kind:'sharp'};
+  if(t<=2) return {s:Math.max(1,Math.ceil(a.s*(a.gw>0?3:a.gw<0?5:4)/6)), sc:0, r:a.r-1, m:0, back:false, kind:'sharp'};
   if(t===4) return null;
   return {s:Math.max(1,Math.min(BACK_SPEED,Math.ceil(a.s/2))), sc:0, r:Math.min(a.r-1,BACK_MAX-1), m:0, back:true, kind:'pivot'};
 }
@@ -4007,9 +4013,9 @@ function inReach(p, fc, fr, st, busy){
     for(var i=0;i<front.length;i++){ var nd=front[i];
       for(var k=0;k<8;k++){ var d=DIR8R[k], x=nd.a.x+d[0], y=nd.a.y+d[1];
         if(!onIce(x,y) || busy(x,y)) continue;
-        var b0=nd.a, a={s:b0.s, sc:b0.sc, m:b0.m, m0:b0.m0, r:b0.r, cap:b0.cap, back:b0.back, v:b0.v, n:b0.n, man:b0.man, sp:null, tags:null, kind:'', x:b0.x, y:b0.y};
+        var b0=nd.a, a={s:b0.s, sc:b0.sc, m:b0.m, m0:b0.m0, r:b0.r, cap:b0.cap, gw:b0.gw, gh:b0.gh, back:b0.back, v:b0.v, n:b0.n, man:b0.man, sp:null, tags:null, kind:'', x:b0.x, y:b0.y};
         if(inPush(a, p, d[0], d[1])) continue;
-        var key=(((((((x*12+y)*8+k)*7+a.s)*4+a.sc)*4+a.m)*7+a.r)*2+(a.back?1:0));   // 12 : ROWS+1
+        var key=(((((((x*12+y)*8+k)*7+a.s)*4+a.sc)*4+a.m)*8+a.r)*2+(a.back?1:0));   // 12 : ROWS+1
         var _sn=seen.get(key); if(_sn!=null && _sn<=a.man) continue;
         seen.set(key, a.man);
         var path=nd.path.concat([{c:x, r:y}]), cell=x+','+y, b=best[cell];
@@ -9979,9 +9985,9 @@ function careerSkin(arr){   // match de carriere : chaque joueur prend une place
       for(var i=0;i<slots.length;i++){ var q=slots[i], p=pl[i];
         if(!p){ q.vacant=true; q.onIce=false; q.name='—'; q.label='—'; q.uid=null; continue; }   // v489 : place vide -- un joueur du banc jouera 2 periodes
         q.name=p.name; q.label=p.label; q.tir=p.tir; q.passe=p.passe; q.vitesse=p.vitesse; q.physique=p.physique; q.defense=p.defense; q.maniement=p.maniement;
-        q.size=p.size; q.cm=p.cm; q.hand=p.hand; q.archetype=p.archetype; q.perk=p.perk||null; q.perk2=p.perk2||null; q.uid=p.uid; q.spot=spotOf(p); q.look=p.look; q.pressure=(typeof p.pressure==='number') ? p.pressure : pressureStat(p);   /* v646 */ delete q.acceleration100; deriveLegacy(q); } });
+        q.size=p.size; q.cm=p.cm; q.lb=playerLb(p); q.hand=p.hand; q.archetype=p.archetype; q.perk=p.perk||null; q.perk2=p.perk2||null; q.uid=p.uid; q.spot=spotOf(p); q.look=p.look; q.pressure=(typeof p.pressure==='number') ? p.pressure : pressureStat(p);   /* v646 */ delete q.acceleration100; deriveLegacy(q); } });
     var g=arr.filter(function(q){ return q.team===team && q.type==='g'; })[0], G=careerGoalieOf(T);   // v489 : le gardien partant
-    if(g){ g.name=G.name; g.label=G.label; g.arret100=G.arret100; g.couverture100=G.couverture100; g.size=G.size; g.cm=G.cm; g.hand=G.hand; g.uid=G.uid; g.look=G.look; deriveLegacy(g); } });
+    if(g){ g.name=G.name; g.label=G.label; g.arret100=G.arret100; g.couverture100=G.couverture100; g.size=G.size; g.cm=G.cm; g.lb=playerLb(G); g.hand=G.hand; g.uid=G.uid; g.look=G.look; deriveLegacy(g); } });
 }
 function paintTeamNames(){
   var a=document.querySelector('.jteam.A .nm'), b=document.querySelector('.jteam.B .nm'); if(a) a.textContent=TEAM_NAME.A.toUpperCase(); if(b) b.textContent=TEAM_NAME.B.toUpperCase();
@@ -10408,7 +10414,7 @@ function careerNew(myKey){   // une carriere neuve : les 24 equipes, ton equipe 
     T.goalie.uid=++c.uid; T.arena=arenaMake(T); c.teams[T.key]=T; c.divs[T.div].push(T.key); }   // v542 : sa recette d'arena
   if(!c.teams[myKey] || c.teams[myKey].div!==3) return null;
   c.seed=1+Math.floor(careerRand()*1e9); careerUpgrade(c);   // v484 : age, plafonds, experience
-  careerNewSchedules(c); return c;
+  careerNewSchedules(c); return careerLbs(c);   // v656 : le poids, des la creation
 }
 function careerRoundRobin(keys){   // methode du cercle : n-1 rondes de n/2 matchs, 3 cycles ; recoit celle qui a le moins recu, puis la paire alterne
   var n=keys.length, rounds=[], home={}, last={};
@@ -12041,7 +12047,7 @@ document.getElementById('btnExitCareer').onclick=careerExitMatch;
 document.getElementById('careerOverlay').addEventListener('click', offTap);   // v611 : au bureau, toucher l'objet (un aimant, un +1 de la carte)
 document.getElementById('mmCareer').onclick=function(){ if(!CAREER) CAREER=careerLoad(); careerGo('start'); careerCloudSync(); };   // v485 : et le compte
 var CAREER_KEY='hjCareer';
-function careerSave(){ if(!CAREER) return; CAREER.saved=Date.now(); try{ localStorage.setItem(CAREER_KEY, JSON.stringify(CAREER)); }catch(e){} careerCloudSave(); }   // v485 : et au compte
+function careerSave(){ if(!CAREER) return; careerLbs(CAREER); CAREER.saved=Date.now(); try{ localStorage.setItem(CAREER_KEY, JSON.stringify(CAREER)); }catch(e){} careerCloudSave(); }   // v485 : et au compte
 // ---- v485 : la sauvegarde au compte Claude (artifact claude.ai : capacites db + user ; prive : data/users/<id>/career).
 // Hors artifact (fichier ouvert, version 3D) : pas de window.claude -> la sauvegarde du navigateur seule, comme avant.
 var CAREER_CLOUD={db:null, uid:null, ready:null, saving:false, again:false, checked:false};
@@ -12058,8 +12064,10 @@ function careerCloudInit(){
 }
 var CAREER_PDEF={lvl:1, txp:0, pts:0, perk2:null, perkPick:null, gp:0, en:100, inj:null, rust:0, seq:null, rest:false, mor:0};   // v556 : mor = le moral garde d'un match de saison a l'autre   // v489
 function careerPack(c){   // pour le compte : sans les valeurs par defaut des joueurs (un document fait au plus 256 Ko)
+  careerLbs(c);   // v656 : un joueur arrive en cours de saison recoit son poids ici, une seule fois
   var o=JSON.parse(JSON.stringify(c));
   Object.keys(o.teams).forEach(function(k){ var T=o.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(p){
+    if(p.cm && p.lb===lbCalc(p)) delete p.lb;   // v656 : le poids seulement s'il differe du calcul (le physique a change depuis)
     for(var f in CAREER_PDEF){ if(p[f]===CAREER_PDEF[f]) delete p[f]; }
     if(p.xp && Object.keys(p.xp).every(function(x){ return !p.xp[x]; })) delete p.xp;
     if(p.st && !p.st.gp && !p.st.g && !p.st.a) delete p.st;
@@ -12083,6 +12091,7 @@ function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
   if(o && Array.isArray(o.results)) o.results=o.results.map(careerResUnpack);   // v580
   Object.keys((o && o.teams)||{}).forEach(function(k){ var T=o.teams[k]; (T.skaters||[]).concat(T.goalie?[T.goalie]:[], T.goalie2?[T.goalie2]:[]).forEach(function(p){
     for(var f in CAREER_PDEF){ if(!(f in p)) p[f]=CAREER_PDEF[f]; }
+    playerLb(p);   // v656
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)){ var ob={}; (v.length===7 ? CAREER_PK7 : CAREER_PK).forEach(function(x, i){ ob[x]=v[i]; }); p[f]=ob; } });   // v517 : les listes redeviennent des objets
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
     if(Array.isArray(p.st)) p.st={gp:p.st[0], g:p.st[1], a:p.st[2]};   // v579 : les listes redeviennent des objets
@@ -12109,10 +12118,11 @@ function careerCloudSync(){   // a l'ouverture de Career : la plus recente gagne
       CAREER_MSG='☁ Career loaded from your Claude account.'; if(CAREER_VIEW==='start' || CAREER_VIEW==='confirm') careerRender(); }
     else if(CAREER && CAREER_CLOUD.db && (!cc || (CAREER.saved||0)>(cc.saved||0))) careerCloudSave(); });
 }
+function careerLbs(c){ if(c && c.teams) Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; (T.skaters||[]).concat(T.goalie?[T.goalie]:[], T.goalie2?[T.goalie2]:[]).forEach(function(p){ playerLb(p); }); }); return c; }
 function careerCheck(c){   // une carriere bien formee, ou null (un fichier mal forme ne remplace rien)
   if(!c || [1, 2, 3, 4, CAREER_V].indexOf(c.v)<0 || !c.teams || !c.divs || !c.schedule || !c.teams[c.my]) return null;
   for(var d=1;d<=3;d++){ if(!c.divs[d] || c.divs[d].length!==8 || !c.schedule[d]) return null; }
-  return careerUpgrade(c);   // v484 : une carriere v483 recoit age et plafonds
+  return careerLbs(careerUpgrade(c));   // v484 : une carriere v483 recoit age et plafonds ; v656 : son poids
 }
 function careerLoad(){ try{ var t=localStorage.getItem(CAREER_KEY); return t ? careerCheck(JSON.parse(t)) : null; }catch(e){ return null; } }
 function careerExportText(){ return JSON.stringify({app:'hockey-deck-career', version:GAME_VERSION, career:CAREER}); }
@@ -12169,11 +12179,11 @@ var TUT_LESSONS=[
       skip:function(){ return !tutMapCan(); }, until:function(){ return !VZOOM; }},   // v460 : le zoom de la glace
     {say:"Whole ice! Tap the map again to zoom back in on the play. You can switch at any time.", hl:['b:vmap'], allow:['b:vmap'],
       skip:function(){ return !tutMapCan(); }, until:function(){ return VZOOM; }},
-    {say:"Tap Roy. Standing still, a player reaches 3 or 4 squares (Roy: 4). The lit squares show where he can go.", hl:['p:A_RO'], allow:['p:A_RO'], until:function(){ return S.sel==='A_RO'; }},   // v624 : +1 case (etait 2 ou 3)
-    {say:"Move Roy to the square 4 ahead (tap it, or drag Roy there), then tap GO.", hl:['c:8,5','b:go'], allow:['c:8,5','r:A_RO','b:go'],
-      reject:function(){ return tutMovedWrong('A_RO',8,5); }, until:function(){ return tutBackToPlan(1); }},
-    {say:"He kept his speed: now he reaches 6 squares. Move Roy to the square 6 ahead (tap or drag), then GO.", hl:['p:A_RO','c:14,5','b:go'], allow:['p:A_RO','c:14,5','r:A_RO','b:go'],
-      reject:function(){ return tutMovedWrong('A_RO',14,5); }, until:function(){ return tutBackToPlan(2); }},
+    {say:"Tap Roy. Standing still, a player reaches 3 or 4 squares (Roy: 3). The lit squares show where he can go.", hl:['p:A_RO'], allow:['p:A_RO'], until:function(){ return S.sel==='A_RO'; }},   // v624 : +1 case (etait 2 ou 3)
+    {say:"Move Roy to the square 3 ahead (tap it, or drag Roy there), then tap GO.", hl:['c:7,5','b:go'], allow:['c:7,5','r:A_RO','b:go'],   // v656 (son choix) : Roy est petit, 1 case de moins
+      reject:function(){ return tutMovedWrong('A_RO',7,5); }, until:function(){ return tutBackToPlan(1); }},
+    {say:"He kept his speed: now he reaches 5 squares. Move Roy to the square 5 ahead (tap or drag), then GO.", hl:['p:A_RO','c:12,5','b:go'], allow:['p:A_RO','c:12,5','r:A_RO','b:go'],
+      reject:function(){ return tutMovedWrong('A_RO',12,5); }, until:function(){ return tutBackToPlan(2); }},
     {say:"You can also draw a path: press on Roy and drag your finger, then tap GO. A sharp turn costs speed.", hl:['p:A_RO','b:go'], allow:['r:A_RO','b:go'], until:function(){ return tutBackToPlan(3) && S.tut.lastPath; }},
     {say:"A player who does not skate keeps gliding on his speed. Move only Belanger to the lit square, tap GO, and watch Roy glide.", hl:['p:A_BE','c:6,8','b:go'], allow:['p:A_BE','c:6,8','b:go'], until:function(){ return tutBackToPlan(4); }},
     {say:"See? Roy glided on his speed, then slowed down. A player who stops skating loses 2 of speed each plan. Now your turn.", next:true}
@@ -12183,7 +12193,7 @@ var TUT_LESSONS=[
     reset:function(){ tutPlace({A:[['A_RO',4,5,'AG'],['A_BE',4,8,'AD']], B:[], puck:'A_RO', mirror:false}); },
     check:function(){ var p=byId('A_RO'); return !!p && cheb(p,{c:21,r:2})<=1 && !S.currentSeq && !S.animating; },
     fail:function(){ return (S.tut.freePlans||0)>=4 && S.planning && !S.currentSeq; },
-    why:"Not there yet. Skate in straight lines to build speed: 4 squares, then 6. A turn of 90 degrees costs half your speed.",
+    why:"Not there yet. Skate in straight lines to build speed: 3 squares, then 5. A turn of 90 degrees costs half your speed.",
     won:"Speed builds up when you skate straight." } },
 { id:'plan', n:3, title:'The plan', blurb:'The mirror, ghosts, Undo, and a free play after a short skate.',
   setup:function(){ tutPlace({A:[['A_BO',11,5,'C'],['A_RO',11,2,'AG'],['A_BE',11,8,'AD']], B:[], puck:'A_BO', mirror:true}); },
