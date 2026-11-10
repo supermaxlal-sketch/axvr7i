@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v661</title>
+<title>Deck 3D v662</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1369,7 +1369,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v661';
+var GAME_VERSION='v662';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4006,24 +4006,29 @@ function inTry(p, fc, fr, tc, tr, st){   // le moins de manoeuvres des deux ordr
   return ok?w:null;
 }
 // toutes les arrivees : le moins de manoeuvres, puis le plus court (largeur d'abord)
+// v662 (son retour : « le jeu lag dans la phase de plan ») : memes arrivees, sans refaire les memes calculs -- « hors glace ou
+// occupee ? » une seule fois par case (blk : avant, des dizaines de milliers de fois par toucher) ; le trajet est une chaine
+// (prev), deroulee a la fin pour les seules arrivees gardees (avant : une copie du trajet a chaque pas)
 function inReach(p, fc, fr, st, busy){
-  var a0=inState(p, st, fc, fr), best={}, seen=new Map(), front=[{a:a0, path:[]}], out=[];
+  var a0=inState(p, st, fc, fr), best={}, seen=new Map(), front=[{a:a0, path:null}], out=[], blk=new Int8Array((COLS+2)*(ROWS+2));   // 0 : pas encore demande ; 1 : libre ; 2 : hors glace ou occupee
   a0.sp=null; a0.tags=null;
   while(front.length){ var next=[];
-    for(var i=0;i<front.length;i++){ var nd=front[i];
-      for(var k=0;k<8;k++){ var d=DIR8R[k], x=nd.a.x+d[0], y=nd.a.y+d[1];
-        if(!onIce(x,y) || busy(x,y)) continue;
-        var b0=nd.a, a={s:b0.s, sc:b0.sc, m:b0.m, m0:b0.m0, r:b0.r, cap:b0.cap, gw:b0.gw, gh:b0.gh, back:b0.back, v:b0.v, n:b0.n, man:b0.man, sp:null, tags:null, kind:'', x:b0.x, y:b0.y};
+    for(var i=0;i<front.length;i++){ var nd=front[i], b0=nd.a;
+      if(b0.r<=0) continue;   // v662 : plus de portee -- aucun pas ne passe (inPush dirait 'far' dans les 8 directions) : 2 pas essayes sur 3 etaient de ceux-la
+      for(var k=0;k<8;k++){ var d=DIR8R[k], x=b0.x+d[0], y=b0.y+d[1];
+        var bi=(x+1)*(ROWS+2)+(y+1), bv=blk[bi]; if(!bv) bv=blk[bi]=(!onIce(x,y) || busy(x,y)) ? 2 : 1;
+        if(bv===2) continue;
+        var a={s:b0.s, sc:b0.sc, m:b0.m, m0:b0.m0, r:b0.r, cap:b0.cap, gw:b0.gw, gh:b0.gh, back:b0.back, v:b0.v, n:b0.n, man:b0.man, sp:null, tags:null, kind:'', x:b0.x, y:b0.y};
         if(inPush(a, p, d[0], d[1])) continue;
         var key=(((((((x*12+y)*8+k)*7+a.s)*4+a.sc)*4+a.m)*8+a.r)*2+(a.back?1:0));   // 12 : ROWS+1
         var _sn=seen.get(key); if(_sn!=null && _sn<=a.man) continue;
         seen.set(key, a.man);
-        var path=nd.path.concat([{c:x, r:y}]), cell=x+','+y, b=best[cell];
+        var path={c:x, r:y, prev:nd.path}, cell=x+','+y, b=best[cell];
         if((x!==fc || y!==fr) && !inShort(a) && (!b || a.man<b.man)) best[cell]={c:x, r:y, path:path, man:a.man, cost:inCost(a)};
         next.push({a:a, path:path});
       } }
     front=next; }
-  for(var c in best) out.push(best[c]);
+  for(var c in best){ var o=best[c], L=[]; for(var q=o.path;q;q=q.prev) L.push({c:q.c, r:q.r}); L.reverse(); o.path=L; out.push(o); }
   return out;
 }
 // la case permise la plus proche d'une cible interdite (IA : elle n'anticipe pas encore)
@@ -12835,7 +12840,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":608668,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":611660,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
