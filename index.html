@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v662</title>
+<title>Deck 3D v663</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -384,6 +384,8 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 #careerPaste{background:#0a1521;color:#cfe3f7;border:1px solid #34557a;border-radius:8px;}
 @media (prefers-reduced-motion: reduce){ .tuthl,.tutcoach.nudge{animation:none;} }
 .setrow{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
+#perfBanner{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:95;background:rgba(10,20,34,.9);color:#fff;font:700 13px/1.2 system-ui,sans-serif;padding:8px 14px;border-radius:999px;pointer-events:none;white-space:nowrap;}
+#perfBanner[hidden]{display:none;}
 .setrow label{flex:1;font-size:13px;color:#cfe0ef;font-weight:700;min-width:120px;}
 .setrow input[type=range]{flex:1;min-width:120px;}
 #setVer.warn{color:#ff6b6b;}   /* v590 : la 3D n'est pas de la meme version (rouge : le jaune normal de .setv est trop proche de l'orange) */
@@ -1102,6 +1104,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov pause" id="speechOverlay" style="z-index:265"></div>
 <div class="ov" id="tunnelOverlay" style="z-index:266"></div>
 <div class="ov pause" id="resumeAsk" style="z-index:260"><div class="wcard"><div class="wicon">💾</div><div class="wbig">SAVED MATCH</div><div class="wsub" id="raText"></div><button class="dconfirm" id="raResume" style="margin-top:12px">▶ Resume it</button><button class="dconfirm" id="raNew" style="margin-top:8px">Start a new game</button><button class="dconfirm" id="raCancel" style="margin-top:8px">Cancel</button></div></div>
+<div id="perfBanner" hidden></div>
 <div class="ov menu" id="settingsPanel"><div class="mcard"><div class="mtitle">⚙️ Settings</div>
 <div class="setrow"><label>🥅 Goal volume</label><input type="range" id="setGoal" min="0.6" max="2.4" step="0.1"><span class="setv" id="setGoalV"></span></div>
 <div class="setrow"><label>🎯 Missed shots (board rebounds)</label><input type="range" id="setWide" min="0" max="0.35" step="0.01"><span class="setv" id="setWideV"></span></div>
@@ -1119,6 +1122,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 </div>
 <div class="setrow"><label>💡 Tips (first time only)</label><button class="mbtn sm" id="setTips">—</button><button class="mbtn sm" id="setTipsReset">Reset</button></div>
 <div class="setrow"><label>🛠️ Diagnostics</label><button class="mbtn sm" id="setDiag">—</button></div>
+<div class="setrow"><label>📊 Performance test (3D match, 24 s)</label><button class="mbtn sm" id="setPerf">Run</button></div>
 <div class="setrow"><label>📱 Phone view (vertical rink)</label><button class="mbtn sm" id="setVRink">—</button></div>
 <div class="setrow" id="setView3dRow" style="display:none"><label>🧊 Rink view</label><button class="mbtn sm" id="setView3d">—</button></div>
 <div class="setrow"><label>🎥 Cinematic camera (3D)</label><button class="mbtn sm" id="setCine">—</button></div>
@@ -1369,7 +1373,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v662';
+var GAME_VERSION='v663';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9082,7 +9086,7 @@ function paintRink(){
 // v434 : ENREGISTREMENT DU MATCH -- journal, plans des deux camps, positions a chaque changement ; export .json
 // pour analyser les parties et raffiner l IA.
 var MATCH_MAX=30000;
-function matchNew(){ return {v:(typeof GAME_VERSION!=='undefined'?GAME_VERSION:'?'), date:new Date().toISOString(), t0:Date.now(), events:[]}; }
+function matchNew(){ perfReset();   /* v663 : un nouveau match, des mesures neuves */ return {v:(typeof GAME_VERSION!=='undefined'?GAME_VERSION:'?'), date:new Date().toISOString(), t0:Date.now(), events:[]}; }
 function matchRec(k, data){ if(typeof S==='undefined' || !S || !S.match || S.match.events.length>=MATCH_MAX) return;
   var e={k:k, per:S.period||1, clk:Math.round((S.clock||0)*10)/10, t:Date.now()-(S.match.t0||Date.now())}; for(var key in data) e[key]=data[key]; S.match.events.push(e); }   // v447 : t = ms depuis le debut (rythme du lecteur Godot)
 // v447 : EVENEMENTS A ANIMER pour le lecteur de matchs Godot (spec 2026-09-30-godot-lecteur-de-matchs-design.md)
@@ -9108,7 +9112,108 @@ function matchSnap(){ if(!S || !S.match) return;
   matchRec('pos', {puck:owner, turn:S.turn, pos:parts.join(' ')}); }
 function countShotOnGoal(team){ if(!S.shots) S.shots={A:0,B:0}; S.shots[team]=(S.shots[team]||0)+1; matchRec('shot', {team:team}); }
 function exportMatchJSON(){ var m=S.match||matchNew();
-  return JSON.stringify({meta:{version:GAME_VERSION, date:m.date, roster:matchRoster(), teams:TEAM_NAME, human:HUMAN_TEAM, ai:AI_TEAM, score:S.score, shots:S.shots||{A:0,B:0}, period:S.period, clock:Math.round((S.clock||0)*10)/10, ended:!!S.gameEnded}, events:m.events}); }
+  return JSON.stringify({meta:{version:GAME_VERSION, date:m.date, roster:matchRoster(), teams:TEAM_NAME, human:HUMAN_TEAM, ai:AI_TEAM, score:S.score, shots:S.shots||{A:0,B:0}, period:S.period, clock:Math.round((S.clock||0)*10)/10, ended:!!S.gameEnded}, events:m.events, perf:perfExport()}); }   // v663 : les mesures de performance de l'appareil
+// v663 : LE TEMOIN DE PERFORMANCE (sa demande : « rajoute ce qu'il faut pour que tu aies une image precise de ce qui se passe
+// dans mon telephone » ; spec docs/superpowers/specs/2026-11-10-temoin-performance-design.md). Aucune regle ne change.
+// (A) Toujours actif : l'ecart entre deux images par phase, le temps des morceaux du jeu (toucher, cases permises, render,
+// instantane 3D, IA), les dix pires touchers, les gels de plus de 100 ms. Tout part dans le bloc perf du fichier de match,
+// avec le rapport de la 3D (HJ3D.perf). (B) Le bouton « Performance test » de Settings : 8 etapes de 3 s, jeu en pause.
+var PERF, PERF_EDGES, PERF_LASTF=0, PERF_K=0, PERF_TEST=null;
+var PERF_STEPS=['base','px1','px15','noReflect','noShadow','noArena','noActors','min'], PERF_STEP_MS=3000, PERF_SETTLE_MS=500;
+function perfEdges(){ return PERF_EDGES||(PERF_EDGES=[8,12,17,25,34,50,100,250]); }   // les bornes des tranches (ms)
+function perfNow(){ return (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now(); }
+function perfR1(x){ return Math.round(x*10)/10; }
+function perfStat(){ return {n:0, sum:0, max:0, h:[0,0,0,0,0,0,0,0,0]}; }
+function perfAdd(st, ms){ var E=perfEdges(), i=0; while(i<E.length && ms>E[i]) i++; st.h[i]++; st.n++; st.sum+=ms; if(ms>st.max) st.max=ms; }
+function perfSecs(){ return PERF ? Math.round((perfNow()-PERF.t0)/100)/10 : 0; }
+function perfReset(){
+  PERF={t0:perfNow(), resumed:false, page:{}, span:{}, worstTap:[], stall:[], lt:{n:0, sum:0, max:0}, recent:[], snapN:0, snapBytes:0, snapMax:0, test:null};
+  if(typeof HJ3D!=='undefined' && HJ3D){ HJ3D.perf=null; hj3dSend('cue', 'perf:reset'); }   // la 3D repart de zero aussi
+}
+function perfPhase(){
+  if(typeof S==='undefined' || !S) return 'none';
+  if(PERF_TEST) return 'test';
+  if(S.paused) return 'pause';
+  if(document.body && document.body.classList.contains('office')) return 'office';
+  var mm=document.getElementById('mainMenu'); if(mm && mm.classList.contains('show')) return 'menu';
+  if(S.needDraft) return 'draft';
+  return hj3dPhase();
+}
+// un morceau du jeu, chronometre : nombre, somme, pire, tranches (le temps de ce qu'il appelle est compris)
+function perfSpan(name, fn){ return function(){
+  if(!PERF) return fn.apply(this, arguments);
+  var t=perfNow();
+  try{ return fn.apply(this, arguments); }
+  finally{ if(PERF){ var ms=perfNow()-t; perfAdd(PERF.span[name]||(PERF.span[name]=perfStat()), ms);
+    if(ms>=2){ PERF.recent.push({n:name, t:t, ms:ms}); if(PERF.recent.length>60) PERF.recent.shift(); }
+    if(name==='tap') perfTapNote(ms); } } }; }
+function perfKeep(list, o, max){ var i=0; while(i<list.length && list[i].ms>=o.ms) i++; list.splice(i, 0, o); if(list.length>max) list.length=max; }   // les pires d'abord
+function perfTapNote(ms){ var p=(typeof S!=='undefined' && S && S.sel) ? byId(S.sel) : null;
+  perfKeep(PERF.worstTap, {ms:perfR1(ms), ph:perfPhase(), mom:p ? (p.mom||0) : null, cells:(S && S.moves) ? S.moves.length : 0, t:perfSecs()}, 10); }
+function perfStall(dt, from, to, ph){ var what='?', best=0;   // un gel : le plus long morceau mesure pendant cet ecart
+  for(var i=0;i<PERF.recent.length;i++){ var r=PERF.recent[i]; if(r.t+r.ms>=from-1 && r.t<=to && r.ms>best){ best=r.ms; what=r.n+' '+Math.round(r.ms)+' ms'; } }
+  perfKeep(PERF.stall, {ms:Math.round(dt), ph:ph, what:what, t:perfSecs()}, 40); }
+function perfFrame(){
+  requestAnimationFrame(perfFrame);
+  var now=perfNow(), last=PERF_LASTF; PERF_LASTF=now;
+  if(!PERF || !last) return;
+  var dt=now-last; if(dt>1000 || document.hidden) return;   // page cachee, longue pause : pas une image du jeu
+  var ph=perfPhase(); perfAdd(PERF.page[ph]||(PERF.page[ph]=perfStat()), dt);
+  if(dt>100) perfStall(dt, last, now, ph);
+  var T=PERF_TEST;
+  if(T){ if(!S.paused || S.gameEnded || !hj3dActive()) perfTestEnd(false);   // il reprend le jeu, ou la 3D s'en va : l'essai s'arrete, tout est remis
+    else if(T.cur && Date.now()>=T.cur.from) T.cur.dts.push(dt); }
+}
+// le vrai nom de la puce graphique : lu sur le contexte WebGL que la 3D a deja cree (jamais un nouveau contexte : sans la 3D, rien)
+function perfGpu(){ if(!hj3dActive()) return null; if(HJ3D.gpu) return HJ3D.gpu;
+  try{ if(/jsdom/i.test(navigator.userAgent)) return null;
+    var cv=document.getElementById('g3d'), gl=cv && cv.getContext('webgl2'); if(!gl) return null;
+    var x=gl.getExtension('WEBGL_debug_renderer_info'); HJ3D.gpu=String(x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); return HJ3D.gpu; }catch(e){ return null; } }
+function perfExport(){ if(!PERF) return null;
+  var cv=document.getElementById('g3d'), nav=(typeof navigator!=='undefined') ? navigator : {}, scr=(typeof screen!=='undefined') ? screen : {}, page={}, span={}, k;
+  function st(x){ return {n:x.n, sum:perfR1(x.sum), max:perfR1(x.max), h:x.h}; }
+  for(k in PERF.page) page[k]=st(PERF.page[k]);
+  for(k in PERF.span) span[k]=st(PERF.span[k]);
+  return {v:1, secs:Math.round(perfSecs()), resumed:!!PERF.resumed, edges:perfEdges(),
+    dev:{ua:String(nav.userAgent||''), scr:[scr.width||0, scr.height||0], win:[window.innerWidth||0, window.innerHeight||0], dpr:window.devicePixelRatio||1, cores:nav.hardwareConcurrency||0, mem:nav.deviceMemory||0, touch:nav.maxTouchPoints||0,
+      canvas:cv ? [cv.width, cv.height] : null, k:HJ3D.k||0, view:hj3dActive() ? '3d' : '2d', gpu:perfGpu(), game:GAME_VERSION, g3d:(typeof HJ3D.ver==='string') ? HJ3D.ver : null},
+    page:page, span:span, snap:{n:PERF.snapN, bytes:PERF.snapBytes, max:PERF.snapMax}, worstTap:PERF.worstTap, stall:PERF.stall,
+    lt:{n:PERF.lt.n, sum:Math.round(PERF.lt.sum), max:Math.round(PERF.lt.max)}, g3d:HJ3D.perf||null, test:PERF.test};
+}
+// (B) l'essai : 8 etapes de 3 s (0,5 s d'attente, 2,5 s mesurees), jeu en pause, chacune part de l'etat normal. Le jeu pilote :
+// le repere perf:<etape> dit a la 3D quoi couper ; la nettete du canevas (px1, px15, min), c'est ici (PERF_K -> hj3dFit).
+function perfBanner(txt){ var b=document.getElementById('perfBanner'); if(!b) return; if(txt==null){ b.hidden=true; return; } b.textContent=txt; b.hidden=false; }
+function perfTestCan(){ return typeof S!=='undefined' && !!S && !!S.match && !!S.paused && !S.gameEnded && !S.needDraft && hj3dActive() && !document.body.classList.contains('office'); }
+function perfTestStart(){
+  if(PERF_TEST) return;
+  if(!perfTestCan()){ var b=document.getElementById('setPerf'); b.textContent='3D match only'; setTimeout(function(){ b.textContent='Run'; }, realMs(3000)); return; }
+  _hide('settingsPanel'); _hide('pauseOverlay');   // on voit la 3D ; S.paused reste : les chronos ne tournent pas
+  PERF_TEST={i:-1, steps:[], ph:hj3dPhase(), cur:null, timer:null};
+  perfTestNext();
+}
+function perfTestNext(){ var T=PERF_TEST; if(!T) return;
+  perfStepDone(T); T.i++;
+  if(T.i>=PERF_STEPS.length){ perfTestEnd(true); return; }
+  var name=PERF_STEPS[T.i], cv=document.getElementById('g3d');
+  PERF_K=(name==='px1' || name==='min') ? 1 : (name==='px15' ? 1.5 : 0); hj3dFit();
+  hj3dSend('cue', 'perf:'+name);
+  T.cur={step:name, k:HJ3D.k, cv:cv ? [cv.width, cv.height] : null, dts:[], from:Date.now()+PERF_SETTLE_MS};
+  perfBanner('📊 Performance test — '+(T.i+1)+'/'+PERF_STEPS.length);
+  T.timer=setTimeout(perfTestNext, realMs(PERF_STEP_MS));   // realMs : de vraies secondes, quel que soit le rythme du jeu
+}
+function perfStepDone(T){ var c=T.cur; if(!c) return; T.cur=null;
+  var a=c.dts.slice().sort(function(x, y){ return x-y; }), n=a.length, sum=0; for(var i=0;i<n;i++) sum+=a[i];
+  T.steps.push({step:c.step, k:c.k, cv:c.cv, n:n, fps:sum>0 ? perfR1(1000*n/sum) : 0, med:n ? perfR1(a[n>>1]) : 0, p95:n ? perfR1(a[Math.min(n-1, Math.floor(n*0.95))]) : 0, max:n ? perfR1(a[n-1]) : 0}); }
+function perfTestEnd(done){ var T=PERF_TEST; if(!T) return;
+  PERF_TEST=null; clearTimeout(T.timer);
+  PERF_K=0; hj3dFit(); hj3dSend('cue', 'perf:off');   // tout est remis : nettete, reflets, ombres, batiment, joueurs
+  if(PERF) PERF.test={at:perfSecs(), ph:T.ph, done:done===true, steps:T.steps};
+  perfBanner(done===true ? '✅ Performance test done — send the match' : 'Performance test stopped');
+  setTimeout(function(){ if(!PERF_TEST) perfBanner(null); }, realMs(3000));
+  if(typeof S!=='undefined' && S && S.paused) _show('pauseOverlay');
+}
+try{ if(typeof PerformanceObserver!=='undefined') new PerformanceObserver(function(list){ if(!PERF) return; var e=list.getEntries();
+    for(var i=0;i<e.length;i++){ PERF.lt.n++; PERF.lt.sum+=e[i].duration; if(e[i].duration>PERF.lt.max) PERF.lt.max=e[i].duration; } }).observe({entryTypes:['longtask']}); }catch(e){}   // les taches longues, la ou le navigateur les donne
 function showTextDump(txt){ var ta=document.getElementById('logDump'); if(!ta) return;
   ta.style.position='fixed'; ta.style.left='4vw'; ta.style.top='56vh'; ta.style.width='92vw'; ta.style.zIndex='80'; ta.style.display='block'; ta.value=txt; try{ ta.focus(); ta.select(); }catch(e){}
   var xb=document.getElementById('btnCloseDump'); if(xb){ xb.style.left='4vw'; xb.style.top='49vh'; xb.style.display='block'; } }
@@ -9584,7 +9689,7 @@ function hj3dFit(){   // le canevas prend la taille de la glace, en pixels reels
   if(typeof HJ3D==='undefined' || !HJ3D) return;
   var cv=document.getElementById('g3d'), bw=document.querySelector('.boardwrap'); if(!cv || !bw) return;
   var full=document.body.classList.contains('office');   // v608 : le bureau -- le canevas prend tout l'ecran
-  var k=Math.min(2, window.devicePixelRatio||1), W=Math.round((full ? window.innerWidth : bw.clientWidth)*k), H=Math.round((full ? window.innerHeight : bw.clientHeight)*k);
+  var k=Math.min(PERF_K||2, window.devicePixelRatio||1), W=Math.round((full ? window.innerWidth : bw.clientWidth)*k), H=Math.round((full ? window.innerHeight : bw.clientHeight)*k);
   HJ3D.k=k;
   if(W>0 && H>0 && (cv.width!==W || cv.height!==H)){ cv.width=W; cv.height=H; }
 }
@@ -9645,6 +9750,7 @@ function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien 
   if(!hj3dActive()) return;
   var js; try{ js=JSON.stringify(hj3dSnapshot(slides)); }catch(e){ if(window.console) console.error('hj3d snapshot', e); return; }
   if(js===HJ3D.last) return; HJ3D.last=js;
+  if(PERF){ PERF.snapN++; PERF.snapBytes+=js.length; if(js.length>PERF.snapMax) PERF.snapMax=js.length; }   // v663
   try{ HJ3D.cb('snap', js); hj3dRec('snap', js); }catch(e){ if(window.console) console.error('hj3d cb', e); }   // v527 : gardee pour la reprise
 }
 function hj3dSend(kind, payload){   // v478 : evenement ('ev') ou repere de camera ('cue') vers Godot, dans l'ordre d'emission
@@ -9670,7 +9776,7 @@ function rpBusy(k, d){ var R=ANIM_RATE||1;   // combien de temps la 3D anime ce 
   if(d.e==='hit') return (d.ok ? 180+900 : 700)/R;
   return 0; }
 function rpKey(d){ return JSON.stringify([(d.players||[]).map(function(p){ return [p.id, p.c, p.r, p.dc, p.dr, p.st]; }), d.puck, d.slides, d.board]); }
-function hj3dRec(k, js){ if(k==='replay' || k==='paint' || (k==='cue' && js==='camhome')) return;   /* v609 : les images du bureau ne servent pas a la reprise ; v620 : camhome non plus */ var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
+function hj3dRec(k, js){ if(k==='replay' || k==='paint' || (k==='cue' && (js==='camhome' || String(js).indexOf('perf:')===0))) return;   /* v663 : les reperes de l'essai non plus */   /* v609 : les images du bureau ne servent pas a la reprise ; v620 : camhome non plus */ var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
   while(HJ3D_REC.length>600 || (HJ3D_REC.length && now-HJ3D_REC[0].t>90000)) HJ3D_REC.shift(); }
 function rpSnap(d){ delete d.cells; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
 function replayFeed(team){
@@ -9757,9 +9863,11 @@ var hj3d={
   attach:function(cb){ HJ3D.cb=cb; HJ3D.last=''; if(document.body) document.body.classList.remove('g3dboot'); if(HJ3D.title) document.title=HJ3D.title; hj3dApplyView();
     setTimeout(function(){ HJ3D.last=''; hj3dPush(); }, 0); return true; },   // le 1er instantane part apres le retour a Godot
   tap:function(fc, fr, px){   // un toucher sur la glace 3D = un toucher sur la case 2D (aimant compris)
+    if(PERF_TEST) return false;   // v663 : pendant l'essai de performance, la glace ne repond pas
     var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
     var t=magnetPick(c, r, fc, fr, px/(HJ3D.k||1)); onCell(t.c, t.r); return true; },
-  drag:function(phase, c, r){ return hj3dDrag(phase, c, r); },
+  drag:function(phase, c, r){ if(PERF_TEST) return false; return hj3dDrag(phase, c, r); },
+  perf:function(js){ try{ var d=JSON.parse(js); if(!d || typeof d!=='object') return false; HJ3D.perf=d; return true; }catch(e){ return false; } },   // v663 : le rapport de performance de la 3D (toutes les 2 s)
   office:function(o){ return offMsg(o); },   // v608 : le bureau -- arrivee a un objet (ses 4 coins a l'ecran) ou glissement (obj null)
   ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
@@ -12785,7 +12893,7 @@ function matchResume(){
     if(!byIdIn(s, 'A_TH') && !s.pieces.some(function(q){ return q && q.type==='g' && q.team==='A'; })) throw new Error('no goalie');
     for(var k in MSAVE_FRESH){ var v=MSAVE_FRESH[k]; s[k]=(v && typeof v==='object') ? JSON.parse(JSON.stringify(v)) : v; }
     s.tunnelIn=s.period;   // v510 : un match repris n'a pas d'entree par le tunnel
-    s.diag=DIAG_ON; S=s; MSAVE_ON=true;
+    s.diag=DIAG_ON; S=s; MSAVE_ON=true; perfReset(); PERF.resumed=true;   // v663 : un match repris : les mesures repartent de zero
     _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';
     ['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','pauseOverlay','draftOverlay','tipOverlay','resumeAsk','settingsPanel','careerOverlay','tutMenu','mainMenu'].forEach(_hide);
     var so=document.getElementById('stratDraftOverlay'); if(so){ so.classList.remove('show'); so.style.display='none'; }
@@ -12809,6 +12917,13 @@ function matchAutoPause(){   // la page est cachee (telephone verrouille, autre 
   togglePause();
 }
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden') matchAutoPause(); else glLostCheck(); });
+// v663 : le temoin de performance -- les morceaux chronometres (le nom reste le meme : tous les appels y passent)
+onCell=perfSpan('tap', onCell); inReach=perfSpan('reach', inReach); computeOptions=perfSpan('opts', computeOptions); render=perfSpan('render', render);
+hj3dPush=perfSpan('push', hj3dPush); hj3dDrag=perfSpan('drag', hj3dDrag); aiBuildPlan=perfSpan('ai', aiBuildPlan); commitHiddenDefense=perfSpan('def', commitHiddenDefense);
+if(!PERF) perfReset();
+document.addEventListener('visibilitychange', function(){ PERF_LASTF=0; if(document.visibilityState==='hidden') perfTestEnd(false); });   // la page cachee : l'essai s'arrete, tout est remis
+document.getElementById('setPerf').onclick=perfTestStart;
+if(typeof requestAnimationFrame==='function') requestAnimationFrame(perfFrame);
 /* v640 (son bogue : « quand je reviens d'une pause, quelquefois l'ecran est noir, je dois actualiser » ; son choix « Recharge auto
    + reprise ») : en arriere-plan, le telephone peut vider la 3D (WebGL perdu) ; Godot ne sait pas la refaire (glace noire, meme
    apres le retour du contexte). Au retour (page visible), la page se recharge et reprend le match sauvegarde (debut de l'echange
@@ -12840,7 +12955,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":611660,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":620124,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
