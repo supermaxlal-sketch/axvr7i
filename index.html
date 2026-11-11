@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v666</title>
+<title>Deck 3D v667</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1373,7 +1373,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v666';
+var GAME_VERSION='v667';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4400,12 +4400,18 @@ function battleWinProb(A, B, L){
        + battlePrioTerm(A, B);
   return Math.max(0.10, Math.min(0.90, pr));
 }
+// v667 (son match v663 contre les Lynx, P3 1:48 : « je recupere la rondelle en arriere de moi alors que je suis a pleine vitesse » ;
+// son choix : « Seulement s'il peut y aller ») : un patineur dispute une rondelle libre (bataille ou ramassage seul) seulement si
+// sa case est permise selon sa vitesse et sa direction (la regle de pas v653, comme inTry ; arrete : toutes les directions).
+// Les cases de freinage ne comptent pas ici : une rondelle juste devant lui, il la prend en passant. Le gardien : inchange.
+function looseCan(p, L){ if(!p || p.type!=='sk' || (p.c===L.c && p.r===L.r)) return true; return !!inTry(p, p.c, p.r, L.c, L.r); }
 function findBattlePair(L){
   // BATAILLE seulement si les deux camps ont un joueur COLLE sur la rondelle (1 case)
   var bestA=null, bestB=null, sa=-1e9, sb=-1e9;
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || p.type!=='sk' || (S._bothDown && S._bothDown.indexOf(p.id)>=0)) continue;   // v657 : les deux au sol ne se battent pas pour cette rondelle
     if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r)) > 1) continue;
+    if(!looseCan(p, L)) continue;   // v667 : il ne peut pas y aller (vitesse, direction)
     var sc=battleScore(p,L);
     if(p.team==='A'){ if(sc>sa){ sa=sc; bestA=p; } }
     else { if(sc>sb){ sb=sc; bestB=p; } }
@@ -4420,7 +4426,7 @@ function canReachLoose(p, L){ if(S._bothDown && S._bothDown.indexOf(p.id)>=0) re
   if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r))>1) return false;
   // le trajet doit etre DEGAGE : on ne traverse ni un adversaire ni un coequipier
   var pb=pathBlocked(p, L.c, L.r);
-  return (pb.spot.c===L.c && pb.spot.r===L.r);
+  return (pb.spot.c===L.c && pb.spot.r===L.r) && looseCan(p, L);   // v667
 }
 function nearestToLoose(L){
   // le joueur le mieux place qui peut vraiment latteindre, trajet degage
