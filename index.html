@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v663</title>
+<title>Deck 3D v664</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1373,7 +1373,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v663';
+var GAME_VERSION='v664';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3867,14 +3867,14 @@ function pressPassBad(p, t, pp, _flow){   // la passe part mal : touchee par le 
     var v=rotVec(tc-pc, tr-pr, (Math.random()<0.5?-1:1)*(0.5+Math.random()*0.65)), path=puckPath(pc, pr, v.x, v.y, 0.45*boardPower(PUCK_POW.passShort, PUCK_POW.passLong, cheb(p,t), 3, 8)), L=path.rest;
     pushLog('<b>Under pressure</b>: '+nr.name+' charges in — '+nr.name+' gets a stick on it. '+p.name+"'s pass bounces away, loose.");
     document.getElementById('outcome').innerHTML='Under pressure!'; render();
-    flyPuckPath(path.pts, function(){ placeLooseNear(L.c, L.r); sfx('block'); S.animating=false; render(); looseBall(nr.team, null); });
+    flyPuckPath(path.pts, function(){ placeLooseNear(L.c, L.r); looseOffside(p.team, pc);   /* v664 : hors-jeu differe (une deviation ne l'annule pas) */ sfx('block'); S.animating=false; render(); looseBall(nr.team, null); });
     return; }
   var best=null, bd=1e9, M=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
   M.forEach(function(m){ var c=tc+m[0], r=tr+m[1]; if(c<0 || r<0 || c>=COLS || r>=ROWS || pieceAt(c, r)) return; var dd=distToSeg(c, r, pc, pr, tc, tr).d+Math.random()*0.3; if(dd<bd){ bd=dd; best={c:c, r:r}; } });
   if(!best) best={c:tc, r:tr};
   pushLog('<b>Under pressure</b>: '+(nr ? nr.name+' charges in — ' : '')+p.name+"'s pass is off target.");
   document.getElementById('outcome').innerHTML='Under pressure!'; render();
-  flyPuckBoard(pc, pr, best.c, best.r, function(){ placeLooseNear(best.c, best.r); S.animating=false; render(); looseBall(p.team, null); }, _flow ? _flow.ms/1000 : undefined); }
+  flyPuckBoard(pc, pr, best.c, best.r, function(){ placeLooseNear(best.c, best.r); looseOffside(p.team, pc);   /* v664 (son match v663, P1 1:18 : Lachapelle rate sa passe de 10,4, la rondelle roule a 9,4, Breton y etait deja) : hors-jeu differe, comme le poke v593 */ S.animating=false; render(); looseBall(p.team, null); }, _flow ? _flow.ms/1000 : undefined); }
 function passOdds(p,t){   // % que la passe passe : couloir actuel (1-thr/6) ET risque qu'un adversaire s'y deplace ; jamais 100%
   if(!p||!t) return null;
   var lt=laneThreat(p,t);
@@ -12835,6 +12835,7 @@ var AI_TIMER=setInterval(function(){
   }
   if(S.paused) return;
   if(S.aiPlan) return;   // elle a un plan pose, elle attend ta confirmation
+  if(S.currentSeq && !S.currentSeq.dead) return;   // v664 (son match v663, fin du match) : une sequence se joue encore (un degagement : « both teams finish their actions, then the race — defence first ») -> pas de coup de rondelle libre en plus (avant : l'IA en jouait un toutes les 520 ms, il n'avait aucun tour)
   if(!S.puckOwner && S.puckLoose && S.gestes>0){  aiScrambleMove(); return; }
 }, 520);
 document.getElementById('btnNewGame').onclick=function(){ newGame('A'); MSAVE_ON=true; };   // v499 : une nouvelle partie rapide se sauvegarde
