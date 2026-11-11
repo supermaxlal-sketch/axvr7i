@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v664</title>
+<title>Deck 3D v665</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1373,7 +1373,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v664';
+var GAME_VERSION='v665';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -5513,7 +5513,7 @@ function cutDuel(seq, p){
     S._shook={id:p.id, rank:(seq?seq.rank:0)};                    // GAGNE : seme ce temps
     huntBite(mk, seq ? seq.rank : 0);   // v560 : le chasseur perd aussi l'action suivante
     pushLog('<span style="color:#ff8fbf">Sharp cut</span>: '+p.name+' cuts and loses '+mk.name+'!');
-    bonusTrigger(p, 'cut');   // v438 : echappee
+    // v665 (ses choix) : la coupe seche seme le couvreur pour ce temps, sans action bonus (avant : l'echappee v438)
   }
 }
 function hasOrder(id,kind){ if(!S.defOrders) return null; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id && o.order===kind && !o.used) return o; } return null; }
@@ -7117,7 +7117,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run, _hs, _hr); if(S.puckLoose) looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML=hitHead(_out.res, cName, carName); pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+'. '+hitLog(_out.res, cName, carName)); }
     else if(isLift){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; careerTrack('steal', {id:checker.id}); document.getElementById('outcome').innerHTML='Stick lift! '+cName+' takes the puck from '+carName+'.'; pushLog('<b>Stick lift</b>: '+cName+dpos(checker)+' lifts the stick of '+carName+dpos(C)+' and takes the puck.'); }   // v648
     else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); looseOffside(checker.team, cc); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
-  else if(_blowby){ if(C.team===HUMAN_TEAM) tipTrigger('blowby');   /* v460 */ bonusTrigger(C, 'speed'); /* v438 : echappee */ document.getElementById('outcome').innerHTML=carName+' blows by '+cName+'!'; pushLog('<b>'+carName+'</b> blows by '+cName+dpos(checker)+' with speed — beaten flat.'); }
+  else if(_blowby){ if(C.team===HUMAN_TEAM) tipTrigger('blowby');   /* v460 */ if(S.tut) S.tut.blowby=(S.tut.blowby||0)+1;   /* v665 (ses choix : « on enleve l'action bonus partout », « garde l'action bonus seulement pour une feinte reussie ») : une mise en echec ratee ne donne plus d'echappee (v438) -- le plan continue */ document.getElementById('outcome').innerHTML=carName+' blows by '+cName+'!'; pushLog('<b>'+carName+'</b> blows by '+cName+dpos(checker)+' with speed — beaten flat.'); }
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
   else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (isLift ? (carName+' keeps his stick on the puck.') : (carName+' shields the puck.')); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : (isLift ? ('<b>Stick lift</b> missed: '+carName+' keeps the puck away from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.'))); }
   render(); checkFx(success?(isBody?'body':(isLift?'lift':'poke')):(_blowby?'blowby':(_feintBeat?'dekestop':(_shielded?'shield':(isBody?'checkmiss':(isLift?'liftmiss':'pokemiss'))))), cc, cr);   /* rate nomme l'action : PROTECTED si bouclier, sinon CHECK MISSED / POKE MISSED */ if(anticipated){ var ocp=document.getElementById('outcome'); ocp.innerHTML='Pressure read! '+ocp.innerHTML; } var activeHas=!!(S.puckOwner && byId(S.puckOwner) && byId(S.puckOwner).team===activeTeam); var lost=activeHad && !activeHas;
@@ -12523,8 +12523,8 @@ var TUT_LESSONS=[
     {say:"A defender right next to your carrier can hit him, or poke the puck away. Two ways to beat him: speed (the blow-by), or the deke. First, speed: Roy is skating fast (speed 3).", next:true},
     {say:"Tap Roy, then the lit square past Pageau (or drag Roy there). Roy finishes his run right past him.", hl:['p:A_RO','c:18,4'], allow:['p:A_RO','c:18,4','r:A_RO'],
       reject:function(){ return tutMovedWrong('A_RO',18,4); }, until:function(){ return tutMovedTo('A_RO',18,4); }},
-    {say:"Tap GO.", hl:['b:go'], allow:['b:go'], until:function(){ return !!S.bonus && S.planning; }},
-    {say:"Blow-by! At speed 3 or more, finish your run past the defender: once he is behind you, he cannot stop you. The contact fails, and you get a breakaway (one free action). Not fast enough, or no room to get past him? Skate next to him and deke.", next:true},
+    {say:"Tap GO.", hl:['b:go'], allow:['b:go'], until:function(){ return !!S.tut.blowby && !S.currentSeq && !S.animating; }},   // v665 : le debordement ne donne plus d'echappee
+    {say:"Blow-by! At speed 3 or more, finish your run past the defender: once he is behind you, he cannot stop you. The contact fails, and you keep the puck and your speed. Not fast enough, or no room to get past him? Skate next to him and deke.", next:true},
     {say:"Now the deke. Tap Roy. The purple squares show where he can deke from: right next to Pageau.", hl:['p:A_RO'], allow:['p:A_RO'], until:function(){ return S.sel==='A_RO'; },
       enter:function(){ S.bonus=null; tutPlace({A:[['A_RO',16,4,'AG']], B:[['B_PA',19,4]], puck:'A_RO', mirror:false}); var r=byId('A_RO'); r.mom=3; r.speed=3; r.vel={dc:1,dr:0}; byId('B_PA').facing={dc:-1,dr:0}; tutGo(); }},   // v460 : la situation du deke
     {say:"Move Roy to the lit square, next to Pageau. Only 2 squares: he can still deke from there.", hl:['c:18,4'], allow:['c:18,4','r:A_RO'],
@@ -12781,7 +12781,7 @@ var TIPS={
   loose:"Loose puck! One move each. Skate onto the puck to take it.",
   battle:"Battle: physique, hands and position decide. A teammate next to the puck helps.",
   wear:"Each hit you survive makes the next one easier. Move the puck!",
-  blowby:"Blow-by! At speed 3 or more, finish your run past a defender: once he is behind you, he cannot stop you. You get a breakaway.",
+  blowby:"Blow-by! At speed 3 or more, finish your run past a defender: once he is behind you, he cannot stop you.",
   breakaway:"Breakaway! One free action, and the defense does not move.",
   goalie:"Your goalie has the puck: 3 seconds to pass it, or he freezes it.",
   wrap:"Behind the net: try a wraparound. It needs speed.",
