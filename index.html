@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v668</title>
+<title>Deck 3D v669</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -697,6 +697,7 @@ button.act:active,button.cbtn:active,.perkbtn:active,.fobtn:active,.dconfirm:act
 .cell.mv-far::after{background:var(--amber);}   /* v603 : case du porteur a 2 actions (plus de 3 cases : il ne lance plus apres) -- plus de jaune a reculons */
 .cell.mv-pivot::after{background:var(--purp);}
 .cell.mv-cost::after{background:#7fb6e3;}   /* v653 : il y va, mais il doit freiner, virer sec ou pivoter */
+.cell.mv-crash::before{content:'';position:absolute;left:38%;top:38%;width:24%;height:24%;border-radius:50%;background:#cf2d2d;z-index:2;pointer-events:none;}   /* v669 : il s'ecrase dans la bande la */
 .cell.mv-curve::after{background:#35c6b0;border-radius:50% 50% 50% 0;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(53,198,176,.4);}   /* v408 : case de COURBE (virage serre, elan garde) */
 .cell.mv-cut::after{background:#ff8fbf;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px rgba(255,143,191,.45);}
 .cell.bendvia::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);width:34%;height:34%;background:#ff8fbf;box-shadow:0 0 0 2px rgba(255,255,255,.95),0 0 10px 2px rgba(255,143,191,.7);z-index:3;}
@@ -1373,7 +1374,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v668';
+var GAME_VERSION='v669';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1756,6 +1757,7 @@ function resolveSeq(seq){
       if(S.puckOwner===p.id && inOffZone(p.team, p.c) && !inOffZone(p.team, oc) && _preMateInZone){
         killSeq(seq); S.currentSeq=null; render(); triggerOffside(p.team, p.r); return;
       }
+      if(boardsCheck(p)==='fall' && !S.puckOwner && S.puckLoose){ killSeq(seq); S.currentSeq=null; S.animating=true; render(); setTimeout(function(){ S.animating=false; looseBall(p.team==='A'?'B':'A'); }, 700); return; }   // v669 : il s'ecrase avec la rondelle
       render();
       var _car=byId(S.puckOwner);
       var ambushId=(df && df!=='takeover' && _car && _car.id===p.id && _car.id!==df.id && df.team!==_car.team &&
@@ -3358,6 +3360,7 @@ function doMoveRouteLoose(p, path, det){
   if(cut!==null){ sp.path=sp.path.slice(0, cut+1); sp.c=L.c; sp.r=L.r; }
   sp.rest=[];
   skateToSpot(p, sp); p._movedThisTurn=true;
+  if(boardsCheck(p, true)==='fall'){ spend(); return; }   // v669
   if(cut!==null){ var ot=pickupLoose(p, p.c, p.r); if(ot){ triggerOffside(ot, p.r); return; } }
   if(S.puckOwner===p.id){ pushLog('<b>'+p.name+'</b> curls onto the loose puck and takes it.'); gainPuck(p.team); return; }
   render(); spend();
@@ -3399,14 +3402,15 @@ function computeOptions(){
           var _dp=detourPath(p, _st0.c, _st0.r, x, y, S.planning ? function(a,b){ return ghostBusy(a,b,p.id); } : whoAt(p.id));   // v492 : ... mais on contourne
           if(_dp && _dp.path.length<=planBudget(p, Math.sign(x-_st0.c), Math.sign(y-_st0.r))) S.moves.push({c:x, r:y, kind:_mkind, curve:true, path:_dp.path, detour:true});
           continue; }
-        S.moves.push({c:x,r:y,kind:_mkind,cost:_w0.cost});
+        S.moves.push({c:x,r:y,kind:_mkind,cost:_w0.cost,crash:_w0.crash});
       }
     }
     _front=_next;
   }
   if(_rng>0){ var _inr=inReach(p, _st0.c, _st0.r, _pst0, function(x,y){ return S.planning?ghostBusy(x,y,p.id):!!(pieceAt(x,y) && pieceAt(x,y).id!==p.id); });   // v653 : les arrivees qui demandent un trajet (grand virage, virage brusque, pivot)
     for(var _ci=0;_ci<_inr.length;_ci++){ var _o=_inr[_ci], _dup=false; for(var _mi=0;_mi<S.moves.length;_mi++){ if(S.moves[_mi].c===_o.c && S.moves[_mi].r===_o.r){ _dup=true; break; } }
-      if(!_dup) S.moves.push({c:_o.c, r:_o.r, kind:'fwd', curve:true, walk:true, path:_o.path, cost:_o.cost}); } }
+      if(!_dup) S.moves.push({c:_o.c, r:_o.r, kind:'fwd', curve:true, walk:true, path:_o.path, cost:_o.cost, crash:_o.crash}); } }
+  if(S.moves.some(function(m){ return m.crash; }) && p.team===HUMAN_TEAM) tipTrigger('boards');   // v669
   if(ownsPuck(p.id)) fillPassTargets(p);
   if(S.planning && ownsPuck(p.id)) fillRoutePassTargets(p);   // v428 : passe dans le trajet
   for(var dc=-1;dc<=1;dc++)for(var dr=-1;dr<=1;dr++){ if(!dc&&!dr) continue;
@@ -4023,7 +4027,28 @@ function inPush(a, p, dc, dr){
   return '';
 }
 function inWall(a){ return !!a.v && !onIce(a.x+a.v.dc, a.y+a.v.dr); }
-function inEndMom(a){ return (inWall(a) && a.m>0) ? 0 : Math.min(a.cap, a.s, a.n); }   // patiner court = freiner ; la bande avant ses cases de freinage : arrete
+function inEndMom(a){ return inWall(a) ? 0 : Math.min(a.cap, a.s, a.n); }   // v669 : la bande l'arrete (ou il tombe : boardsCheck) -- plus de joueur colle a la bande avec de l'elan
+// v669 (son match v663 contre les Lynx, P3 2:36 : « si on ne freine pas, il faudrait que le joueur entre a pleine vitesse dans la bande et
+// tombe sur le dos, risque de blessure » ; son choix : « Il tombe a vitesse 4 et plus ») : arriver a la bande lance (la case devant lui,
+// dans sa direction, est hors glace) -- vitesse 4, 5, 6 : il s'ecrase et tombe ; 3 ou moins : la bande l'arrete (elan 0)
+var BOARDS_FALL=4;
+function inCrash(a){ return !!a && a.n>0 && inWall(a) && a.s>=BOARDS_FALL; }
+function boardsCrashAt(p, tc, tr, st){ if(!p || p.type!=='sk' || (p.c===tc && p.r===tr)) return false; var w=inTry(p, p.c, p.r, tc, tr, st); return !!(w && w.crash); }
+function boardsFall(p, wait){   // il s'ecrase : il tombe, perd la rondelle (libre, a cote), sonne, elan 0 ; en carriere, le risque « boards ». Rend true s'il avait la rondelle
+  var had=(S.puckOwner===p.id);
+  pushLog('<b>'+p.name+'</b> hits the boards at full speed and goes down!');
+  var _v=(p.vel && (p.vel.dc||p.vel.dr)) ? p.vel : facingOf(p), _fe={id:p.id, boards:true, c:p.c, r:p.r, dc:_v.dc||0, dr:_v.dr||0};   // la 3D : il tombe sur le dos, a l'oppose de sa course
+  var _fw=wait ? slideMs(S.slides && S.slides[p.id]) : 0; if(_fw>0) setTimeout(function(){ matchEv('fall', _fe); }, _fw); else matchEv('fall', _fe);   // a la bande, pas au debut de sa glisse
+  p.mom=0; p.speed=0; p.route=null; p._inA=null; p._skatedDist=0; p._inKeep=0; p._detourLoss=0;
+  stSet(p, 'stun'); careerContact(p.id, 'boards', null);
+  if(had){ S._looseLoser=p.id; S.puckOwner=null; placeLooseNear(p.c, p.r); }
+  S._bothDown=(S._bothDown||[]).concat([p.id]);   // au sol : il ne dispute pas cette rondelle (v657)
+  render(); checkFx('trip', p.c, p.r);
+  return had; }
+function boardsCheck(p, wait){   // apres son patinage : 'fall', 'stop' ou null ; wait : son glissement commence a peine (la chute a la bande)
+  var a=p && p._inA; if(!a || !a.n || !inWall(a)) return null;
+  if(a.s>=BOARDS_FALL){ boardsFall(p, wait); return 'fall'; }
+  return 'stop'; }   // patiner court = freiner ; la bande avant ses cases de freinage : arrete
 function inCost(a){ return a.man>0 || a.s-Math.min(a.s,a.n)>=2; }   // il a du freiner, virer sec ou pivoter : case pale
 function inShort(a){ return a.n>0 && a.n<a.m0 && !inWall(a) && !pieceAt(a.x+a.v.dc, a.y+a.v.dr); }      // pas assez de cases pour s'arreter (la bande ou un joueur juste devant l'arretent)
 function inWalk(p, fc, fr, path, st){
@@ -4033,7 +4058,7 @@ function inWalk(p, fc, fr, path, st){
     if(why) break; }
   var stop=(why==='turn' || why==='wide');
   return {n:k, sp:a.sp, tags:a.tags, man:a.man, why:why, need:stop?a.m:0, stop:stop, gentle:!a.man, back:a.back, short:inShort(a), cost:inCost(a),
-    endMom:a.n?inEndMom(a):a.s, endVel:a.v||v0, endRun:a.sc};
+    endMom:a.n?inEndMom(a):a.s, endVel:a.v||v0, endRun:a.sc, crash:inCrash(a)};
 }
 function inLine(p, dc, dr, st){ var a=inState(p, st, 0, 0); while(!inPush(a, p, dc, dr)){} return a.n; }
 // les cases d'une arrivee sans trajet : la diagonale d'abord, ou le droit d'abord
@@ -4071,7 +4096,7 @@ function inReach(p, fc, fr, st, busy){
         var _sn=seen.get(key); if(_sn!=null && _sn<=a.man) continue;
         seen.set(key, a.man);
         var path={c:x, r:y, prev:nd.path}, cell=x+','+y, b=best[cell];
-        if((x!==fc || y!==fr) && !inShort(a) && (!b || a.man<b.man)) best[cell]={c:x, r:y, path:path, man:a.man, cost:inCost(a)};
+        if((x!==fc || y!==fr) && !inShort(a) && (!b || a.man<b.man)) best[cell]={c:x, r:y, path:path, man:a.man, cost:inCost(a), crash:inCrash(a)};
         next.push({a:a, path:path});
       } }
     front=next; }
@@ -4122,6 +4147,7 @@ function aiAim(p, tc, tr, taken, busy, accept, chase){
   var T={c:tc, r:tr}, bz=busy||function(x,y){ var o=pieceAt(x,y); return !!(o && o.id!==p.id); };
   var L=inReach(p, p.c, p.r, null, bz).filter(function(o){ return !(taken && taken[o.c+','+o.r]) && (!accept || accept(o)); });
   if(!L.length) return null;
+  var _Lsafe=L.filter(function(o){ return !o.crash; }); if(_Lsafe.length) L=_Lsafe;   // v669 : l'IA evite la bande a pleine vitesse, sauf si elle n'a rien d'autre
   function d2(o){ return (o.c-tc)*(o.c-tc)+(o.r-tr)*(o.r-tr); }
   L.sort(function(a,b){ return (cheb(a,T)-cheb(b,T)) || (d2(a)-d2(b)) || (a.man-b.man); });
   var best=null, bk=null;
@@ -4287,7 +4313,10 @@ function glide(p){
     for(var k=1;k<=n;k++){ var x=p.c+sx*k, y=p.r+sy*k;
       if(x===L.c && y===L.r){ var _hold=battleHolds(p); spot = (back||_hold) ? {c:x-sx, r:y-sy} : {c:x, r:y}; got=!back && !_hold; break; } }   // v497 : bataille -> il s'arrete juste avant
   }
+  var _gw=!onIce(spot.c+f.dc, spot.r+f.dr) && (p.mom||0)>=BOARDS_FALL;   // v669 : la glisse finit dans la bande a pleine vitesse -- il s'ecrase (il ne prend pas la rondelle)
+  if(_gw && got){ got=false; }
   if(spot.c!==p.c || spot.r!==p.r){ var oc=p.c, orr=p.r; p.c=spot.c; p.r=spot.r; addSlide(p.id, oc-p.c, orr-p.r); p._run=3; }   /* v653 : la glisse, c'est tout droit */
+  if(_gw){ boardsFall(p, true); if(S.puckLoose && S.puckLoose.c===p.c && S.puckLoose.r===p.r) placeLooseNear(p.c, p.r); return null; }
   if(got){ var ot=pickupLoose(p, p.c, p.r); if(S.puckOwner===p.id) return {p:p, ot:ot||null}; }
   return null;
 }
@@ -6144,7 +6173,7 @@ function checkFx(type, c, r){ var fx=document.getElementById('checkfx'); if(!fx)
     if(bf){ bf.classList.remove('go'); void bf.offsetWidth; bf.classList.add('go'); setTimeout(function(){ bf.classList.remove('go'); }, 340); } }
   setTimeout(function(){ fx.style.display='none'; fx.classList.remove('go'); }, BIG?900:650); }
 function predictDest(p){ var nc=goalCol(p.team); var dcn=p.c<nc?1:(p.c>nc?-1:0); var pc=Math.max(0,Math.min(COLS-1,p.c+2*dcn)); var dr=p.r<CTR_R?1:(p.r>CTR_R?-1:0); var pr=Math.max(0,Math.min(ROWS-1,p.r+dr)); return {c:pc,r:pr}; }
-function slideToward(e,tc,tr,taken){ var M=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]; var bc=e.c, br=e.r, bd=Math.max(Math.abs(e.c-tc),Math.abs(e.r-tr)); for(var k=0;k<M.length;k++){ var x=e.c,y=e.r; for(var st=1, _lim=dirBudget(e, M[k][0], M[k][1]); st<=_lim; st++){ /* v383 : portee = elan ; v384 : selon la direction (ligne de course) */ x+=M[k][0]; y+=M[k][1]; if(!onIce(x,y)) break; if(pieceAt(x,y)) break; if(taken && taken[x+','+y]) continue; var d=Math.max(Math.abs(x-tc),Math.abs(y-tr)); if(d<bd){ bd=d; bc=x; br=y; } } }
+function slideToward(e,tc,tr,taken){ var M=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]; var bc=e.c, br=e.r, bd=Math.max(Math.abs(e.c-tc),Math.abs(e.r-tr)); for(var k=0;k<M.length;k++){ var x=e.c,y=e.r; for(var st=1, _lim=dirBudget(e, M[k][0], M[k][1]); st<=_lim; st++){ /* v383 : portee = elan ; v384 : selon la direction (ligne de course) */ x+=M[k][0]; y+=M[k][1]; if(!onIce(x,y)) break; if(pieceAt(x,y)) break; if(taken && taken[x+','+y]) continue; if(boardsCrashAt(e, x, y)) continue; /* v669 : l'IA evite la bande a pleine vitesse */ var d=Math.max(Math.abs(x-tc),Math.abs(y-tr)); if(d<bd){ bd=d; bc=x; br=y; } } }
   var _cvs=curvePaths(e), _best=null; for(var _ci=0;_ci<_cvs.length;_ci++){ var _o=_cvs[_ci]; if(taken && taken[_o.c+','+_o.r]) continue; var _d=Math.max(Math.abs(_o.c-tc),Math.abs(_o.r-tr)); if(_d<bd){ bd=_d; _best=_o; } }   // v408 : un joueur lance dans le mauvais sens prend la COURBE si elle le rapproche plus que le freinage
   return _best || {c:bc,r:br}; }
 function doMove(p,c,r){
@@ -6213,7 +6242,9 @@ function doMoveExec(p,c,r){
     else pushLog(_rv.df.name+' shifts over with the play.');
   }
   if(p.type==='sk' && Math.sign(c-oldC)===-facingOf(p).dc && S.puckLoose && S.puckLoose.c===c && S.puckLoose.r===r) p.facing={dc:Math.sign(c-oldC), dr:0};   // v475 : il va chercher la rondelle -> il se retourne
-  var otouch=pickupLoose(p,c,r);   // v475 : arrive SUR la rondelle = il la prend (avant : jamais a reculons, il restait pose dessus)
+  var _bx=boardsCheck(p, true);   // v669
+  if(_bx==='fall'){ if(scramble){ spend(); return; } if(hadPuck){ S.animating=true; render(); setTimeout(function(){ S.animating=false; looseBall(p.team==='A'?'B':'A'); }, 700); return; } }
+  var otouch=_bx==='fall' ? null : pickupLoose(p,c,r);   // v475 : arrive SUR la rondelle = il la prend (avant : jamais a reculons, il restait pose dessus)
   if(otouch){ triggerOffside(otouch,p.r); return; }
   if(scramble){ if(S.puckOwner===p.id){ gainPuck(p.team); } else {  spend(); } return; }
   if(hadPuck && S.puckOwner===p.id && inOffZone(p.team,c) && !inOffZone(p.team,oldC) && teammateInOffZone(p.team,p.id)){ triggerOffside(p.team,p.r); return; }
@@ -9406,11 +9437,12 @@ function render(){
     var _cr=28*0.3048/2*MARK_SCALE; _bd.style.borderRadius=(100*_cr/COLS).toFixed(1)+'%/'+(100*_cr/ROWS).toFixed(1)+'%'; }   // v387 : coins NHL (28 pi) a l'echelle de la glace
   paintRink();
   var mset={}, _msel=byId(S.sel); for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=(S.moves[m].curve&&!S.moves[m].walk)?'curve':(moveFar(_msel, S.moves[m])?'far':(S.moves[m].cost?'cost':(S.moves[m].kind||'fwd')));   // v408 : case de courbe   // v603 : case du porteur a 2 actions
+  var _crash={}; for(var _cm=0;_cm<S.moves.length;_cm++) if(S.moves[_cm].crash) _crash[S.moves[_cm].c+','+S.moves[_cm].r]=1;   // v669 : la pastille rouge
   var _hunt=huntShown();   // v629
   for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
     var cell=document.createElement('button'); cell.className='cell'; cell.setAttribute('aria-label','square '+(c+1)+','+(r+1));
     var p=pieceAt(c,r), key=c+','+r, clickable=false;
-    if(mset[key]){ cell.className+=' mv'+(mset[key]==='far'?' mv-far':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':(mset[key]==='cost'?' mv-cost':''))))); clickable=true; }
+    if(mset[key]){ cell.className+=' mv'+(mset[key]==='far'?' mv-far':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':(mset[key]==='cost'?' mv-cost':''))))); if(_crash[key]) cell.className+=' mv-crash'; clickable=true; }
     if(isDekeApproach(c,r)){ cell.className+=' dka'; clickable=true; }   // guide mauve : va la pour deker
     if(S.dumpAim){ cell.className+=' dmpaim'; clickable=true; if(isDumpTarget(c,r)) cell.className+=' dmpt'; }
     if(S.cycleAim){ var _cap=byId(S.cycleAim); if(_cap && p && cycleTargets(_cap).indexOf(p.id)>=0){ cell.className+=' cyct'; clickable=true; } }
@@ -10461,7 +10493,7 @@ function careerContact(id, kind, by){   // v489 : un contact peut blesser (selon
   (S.injQ=S.injQ||[]).push(id); careerInjuryWhistle();
 }
 function careerInjWhy(kind, by){ var n=(by && by.name) ? by.name : 'a rival';   // v516 : la cause, dans le message
-  return ({hit3:'big hit by '+n, hit4:'big hit by '+n, behind:'hit from behind by '+n, boards:'driven into the boards by '+n, blk:'blocking a shot from '+n,
+  return ({hit3:'big hit by '+n, hit4:'big hit by '+n, behind:'hit from behind by '+n, boards:(by ? 'driven into the boards by '+n : 'crashed into the boards'), blk:'blocking a shot from '+n,
     stick:'hooked by '+n, defl:'tipped puck to the face', crease:n+' crashes into the crease'})[kind] || kind; }
 function nearBoards(c, r){ return !onIce(c-1, r) || !onIce(c+1, r) || !onIce(c, r-1) || !onIce(c, r+1); }
 function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- dans le dos, avec elan (3+), ou contre la bande (la plus dangereuse compte)
@@ -12822,6 +12854,7 @@ document.getElementById('tutBack').onclick=function(){ _hide('tutMenu'); showMai
    toi, draft). Seulement dans une partie lancee du menu (Quick Play / Play), jamais pendant une lecon. */
 var TIPS_KEY='hjTips', TIPS_ARMED=false, _tipQ=[];
 var TIPS={
+  boards:"Red dot: he hits the boards there at full speed. He falls and loses the puck. Stop short, or turn earlier.",
   blowby:"Pink ring: with this speed, your carrier blows by that defender if he tries to stop him.",
   plan:"Plan up to 3 actions, one per player. The Caribous plan at the same time. Then both plans play out, step by step.",
   ambush:"You defend now. Pick up to 3 defenders: a square, then an order (Body check, Block the pass...).",
@@ -13008,7 +13041,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":620124,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":620204,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
