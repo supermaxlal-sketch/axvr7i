@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v667</title>
+<title>Deck 3D v668</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1373,7 +1373,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v667';
+var GAME_VERSION='v668';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1908,6 +1908,7 @@ function resolveSeq(seq){
     // v385 : le deke a ete planifie depuis la position FANTOME. On le joue depuis la position REELLE :
     // il faut etre COLLE au defenseur, et la case d'arrivee est recalculee (sinon un porteur bloque en route
     // "sautait" jusqu'a la case prevue -- rapport v384, Desjardins 12,6 -> 9,4).
+    dekeStepIn(p, _dt);   // v668 : a 2 cases, il avance d'abord d'une case vers lui
     var _land=a.land, _side=a.side;
     if(_dt.type==='sk'){
       var _dts=(cheb(p,_dt)===1) ? dekeTargets(p).filter(function(t){ return t.defId===_dt.id; }) : [];
@@ -2134,9 +2135,28 @@ function inSlot(p){
 function armOneTimer(){ var p=byId(S.sel); if(!p||p.type!=='sk'||p.team!==S.turn||!canShootFrom(p)||ownsPuck(p.id)) return; S.oneTimer=p.id; setHint(p.name+' is ready for a one-timer — feed him from the '+forehandHint(p).toUpperCase()+' side for his forehand.'); render(); }
 function cancelOneTimer(){ S.oneTimer=null; render(); }
 // Deke avec choix de cote : cases de contournement (gauche/droite) au-dela d'un patineur adverse adjacent.
+// v668 (son match v663 contre les Lynx, P2 1:36 : « je ne vois pas les options dekes quand j'arrive pres du gardien ; elles devraient
+// apparaitre a 2 carres » ; son choix : « Le gardien et les defenseurs ») : la feinte s'offre aussi a 2 cases, en ligne droite ou en
+// diagonale, sans personne entre les deux -- le porteur avance d'abord d'une case vers lui (meme action), puis la feinte comme avant
+function dekeLine(p, base, e){   // la case du milieu si e est a 2 cases en ligne (droite ou diagonale) et qu'elle est libre ; sinon null
+  if(!p || !e || !base) return null; var dx=e.c-base.c, dy=e.r-base.r;
+  if(Math.max(Math.abs(dx),Math.abs(dy))!==2 || (dx && Math.abs(dx)!==2) || (dy && Math.abs(dy)!==2)) return null;
+  var m={c:base.c+dx/2, r:base.r+dy/2}; if(!onIce(m.c,m.r)) return null;
+  if(S.planning ? ghostBusy(m.c,m.r,p.id) : (function(){ var o=pieceAt(m.c,m.r); return !!o && o.id!==p.id; })()) return null;
+  return m; }
+function dekeStepIn(p, d){   // a 2 cases : il avance d'une case vers lui (le jeu, pas le plan)
+  if(!p || !d || cheb(p,d)!==2 || S.puckOwner!==p.id) return false; var m=dekeLine(p, {c:p.c, r:p.r}, d); if(!m) return false;
+  var oc=p.c, orr=p.r; p.c=m.c; p.r=m.r; markSkated(p, oc, orr, m.c, m.r); addSlide(p.id, oc-m.c, orr-m.r);
+  pushLog(p.name+' steps in on '+d.name+'.'); return true; }
 function dekeTargets(p, baseC, baseR){
   if(!p) return [];
   var base=(baseC!==undefined) ? {c:baseC, r:baseR} : (S.planning?ghostOf(p):{c:p.c,r:p.r}), out=[];   // base optionnelle : tester un deke depuis une case hypothetique (guide des cases-approche)
+  for(var dc2=-1;dc2<=1;dc2++)for(var dr2=-1;dr2<=1;dr2++){ if(!dc2&&!dr2) continue;   // v668 : a 2 cases, depuis la case du milieu
+    var d2=pieceAt(base.c+2*dc2, base.r+2*dr2); if(!d2 || d2.team===p.team || d2.type!=='sk') continue;
+    var m2=dekeLine(p, base, d2); if(!m2) continue;
+    var stC=Math.sign(d2.c-m2.c) || dir(p.team), tc2=d2.c+stC;
+    for(var s2=-1;s2<=1;s2+=2){ var tr2=d2.r+s2; if(!onIce(tc2,tr2) || (S.planning?ghostBusy(tc2,tr2,p.id):pieceAt(tc2,tr2))) continue;
+      out.push({c:tc2, r:tr2, defId:d2.id, side:s2, step:{c:m2.c, r:m2.r}}); } }
   for(var dc=-1;dc<=1;dc++)for(var dr=-1;dr<=1;dr++){ if(!dc&&!dr) continue;
     var d=pieceAt(base.c+dc, base.r+dr);
     if(!d || d.team===p.team || d.type!=='sk') continue;         // patineur adverse adjacent (le gardien garde le tap direct)
@@ -2282,15 +2302,16 @@ function cutInside(p, list){
 // v651 (sa question : « je ne vois pas le deke et la liste de feintes ») : un bouton avec les actions, la liste par-dessus la glace ;
 // collee au gardien, la liste montre les feintes de la fusillade, selon le maniement
 function dekeAdjGoalie(p){ if(!p) return null; var b=S.planning?ghostOf(p):{c:p.c,r:p.r};
-  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce && e.team!==p.team && e.type==='g' && Math.max(Math.abs(e.c-b.c),Math.abs(e.r-b.r))===1) return e; }
+  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce && e.team!==p.team && e.type==='g' && (Math.max(Math.abs(e.c-b.c),Math.abs(e.r-b.r))===1 || dekeLine(p, b, e))) return e; }   // v668 : ou a 2 cases en ligne, rien entre
   return null; }
+function dekeFoe(p){ var a=adjacentEnemySkater(p); if(a) return a; var t=dekeTargets(p); return t.length ? byId(t[0].defId) : null; }   // v668
 function gFeintsFor(p){ var m=(p && p.maniement)||50; return SO_AI_FEINTS.filter(function(f){ return m>=f[1]; }).map(function(f){ return f[0]; }); }
 function gFeintProb(p, g, k){ var v=SO_FBASE+(((p && p.maniement)||50)-SO_MID)*0.006-(((g && g.arret100)||70)-70)*0.006+(k==='kane'?0.06:0)-0.10*feintSeenCount(g, 'g:'+k); return Math.max(0.05, Math.min(0.75, v)); }
 function dekeMenu(p){ var out=[]; if(!p || p.type!=='sk' || p.team!==S.turn || !ownsPuck(p.id)) return out;
   var g=dekeAdjGoalie(p);
   if(g) gFeintsFor(p).forEach(function(k){ out.push({label:SO_FEINTS[k].n, pct:Math.round(gFeintProb(p, g, k)*100), oc:"pickGFeint('"+k+"')"}); });
   if(dekeTargets(p).length){ out.push({label:'Deke', pct:null, oc:'armDangle()'});
-    var d=adjacentEnemySkater(p), MF=['toedrag','spin','fakeshot','betweenlegs','cutmiddle'], LB={toedrag:'Toe drag',spin:'Spin-o-rama',fakeshot:'Fake shot',betweenlegs:'Between the legs',cutmiddle:'Cut inside'};
+    var d=dekeFoe(p), MF=['toedrag','spin','fakeshot','betweenlegs','cutmiddle'], LB={toedrag:'Toe drag',spin:'Spin-o-rama',fakeshot:'Fake shot',betweenlegs:'Between the legs',cutmiddle:'Cut inside'};
     if(d && p.dekes) p.dekes.forEach(function(f){ if(MF.indexOf(f)<0) return; var o=actionOdds(p, 'feint:'+f, d); if(o==null || o<=0) return; out.push({label:LB[f], pct:o, oc:"armFeint('"+f+"')"}); }); }
   return out; }
 function closeDekeList(){ var L=document.getElementById('dekeList'); if(L){ L.style.display='none'; L.innerHTML=''; L.removeAttribute('data-id'); } }
@@ -2325,12 +2346,13 @@ function armFeint(feintId){ var p=byId(S.sel); if(!p||S.puckOwner!==p.id||p.team
   S.armedFeint=feintId; S.dangle=true;
   if(feintId==='toedrag' || feintId==='betweenlegs' || feintId==='cutmiddle'){ S.dekeT=(feintId==='cutmiddle') ? cutInside(p, dekeTargets(p)) : dekeTargets(p);   // v449 : la coupe va vers l'interieur
     setHint(feintId==='betweenlegs' ? 'Between the legs — tap where you slip past him.' : (feintId==='cutmiddle' ? 'Cut inside — tap the lane toward the middle.' : 'Toe drag — tap where you slip past him.')); }
-  else { S.dekeT=[]; var d=adjacentEnemySkater(p); if(d){ resolveOrPlanFeintDirect(p, d, feintId); } }   // spin/fake ciblent le D adjacent directement (Tasks 5-6)
+  else { S.dekeT=[]; var d=dekeFoe(p); if(d){ resolveOrPlanFeintDirect(p, d, feintId); } }   // spin/fake ciblent le D adjacent directement (Tasks 5-6)
   render(); }
 function doDangle(p,d,land,side,feintId){
   if(S.planning){ if(!ownsPuck(p.id)) return; S.dangle=false; S.dekeT=[]; planPush({kind:'dangle', id:p.id, target:d.id, land:land, side:side, feint:feintId||null}); return; }
   if(S.animating) return; if(S.puckOwner!==p.id) return; S.dangle=false; S.dekeT=[];
   if(foFirst(p, ({toedrag:'toe drag', betweenlegs:'between-the-legs move', cutmiddle:'cut inside'})[feintId] || 'deke')) return;   // v520
+  dekeStepIn(p, d);   // v668
   if(d.type==='g') return goalieFeint(p, d, feintId);   // v651 : les feintes de la fusillade
   var bc, br, sd;
   if(land){ bc=land.c; br=land.r; sd=(typeof side==='number')?side:(Math.sign(land.r-d.r)||0); }
@@ -2446,7 +2468,7 @@ function resolveFakeShot(p, d){
   pushLog('<b>'+p.name+'</b> tries a fake shot — '+d.name+' reads it.');
   render(); resolveCheck(d, false);
 }
-function resolveOrPlanFeintDirect(p,d,feintId){ if(feintId==='spin') return resolveSpin(p,d); if(feintId==='fakeshot') return resolveFakeShot(p,d); }
+function resolveOrPlanFeintDirect(p,d,feintId){ if(!S.planning) dekeStepIn(p, d); if(feintId==='spin') return resolveSpin(p,d); if(feintId==='fakeshot') return resolveFakeShot(p,d); }
 function feintSpaceBonus(id){ if(S.feintSpace===id){ return 0.10; } return 0; }   // spin-o-rama : le prochain TIR du porteur qui a spinne obtient +10% (cote passe retire, T5 fix round 1 : mal calibre / double application)
 function consumeFeintSpace(id){ if(S.feintSpace===id) S.feintSpace=null; }
 function startPieces(){
@@ -9574,7 +9596,7 @@ function onCellCore(c,r,_tp){
     var sel=byId(S.sel);
     if(S.dumpAim){ doDump(sel,c,r); return; }
     if(S.dangle){
-      if(p && p.team!==sel.team && p.type==='g' && Math.max(Math.abs(p.c-sel.c),Math.abs(p.r-sel.r))===1){ doDangle(sel,p); return; }   // gardien : tap direct (tentative de but)
+      if(p && p.team!==sel.team && p.type==='g' && dekeAdjGoalie(sel)===p){ doDangle(sel,p); return; }   // v668 : collé ou a 2 cases   // gardien : tap direct (tentative de but)
       for(var _dk=0;_dk<(S.dekeT||[]).length;_dk++){ var _dt2=S.dekeT[_dk]; if(_dt2.c===c&&_dt2.r===r){ doDangle(sel, byId(_dt2.defId), {c:c,r:r}, _dt2.side, S.armedFeint||null); S.armedFeint=null; return; } }   // patineur : tap de la case de contournement choisie
       S.dangle=false; S.dekeT=[]; S.armedFeint=null; render(); }
     if(S.passBonus){ if(p && bankEntry(p.id)){ doBankPass(sel,p.id); return; } if(p && passEntry(p.id)){ doPass(sel,p.id); return; } return; }
