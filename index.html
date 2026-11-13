@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v670</title>
+<title>Deck 3D v671</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1374,7 +1374,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v670';
+var GAME_VERSION='v671';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2259,7 +2259,7 @@ function feintOdds(feintId, p, d){
   if(base<=0) return 0;                                  // non applicable : pas de decote/resistance sur une feinte non offerte
   base += feintResistanceMod(feintId, d);                // resistance par famille (Task 2)
   base -= 0.15 * feintSeenCount(d, feintId);             // decroissance par repetition (Task 1)
-  return clampP(base);
+  return clampP(base)*(1-passRattle(p, d && d.id));   // v671 : la pression des autres adversaires (le feinte ne compte pas)
 }
 var FEINT_FAMILY = { toedrag:'finesse', fakeshot:'finesse', spin:'protection', betweenlegs:'speed', cutmiddle:'speed' };
 function clampR(v){ return Math.max(-0.12, Math.min(0.12, v)); }
@@ -2275,7 +2275,7 @@ function markFeintSeen(target, moveId){ if(!S.feintSeen) S.feintSeen={}; var k=t
 
 function dekeOdds(p, d, side){ var sd=side||0, weak=(sd!==0 && sd!==stickSide(d));
   var _gm=(sizeMod(p,'deke') - sizeMod(d,'deke'))/100;   // gabarit : petit attaquant dejoue mieux, grand defenseur plus dur a deborder
-  return Math.max(0.10, Math.min(0.90, 0.35 + 0.12*((p.off||3)-(d.def||3)) + (sd===0?0:(weak?0.15:-0.15)) + _gm)); }   // cote faible (revers) plus facile, cote fort plus dur
+  return Math.max(0.10, Math.min(0.90, 0.35 + 0.12*((p.off||3)-(d.def||3)) + (sd===0?0:(weak?0.15:-0.15)) + _gm))*(1-passRattle(p, d && d.id)); }   // v671 : la pression des autres   // cote faible (revers) plus facile, cote fort plus dur
 function isDekeTarget(c,r){ if(!S.dekeT) return false; for(var i=0;i<S.dekeT.length;i++){ if(S.dekeT[i].c===c&&S.dekeT[i].r===r) return true; } return false; }
 /* dekeApproachCells : parmi les cases atteignables (S.moves), celles d'ou le porteur pourrait DEKER
    (collé à un adversaire avec une sortie libre) — pour le guide visuel mauve (v319). */
@@ -2362,6 +2362,7 @@ function doDangle(p,d,land,side,feintId){
   if(!onIce(bc,br)||pieceAt(bc,br)){ setHint('No room to deke there.'); render(); return; }
   var _weak=(sd!==0 && sd!==stickSide(d));
   var pd = feintId ? feintOdds(feintId, p, d) : dekeOdds(p,d,sd);
+  if(passRattle(p, d.id)>=0.25) pushLog('<b>Under pressure</b>: '+p.name+' has little room for the move.');   // v671
   if(feintId) markFeintSeen(d, feintId);   // toedrag/betweenlegs/cutmiddle : compte la tentative (live)
   var _fname = feintId==='toedrag' ? 'TOE DRAG' : (feintId==='betweenlegs' ? 'BETWEEN THE LEGS' : (feintId==='cutmiddle' ? 'CUT INSIDE' : 'deke'));
   var okd=tutLuck(pd, p.team===HUMAN_TEAM);   /* v455 : etape guidee */ matchEv('deke', {id:p.id, on:d.id, feint:feintId||'deke', ok:okd});   // v447
@@ -2890,7 +2891,8 @@ function shotOdds(sh){ return shotOddsDetail(sh).prob; }   // source unique = sh
 // wide +12 (max 70 %), poke +20 % d'un adversaire colle avant le tir, deviations x 1,5, rebonds x 1,3.
 var SLAP_K=1.25, SLAP_WIDE=0.12, SLAP_POKE=0.20, SLAP_REB=1.3;
 function slapOdds(sh){ return shotOddsDetail(sh, true).prob; }
-function wideOf(sh, slap){ var w=WIDE_BASE + shotAngle(sh).sev*0.42 + shotPenalty(shotDist(sh))*0.07; return slap ? Math.min(0.70, Math.min(0.58, w)+SLAP_WIDE) : Math.min(0.58, w); }
+function wideBase(sh, slap){ var w=WIDE_BASE + shotAngle(sh).sev*0.42 + shotPenalty(shotDist(sh))*0.07; return slap ? Math.min(0.70, Math.min(0.58, w)+SLAP_WIDE) : Math.min(0.58, w); }
+function wideOf(sh, slap){ var w=wideBase(sh, slap), r=passRattle(sh); return r>0 ? 1-(1-w)*(1-r) : w; }   // v671 : sous pression, il rate plus souvent le filet
 function slapPokeProb(d, sh){ var p=pokeProb(d, sh); return p>0 ? Math.min(0.90, p+SLAP_POKE) : 0; }
 function slapRebound(r){ return Math.min(0.60, r*SLAP_REB); }
 function aiWantsSlap(sh){ return !!sh && !adjEnemySkater(sh) && slapOdds(sh) > shotOdds(sh); }
@@ -3898,15 +3900,24 @@ function pressCharge(q, p){ var el=Math.min(1, Math.max(q.mom||0, q.speed||0)/5)
   var f=q.facing, dx=p.c-q.c, dy=p.r-q.r, n=Math.hypot(dx, dy)||1;
   if(f && (f.dc*dx+(f.dr||0)*dy)/(n*(Math.hypot(f.dc, f.dr||0)||1))>0.5) ap=1;   // ou il patine vers lui
   return el*ap; }
-function passPressure(p){ var P=0, near=null, nk=-1;
-  if(p) S.pieces.forEach(function(q){ if(!q.onIce || q.type!=='sk' || q.team===p.team) return; var d=cheb(q, p); if(d<1 || d>4) return;
+function passPressure(p, skip){ var P=0, near=null, nk=-1;   // v671 : skip = un joueur qui ne compte pas (le defenseur feinte)
+  if(p) S.pieces.forEach(function(q){ if(!q.onIce || q.type!=='sk' || q.team===p.team || q.id===skip) return; var d=cheb(q, p); if(d<1 || d>4) return;
     var k=pressCharge(q, p), part=100*PRESS_W[d]*(0.30+0.70*k);
     if(S._stratDef && S._stratDef.kind==='pressure' && q.team===S._stratDef.team) part*=1.5;   // le bonus « pressure » du Forecheck (prepare, jamais lu avant)
     P+=part; if(d===1 && k>nk){ nk=k; near=q; } });
   return {P:Math.min(200, P), near:(near && nk>=0.5) ? near : null}; }
-function passRattle(p){ if(!p || p.type!=='sk' || S.tut) return 0;   /* les lecons : pas de pression (elles enseignent autre chose) */   // la chance que sa passe parte mal : la pression contre sa stat Pressure
+function passRattle(p, skip){ if(!p || p.type!=='sk' || S.tut) return 0;   /* les lecons : pas de pression (elles enseignent autre chose) */   // la chance que sa passe parte mal : la pression contre sa stat Pressure
   if(typeof p.pressure!=='number') p.pressure=pressureStat(p);   /* un match repris d'avant v646 */
-  return Math.max(0, Math.min(0.85, passPressure(p).P/100*(1.1-p.pressure/100))); }
+  return Math.max(0, Math.min(0.85, passPressure(p, skip).P/100*(1.1-p.pressure/100))); }
+// v671 (son choix : « La pression sur tout » -- les tirs, les feintes, la reception ; « Comme les passes » ; sans le gardien) : meme rattle.
+// La reception : le receveur sous pression l'echappe -- la rondelle est libre a cote de lui.
+function pressBobble(t, passer){ var pp=passPressure(t), nr=pp.near, best=null, bd=1e9;
+  DIRS8.forEach(function(m){ var c=t.c+m[0], r=t.r+m[1]; if(!onIce(c, r) || pieceAt(c, r)) return; var dd=(nr ? Math.max(Math.abs(c-nr.c), Math.abs(r-nr.r)) : 0)+Math.random()*0.3; if(dd<bd){ bd=dd; best={c:c, r:r}; } });
+  if(!best) return false;
+  matchEv('pressure', {id:t.id, by:nr ? nr.id : null, res:'bobble'}); checkFx('pressure', t.c, t.r); if(passer) morPass(passer, false);
+  pushLog('<b>Under pressure</b>: '+(nr ? nr.name+' charges in — ' : '')+t.name+' cannot control the pass. The puck is loose.');
+  document.getElementById('outcome').innerHTML='Under pressure!';
+  S.puckOwner=null; S.puckLoose=best; S._looseLoser=t.id; S.animating=false; render(); looseBall(t.team, null); return true; }
 function pressPassBad(p, t, pp, _flow){   // la passe part mal : touchee par le colle qui fonce (de travers, libre) ou imprecise (libre a cote du receveur)
   var pc=p.c, pr=p.r, tc=t.c, tr=t.r, nr=pp.near, tip=!!(nr && Math.random()<0.35);
   S.animating=true; S.puckOwner=null; S.puckLoose=null; clearSel();
@@ -6528,6 +6539,7 @@ function doPass(p,targetId){
   }
   var offPass=(ttype==='sk' && !inOffZone(team,pc) && inOffZone(team,tc));
   flyPuckBoard(pc,pr,tc,tr,function(){
+    var _rb=(t && t.type==='sk') ? passRattle(t) : 0; if(_rb>0 && Math.random()<_rb && pressBobble(t, p)){ S._prsPass=false; looseOffside(team, pc); return; }   // v671 : la reception sous pression
     S.puckOwner=tid; S.rcvPop=tid; checkFx('pass', tc, tr); careerTrack('passok', {id:p.id, to:tid, prs:!!S._prsPass}); S._prsPass=false; morPass(p, true);   // v484
     if(t && t.type==='g') S.gkSide=(p.r<CTR_R)?'T':((p.r>CTR_R)?'B':null);
     if(t && t.type==='sk' && hasPerk(t,'relais') && !_flow){   // v429 : deja lance dans sa course -> pas de case de relais en plus
@@ -7648,6 +7660,7 @@ function onShotTarget(t){
   var _wideP = (!_defl && !_ot) ? wideOf(sh, _slap) : 0;   /* v649 : +12 au slap shot */   // rater le filet : rare a bout portant de face, frequent de loin / de mauvais angle (~LNH) -> on voit souvent le rebond sur la bande
   S._wideP = _wideP;
   if(_wideP > 0 && tutLuck(_wideP, sh.team!==HUMAN_TEAM)){   // v453 : etape guidee -> pas a cote
+    var _wb=wideBase(sh, _slap); if(_wideP>_wb && Math.random()<(_wideP-_wb)/_wideP){ var _wn=passPressure(sh).near; matchEv('pressure', {id:sh.id, by:_wn ? _wn.id : null, res:'shot'}); pushLog('<b>Under pressure</b>: '+(_wn ? _wn.name+' charges in — ' : '')+sh.name+' rushes his shot.'); }   // v671
     S.aiming=null; S.oneTimerActive=false; S.deflector=null;
     document.getElementById('shotOverlay').classList.remove('show'); document.getElementById('saim').style.display='none';
     var _ir=(Math.random()<ironShare(_wideP)) ? ironPick(sh, t, 'miss') : null;   // v495 : un tir rate de peu frappe le cadre (5 % des tirs cadres, LNH)
