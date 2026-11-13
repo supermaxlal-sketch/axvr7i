@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v669</title>
+<title>Deck 3D v670</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1374,7 +1374,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v669';
+var GAME_VERSION='v670';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2872,11 +2872,12 @@ function checkProb(checker, carrier, opts){
         - 0.12*carSpeedGuard(carrier) + (carrierExposed(carrier) ? 0.10 : 0);
   if(Math.sign(checker.c - carrier.c) === -dir(carrier.team)) p-=0.50;   // de dos (cote fuite) : dangereux, rare
   if(carrierBacking(carrier)) p += 0.30;   // v552 : il recule -- +30 % (et sa vitesse ne le protege plus : carSpeedGuard)
+  if(opts.big) p += BIG_HIT_BONUS;   // v670 : la mise en echec percutante
   p += MOM_BONUS*momK(checker.team) + MOR_BONUS*morK(checker) + stPts(checker, 'check') + stHand(carrier);   /* v559 */ // v554 : le momentum ; v555 : son moral
   return Math.max(0.05, Math.min(0.95, p));
 }
 function checkThr(checker, carrier, opts){ return checkProb(checker, carrier, opts)*6; }   // compat : ancien « seuil /6 » (affichage pctFromThr)
-function checkOdds(checker, carrier){ return checkThr(checker, carrier, {posted:true}); }   // v420 : % affiche pour l'ordre Body check (poste)
+function checkOdds(checker, carrier){ return checkThr(checker, carrier, {posted:true, big:bigHit(checker, carrier)}); }   // v420 : % affiche pour l'ordre Body check (poste)
 /* sblockOdds : proba qu'un defenseur avec l'ordre "block shot" bloque un tir de sa ligne (min .06+.07*def, +.25). */
 function sblockOdds(blocker){ if(!blocker) return 0; var base=Math.min(0.50, 0.06+(blocker.def||3)*0.07); return Math.min(0.72, base+0.25+0.005*speechK(blocker.team, 'sys')); }   // v504
 /* blockPassThr : seuil /6 d'interception d'une passe du porteur par un defenseur en ordre "block pass". */
@@ -6962,9 +6963,17 @@ function stickSide(p){
 function hitGap(checker, C){ return (checker && C && checker.cm && C.cm) ? playerLb(checker)-playerLb(C) : 0; }   // livres du checkeur - livres du porteur
 function hitPower(checker, C, run){ var d=effPhys(checker)-effPhys(C); return run+(d>=15?1:0)+(d<=-15?-1:0); }   // elan + force (ecart 15)
 function contactSpd(C){ return Math.max(0, Math.min(6, Math.max((C&&C.mom)||0, (C&&C.speed)||0))); }   // sa vitesse au contact (avant que le contact la tue)
-function hitResult(checker, C, run){   // 'onto' | 'hold' | 'fall' | 'back' | 'take' ; un jet = random >= 1 - chance (un test qui force la reussite avec un petit nombre : il encaisse)
+// v670 (sa demande : « des mises en echec percutantes lorsqu'on arrive avec l'elan et que l'adversaire est immobile ou vient de tourner » ;
+// ses choix : vitesse 4 et plus ; porteur a vitesse 0 ou qui vient de changer de direction ; +25 points ; projete, sonne 3 tours,
+// blessure 8 % ; « le gros tient, surtout si celui qui plaque est plus petit mais il peut quand meme faire tomber le gros »)
+var BIG_HIT_SPD=4, BIG_HIT_BONUS=0.25;
+function justTurned(C){ var a=C && C._inA; return !!a && a.n>0 && (a.kind==='sharp' || a.kind==='pivot' || a.kind==='front'); }   // son dernier pas : un virage serre
+function hitSpd(p){ return Math.max(contactSpd(p), (p && p._inA && p._inA.n>0) ? skatedMom(p) : 0); }   // sa vitesse en arrivant (l'elan du patinage en cours n'est pas encore pose dans mom)
+function bigHit(checker, C){ return !!checker && !!C && checker.type==='sk' && C.type==='sk' && !S.tut && hitSpd(checker)>=BIG_HIT_SPD && (hitSpd(C)===0 || justTurned(C)); }
+function hitResult(checker, C, run, big){   // 'onto' | 'hold' | 'fall' | 'back' | 'take' ; un jet = random >= 1 - chance (un test qui force la reussite avec un petit nombre : il encaisse)
   if(S.tut || !checker || !C || checker.type!=='sk' || C.type!=='sk') return 'take';
   var gap=hitGap(checker, C), roll=function(x){ return Math.random()>=1-x; };
+  if(big) return (gap<=-15 && roll(Math.min(95, 35-gap)/100)) ? 'hold' : 'blast';   // v670 : percutante -- le gros peut tenir, sinon il est projete
   if(gap>=0 && roll(0.05)) return 'onto';                                      // il tombe SUR le plaque
   if(gap<=-15 && roll(Math.min(95, 35-gap)/100)) return 'hold';                // le gros tient
   if(hitPower(checker, C, run)>=3 && roll(gap>=30?0.60:(gap<=-30?0.15:0.35))) return 'fall';   // tres gros coup : il tombe, sans reculer
@@ -6981,6 +6990,7 @@ function hitSlideCell(C, checker, cc, cr){   // il arrive vite : elle glisse d'u
 function hitLog(res, cName, carName){
   if(res==='hold') return carName+' holds his ground — he keeps the puck.';
   if(res==='fall') return carName+' goes down — the puck comes loose.';
+  if(res==='blast') return cName+' flattens '+carName+' at full speed — the puck is loose.';
   if(res==='back') return carName+' is shoved back — the puck comes loose.';
   if(res==='onto') return cName+' falls on '+carName+' — both players are down. The puck is loose.';
   return carName+' takes the hit — the puck comes loose.';
@@ -6996,6 +7006,11 @@ function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
   if(res==='onto'){ S._hitRecover=null; S._looseLoser=null; placeLooseNear(cc, cr); S._bothDown=[C.id, checker.id];
     matchEv('fall', {id:C.id, by:checker.id}); matchEv('fall', {id:checker.id, by:C.id, onto:true});
     return {res:res, knock:0, fall:true, recoil:0}; }
+  if(res==='blast'){ var bx=cc+pushC, by=cr+pushR, bk=0;   // v670 : projete d'une case dans le sens du coup (si elle est libre), a terre, rondelle libre
+    if((pushC||pushR) && onIce(bx,by) && !pieceAt(bx,by)){ C.c=bx; C.r=by; addSlide(C.id, cc-bx, cr-by); bk=1; }
+    matchEv('fall', {id:C.id, by:checker.id, blast:true, knock:bk});
+    S._hitRecover=null; S._looseLoser=C.id; S.puckOwner=null; placeLooseNear(cc, cr); S._bothDown=[C.id];
+    return {res:res, knock:bk, fall:true, recoil:0}; }
   if(res==='fall'){ matchEv('fall', {id:C.id, by:checker.id}); mine(); return {res:res, knock:0, fall:true, recoil:0, gain:true}; }
   if(res==='back'){ var tx=cc+pushC, ty=cr+pushR;
     if((pushC||pushR) && onIce(tx,ty) && !pieceAt(tx,ty)){ C.c=tx; C.r=ty; addSlide(C.id, cc-tx, cr-ty); steps=1; }
@@ -7164,7 +7179,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
     } else { _dir = {mod:0, autoFail:false}; }
   } else { _dir = pokeDirMod(checker, C); }
   // v420 : TOUT SUR 100 -- mise en echec = checkProb (stats /100) ; poke au contact = pokeProb (v406, un seul poke)
-  var pr = isBody ? checkProb(checker, C, {posted:_posted, run:_run}) : (isLift ? liftProb(checker, C) : pokeProb(checker, C));
+  var _big=isBody && bigHit(checker, C);   // v670
+  var pr = isBody ? checkProb(checker, C, {posted:_posted, run:_run, big:_big}) : (isLift ? liftProb(checker, C) : pokeProb(checker, C));
   var _worn = wearOn(C.id);
   if(foStrip(checker, C)) pr = 1;   // v467 : centre de mise au jeu -- a coup sur seulement sur mise en echec / poke voulu du centre adverse
   // un porteur qui vient de survivre a une mise en echec ne traverse PAS la patinoire :
@@ -7179,7 +7195,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   if(_worn>=1) pushLog('<span style="color:#ffb36b">'+C.name+' is still recovering from the last hit</span> — he is easy pickings.');
   bumpWear(C.id);
   if(isBody){
-    if(_run>=2) pushLog('<b>'+checker.name+'</b> arrives with a full head of steam ('+_run+' squares) — the hit lands harder.');
+    if(_big) pushLog('<b>'+checker.name+'</b> arrives at full speed — '+C.name+(hitSpd(C)===0?' is standing still.':' has just turned.'));
+    else if(_run>=2) pushLog('<b>'+checker.name+'</b> arrives with a full head of steam ('+_run+' squares) — the hit lands harder.');
     else if(_posted && _run<2) pushLog('<b>'+checker.name+'</b> is set and braced — he delivers a solid body check.');
     else if(_run===0) pushLog('<b>'+checker.name+'</b> is flat-footed — not much behind that hit.');
   } else if(isLift){
@@ -7193,8 +7210,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   var _pen=false;
   if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))){ var _pf=penFoul(checker, C, _run);   // v445 : penalite (mise en echec VOULUE seulement)
     _pen=_pf ? penTry(checker, penRisk(checker, C, _run), _pf) : (stState(checker)==='angry' && penTry(checker, PEN_P_ROUGH, 'rough')); }   // v581 : fache, meme propre -> rudesse 10 %
-  var _hr=(success && isBody) ? hitResult(checker, C, _run) : null, _hs=contactSpd(C);   // v657 : le resultat, avant l'evenement (le sonne en depend) ; sa vitesse, avant que le contact la tue
-  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift, res:_hr});   // v447   // v581 : pen   // v648 : lift
+  var _hr=(success && isBody) ? hitResult(checker, C, _run, _big) : null, _hs=contactSpd(C);   // v657 : le resultat, avant l'evenement (le sonne en depend) ; sa vitesse, avant que le contact la tue
+  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift, res:_hr, big:!!_big});   // v447   // v581 : pen   // v648 : lift
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
   if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run, _hs, _hr); if(S.puckLoose) looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML=hitHead(_out.res, cName, carName); pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+'. '+hitLog(_out.res, cName, carName)); }
@@ -10493,7 +10510,7 @@ function careerContact(id, kind, by){   // v489 : un contact peut blesser (selon
   (S.injQ=S.injQ||[]).push(id); careerInjuryWhistle();
 }
 function careerInjWhy(kind, by){ var n=(by && by.name) ? by.name : 'a rival';   // v516 : la cause, dans le message
-  return ({hit3:'big hit by '+n, hit4:'big hit by '+n, behind:'hit from behind by '+n, boards:(by ? 'driven into the boards by '+n : 'crashed into the boards'), blk:'blocking a shot from '+n,
+  return ({hit3:'big hit by '+n, hit4:'big hit by '+n, blast:'flattened by '+n, behind:'hit from behind by '+n, boards:(by ? 'driven into the boards by '+n : 'crashed into the boards'), blk:'blocking a shot from '+n,
     stick:'hooked by '+n, defl:'tipped puck to the face', crease:n+' crashes into the crease'})[kind] || kind; }
 function nearBoards(c, r){ return !onIce(c-1, r) || !onIce(c+1, r) || !onIce(c, r-1) || !onIce(c, r+1); }
 function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- dans le dos, avec elan (3+), ou contre la bande (la plus dangereuse compte)
@@ -10501,6 +10518,7 @@ function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- da
   var k=null, best=0;
   function take(kk){ if(CAREER_INJ_EV[kk]>best){ best=CAREER_INJ_EV[kk]; k=kk; } }
   if(Math.sign(h.c-v.c)===-dir(v.team)) take('behind');
+  if(d.big && d.res!=='hold') take('blast');   // v670
   if((d.run||0)>=4) take('hit4'); else if((d.run||0)>=3) take('hit3');
   if(nearBoards(v.c, v.r)) take('boards');
   if(k) careerContact(d.on, k, h); }
@@ -11269,7 +11287,7 @@ CAREER_INJ_TYPES.sim=CAREER_INJ_TYPES.hit.concat(CAREER_INJ_TYPES.bat.slice(0, 2
 // v516 (le concepteur : « trop de blessures » ; « il faut que les blessures proviennent d'un evenement : un lancer puissant, une
 // mise en echec puissante, un coup de baton ») : seulement ces evenements (choix : chances divisees par 2) ; une mise en echec
 // ordinaire ou une bataille ne blesse plus. Les matchs simules gardent CAREER_INJ.sim.
-var CAREER_INJ_EV={hit3:0.025, hit4:0.04, behind:0.05, boards:0.02, blk:0.025, stick:0.025, defl:0.025, crease:0.01};
+var CAREER_INJ_EV={hit3:0.025, hit4:0.04, blast:0.08, behind:0.05, boards:0.02, blk:0.025, stick:0.025, defl:0.025, crease:0.01};
 CAREER_INJ_TYPES.hit3=CAREER_INJ_TYPES.hit4=CAREER_INJ_TYPES.behind=CAREER_INJ_TYPES.boards=CAREER_INJ_TYPES.hit;
 CAREER_INJ_TYPES.stick=[['Wrist', ['tir']], ['Hand', ['tir', 'passe']]];
 CAREER_INJ_TYPES.defl=[['Face', ['maniement']], ['Jaw', ['passe']]];
