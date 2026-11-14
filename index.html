@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v673</title>
+<title>Deck 3D v674</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1375,7 +1375,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v673';
+var GAME_VERSION='v674';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9827,7 +9827,7 @@ var HJ3D={ cb:null, last:'', failed:false, k:1, title:(typeof document!=='undefi
 (function(){ var c=(typeof document!=='undefined') && document.getElementById('g3d'); if(c) c.addEventListener('contextmenu', function(e){ e.preventDefault(); }); })();   // v620 : le clic droit sur la 3D deplace la camera (pas de menu du navigateur)
 function hj3dBench(){   // v505 : les joueurs hors glace de chaque equipe (pas au banc des punitions), 10 au plus
   var box={}, out={A:[], B:[]}; ((S.pen && S.pen.box) || []).forEach(function(b){ box[b.id]=1; });
-  S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10) return;   // v517 : pas les places vides
+  S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10 || (INJ_WALK && INJ_WALK.id===q.id)) return;   // v674 : pas le blesse qui s'y rend   // v517 : pas les places vides
     out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||''}); });   /* v535 : son look au banc */   /* v660 : ses cm et ses livres */
   return out;
 }
@@ -9901,7 +9901,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -10582,16 +10582,30 @@ function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- da
   if(d.res==='hold'){ if(Math.random()<0.5) careerContact(d.on, 'clash', h); else careerContact(d.id, 'clash', v); } }   // v673 : les deux debout -- 0,5 %, le frappe ou le frappeur
 function careerNearDot(c, r){ var D=[[CTR_C_CELL, CTR_R], [NET_B+3, CTR_R-3], [NET_B+3, CTR_R+3], [NET_A-3, CTR_R-3], [NET_A-3, CTR_R+3], [BLUE_A-2, CTR_R-3], [BLUE_A-2, CTR_R+3], [BLUE_B+2, CTR_R-3], [BLUE_B+2, CTR_R+3]], b=D[0], bd=1e9;
   D.forEach(function(x){ var v=Math.abs(x[0]-c)+Math.abs(x[1]-r); if(v<bd){ bd=v; b=x; } }); return {c:b[0], r:b[1]}; }
+// v674 (ses choix : « Toutes les blessures mais il doit avoir une animation differente dependant des blessures » ; « Oui, ces 5 » ;
+// « Court, on peut passer ») : en 3D, au sifflet, le blesse se rend a la porte de son banc avant le remplacant. INJ_WALK (hors de S :
+// jamais dans une sauvegarde) = la scene en cours ; l'instantane 3D porte injw. Un toucher passe la scene.
+var INJ_WALK=null, INJ_WALK_MS=5000;
+var INJ_ANIM={Knee:'leg', Groin:'leg', Ankle:'leg', Foot:'leg', Shoulder:'arm', Wrist:'arm', Hand:'arm', Ribs:'ribs', Face:'face', Jaw:'face', Concussion:'face'};   // v675 : la commotion, tenue par deux coequipiers
+function injAnim(t){ return INJ_ANIM[t] || 'leg'; }
+function injWalkStart(q, inj){ if(!hj3dActive() || !q || q.type!=='sk' || !hasPos(q)) return;
+  var w={id:q.id, team:q.team, k:injAnim(inj.t), c:q.c, r:q.r, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||'', over:false, cb:null};
+  INJ_WALK=w; w.timer=setTimeout(function(){ injWalkEnd(w); }, INJ_WALK_MS); }
+function injWalkEnd(w){ if(!w || INJ_WALK!==w) return; clearTimeout(w.timer); w.over=true; if(w.cb){ var cb=w.cb; INJ_WALK=null; render(); cb(); } }
+function injWalkThen(cb){ var w=INJ_WALK; if(!w){ cb(); return; } if(w.over){ INJ_WALK=null; render(); cb(); return; } w.cb=cb; }
+function hj3dInjw(){ var w=INJ_WALK; return w ? {id:w.id, team:w.team, k:w.k, c:w.c, r:w.r, hand:w.hand, size:w.size, cm:w.cm, lb:w.lb, name:w.name, look:w.look} : null; }
+if(typeof document!=='undefined') document.addEventListener('pointerdown', function(){ if(INJ_WALK) injWalkEnd(INJ_WALK); }, true);
 function careerInjuryWhistle(){   // le sifflet attend la fin de l'action en cours (comme le gardien qui gele)
   if(!S.injQ || !S.injQ.length || S._injBusy || S._penBusy || S.gameEnded) return;   // v515 : pendant le sifflet d'une penalite, la blessure attend (meme arret)
   if(S.animating || S.faceoff || S.celebrating || S.aiming){ setTimeout(careerInjuryWhistle, 260); return; }
   var id=S.injQ.shift(), q=byId(id), inj=CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[id]; if(!q || !inj){ careerInjuryWhistle(); return; }
   S._injBusy=true; var dot=careerNearDot(q.c, q.r);
   if(S.currentSeq) killSeq(S.currentSeq); S.currentSeq=null; S.planResume=null; S.planNext=null; S.planning=false; S.atkPlan=[]; S.ghost={}; S.defCommit=null; S.aiPlan=null; S.planClock=null; renderPlanBar(); renderDefBar();
+  injWalkStart(q, inj);   // v674
   q.onIce=false; S.animating=true; clearSel(); render();
   var txt=q.name+' — '+(inj.why ? inj.why+': ' : '')+inj.t+' ('+CAREER_SEV[inj.sev]+'), out '+inj.left+' game'+(inj.left>1?'s':'');   // v516 : la cause
   pushLog('<b>Injury</b>: '+txt+'.');
-  showWhistle(function(){ careerReplace(q, function(){ S._injBusy=false; S.animating=false; if(S.injQ && S.injQ.length){ careerInjuryWhistle(); return; } var fd=S._injDot||dot; S._injDot=null; startFaceoffRPS(fd.c, fd.r, false); }); }, '🚑', 'INJURY', txt);
+  showWhistle(function(){ injWalkThen(function(){ careerReplace(q, function(){ S._injBusy=false; S.animating=false; if(S.injQ && S.injQ.length){ careerInjuryWhistle(); return; } var fd=S._injDot||dot; S._injDot=null; startFaceoffRPS(fd.c, fd.r, false); }); }); }, '🚑', 'INJURY', txt);   // v674 : le remplacant apres la scene
 }
 function careerBench(team, pos, exceptId){ return teamSkaters(team).filter(function(p){ return p.id!==exceptId && !p.onIce && !p.vacant && !(CAREER_LOG.inj && CAREER_LOG.inj[p.id]) && !penInBox(p.id) && (!pos || p.pos===pos); }); }
 function careerReplace(q, done){   // le coach choisit un joueur du banc (l'IA : le plus frais) ; il finit la periode a la place du blesse
@@ -13118,7 +13132,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":619676,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":626204,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
