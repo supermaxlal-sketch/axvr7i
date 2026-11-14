@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v674</title>
+<title>Deck 3D v675</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1375,7 +1375,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v674';
+var GAME_VERSION='v675';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10585,15 +10585,19 @@ function careerNearDot(c, r){ var D=[[CTR_C_CELL, CTR_R], [NET_B+3, CTR_R-3], [N
 // v674 (ses choix : « Toutes les blessures mais il doit avoir une animation differente dependant des blessures » ; « Oui, ces 5 » ;
 // « Court, on peut passer ») : en 3D, au sifflet, le blesse se rend a la porte de son banc avant le remplacant. INJ_WALK (hors de S :
 // jamais dans une sauvegarde) = la scene en cours ; l'instantane 3D porte injw. Un toucher passe la scene.
-var INJ_WALK=null, INJ_WALK_MS=5000;
-var INJ_ANIM={Knee:'leg', Groin:'leg', Ankle:'leg', Foot:'leg', Shoulder:'arm', Wrist:'arm', Hand:'arm', Ribs:'ribs', Face:'face', Jaw:'face', Concussion:'face'};   // v675 : la commotion, tenue par deux coequipiers
+var INJ_WALK=null, INJ_WALK_MS=5000, INJ_CARRY_MS=6800;   // v675 : a trois (ils viennent le chercher, puis le banc)
+var INJ_ANIM={Knee:'leg', Groin:'leg', Ankle:'leg', Foot:'leg', Shoulder:'arm', Wrist:'arm', Hand:'arm', Ribs:'ribs', Face:'face', Jaw:'face', Concussion:'carry'};   // v675 (son choix : « S'il est vraiment sonne, il doit etre tenu par deux coequipiers ») : carry
 function injAnim(t){ return INJ_ANIM[t] || 'leg'; }
 function injWalkStart(q, inj){ if(!hj3dActive() || !q || q.type!=='sk' || !hasPos(q)) return;
-  var w={id:q.id, team:q.team, k:injAnim(inj.t), c:q.c, r:q.r, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||'', over:false, cb:null};
-  INJ_WALK=w; w.timer=setTimeout(function(){ injWalkEnd(w); }, INJ_WALK_MS); }
+  var w={id:q.id, team:q.team, k:injAnim(inj.t), c:q.c, r:q.r, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||'', over:false, cb:null, mates:null};
+  if(w.k==='carry'){   // v675 : ses deux coequipiers (patineurs sur la glace) les plus proches ; moins de deux : il rentre seul
+    var m=onIceSkaters(q.team).filter(function(x){ return x.id!==q.id && hasPos(x); }).sort(function(a, b){ return cheb(a, q)-cheb(b, q); }).slice(0, 2);
+    if(m.length<2) w.k='face';
+    else w.mates=m.map(function(x){ return {id:x.id, c:x.c, r:x.r, hand:x.hand||null, size:x.size||'M', cm:x.cm||0, lb:playerLb(x), name:x.name||'', look:x.look||''}; }); }
+  INJ_WALK=w; w.timer=setTimeout(function(){ injWalkEnd(w); }, (w.mates ? INJ_CARRY_MS : INJ_WALK_MS)*ANIM_RATE); }   // x ANIM_RATE : de vraies secondes (setTimeout divise par ANIM_RATE, v463) -- la 3D joue la scene en temps reel
 function injWalkEnd(w){ if(!w || INJ_WALK!==w) return; clearTimeout(w.timer); w.over=true; if(w.cb){ var cb=w.cb; INJ_WALK=null; render(); cb(); } }
 function injWalkThen(cb){ var w=INJ_WALK; if(!w){ cb(); return; } if(w.over){ INJ_WALK=null; render(); cb(); return; } w.cb=cb; }
-function hj3dInjw(){ var w=INJ_WALK; return w ? {id:w.id, team:w.team, k:w.k, c:w.c, r:w.r, hand:w.hand, size:w.size, cm:w.cm, lb:w.lb, name:w.name, look:w.look} : null; }
+function hj3dInjw(){ var w=INJ_WALK; return w ? {id:w.id, team:w.team, k:w.k, c:w.c, r:w.r, hand:w.hand, size:w.size, cm:w.cm, lb:w.lb, name:w.name, look:w.look, mates:w.mates||[]} : null; }
 if(typeof document!=='undefined') document.addEventListener('pointerdown', function(){ if(INJ_WALK) injWalkEnd(INJ_WALK); }, true);
 function careerInjuryWhistle(){   // le sifflet attend la fin de l'action en cours (comme le gardien qui gele)
   if(!S.injQ || !S.injQ.length || S._injBusy || S._penBusy || S.gameEnded) return;   // v515 : pendant le sifflet d'une penalite, la blessure attend (meme arret)
@@ -13132,7 +13136,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":626204,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":630492,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
