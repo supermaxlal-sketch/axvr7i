@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v671</title>
+<title>Deck 3D v672</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1026,6 +1026,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <button class="act dump" id="btnDump" style="display:none">⤒ Dump in</button>
     <button class="act poke" id="btnPoke" style="display:none">🥍 Poke check</button>
     <button class="act poke" id="btnLift" style="display:none">🥍 Stick lift</button>
+    <button class="act prot" id="btnBrake" style="display:none">⏹ Brake</button>
     <button class="act prot" id="btnProtect" style="display:none">🛡 Protect the puck</button>
     <button class="act wrap" id="btnWrap" style="display:none">↩ Wraparound</button>
     <button class="act cyc" id="btnCycle" style="display:none">🔄 Cycle</button>
@@ -1374,7 +1375,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v671';
+var GAME_VERSION='v672';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3459,6 +3460,7 @@ function moveFar(p, m){ if(!S.planning || !p || p.type!=='sk' || !ownsPuck(p.id)
 function planWaitsForPlay(){ var L=null; if(S.atkPlan) for(var i=S.atkPlan.length-1;i>=0;i--){ if(!S.atkPlan[i].att){ L=S.atkPlan[i]; break; } }
   return !!(L && L.kind==='move' && ghostOwner()===L.id && planCanAttach(L.id)); }
 function setSel(id){ if(S.animating)return;
+  if(id && S.planning && brakeOn(id)){ delete S.brakes[id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
   if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
 function clearSel(){ S.sel=null; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
 function endTurn(){
@@ -4332,6 +4334,41 @@ function glide(p){
   if(got){ var ot=pickupLoose(p, p.c, p.r); if(S.puckOwner===p.id) return {p:p, ot:ot||null}; }
   return null;
 }
+// v672 (sa demande : « ou tu peux freiner pour eviter ca » ; ses choix : « Un bouton Freiner », « Arret complet », « Non, gratuit »,
+// « Partout, l'IA aussi ») : BRAKE. Un patineur lance, sans action au plan : a la fin du plan il ne glisse pas, il reste sur sa
+// case, elan 0. S.brakes = {id:1} : mes freins poses au plan (attaque ou embuscade). L'IA freine seule (aiBrake).
+function brakeOK(p){ return !!p && p.type==='sk' && !!p.onIce && (p.mom||0)>0; }
+function brakeOn(id){ return !!(S.brakes && S.brakes[id]); }
+function glideEnd(p){   // ou sa glisse finirait (meme calcul que glide, sans rien bouger) ; crash : dans la bande a pleine vitesse (v669)
+  if(!brakeOK(p)) return null;
+  var f=(p.vel && (p.vel.dc||p.vel.dr)) ? p.vel : facingOf(p); if(!f.dc && !f.dr) return null;
+  var gd=Math.ceil(p.mom/2), tc=Math.max(0,Math.min(COLS-1, p.c+f.dc*gd)), tr=Math.max(0,Math.min(ROWS-1, p.r+f.dr*gd));
+  var spot=clampGlideOffside(p, pathBlocked(p, tc, tr).spot);
+  return {spot:spot, crash:!onIce(spot.c+f.dc, spot.r+f.dr) && (p.mom||0)>=BOARDS_FALL};
+}
+function aiBrake(p){   // l'IA freine : sa glisse l'ecraserait dans la bande, ou l'eloignerait de la rondelle
+  if(!p || p.team===HUMAN_TEAM || S.tut) return false;
+  var g=glideEnd(p); if(!g) return false;
+  if(g.crash) return true;
+  var o=S.puckOwner ? byId(S.puckOwner) : S.puckLoose; if(!o || o===p) return false;
+  return cheb(g.spot, o)>cheb(p, o);
+}
+function doBrake(p){ var mine=brakeOn(p.id); p.mom=0; p.speed=0; if(S.brakes) delete S.brakes[p.id];
+  if(mine) pushLog('<b>'+p.name+'</b> brakes.');
+  matchEv('brake', {id:p.id}); sfx('brake'); }
+function glideOrBrake(p){   // fin du plan, pour qui n'a pas patine : il freine, ou il glisse puis frotte (-2, v384)
+  if(brakeOn(p.id) || aiBrake(p)){ doBrake(p); return null; }
+  var g=glide(p); p.mom=Math.max(0, p.mom-2); return g; }
+function toggleBrake(id){   // le bouton : gratuit ; ce joueur ne fait rien d'autre ; le retoucher annule
+  var p=byId(id); if(!p || S.animating) return;
+  if(!S.brakes) S.brakes={};
+  if(S.brakes[id]){ delete S.brakes[id]; setHint('Brake cancelled.'); }
+  else { if(!brakeOK(p) || p.team!==HUMAN_TEAM) return;
+    if(S.defCommit){ if(defPickedAlready(id)) return; } else if(!S.planning || planHasId(id)) return;
+    S.brakes[id]=1; setHint(p.name+' brakes: he will not glide at the end of the plan. Tap him again to cancel.'); }
+  if(S.defCommit){ var dc=S.defCommit; dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.markMode=false; S.moves=[]; render(); renderDefBar(); }
+  else { clearSel(); render(); renderPlanBar(); }
+}
 function resolveGlide(){
   // apres chaque geste : la piece commandee CONSTRUIT son elan ; les autres GLISSENT puis frottent (-1).
   // Rend {p, ot} si une glisse a ramasse la rondelle libre (a l'appelant de donner la possession).
@@ -4339,7 +4376,7 @@ function resolveGlide(){
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction){ p.mom=skatedMom(p); }   // v384 : depuis l'elan garde (angle)
-    else if((p.mom||0)>0){ var g=glide(p); if(g && !got) got=g; p.mom=Math.max(0, p.mom-2); }   // v384 : frottement -2
+    else if((p.mom||0)>0){ var g=glideOrBrake(p); if(g && !got) got=g; }   // v384 : frottement -2 ; v672 : ou il freine
     p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0;
   }
   return got;
@@ -4369,8 +4406,10 @@ function flushPlanMomentum(){
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || p.type!=='sk') continue;
     if(p._skatedThisAction) p.mom=skatedMom(p);
+    else if(brakeOn(p.id) && !p._skatedInPlan && (p.mom||0)>0 && !S.planning && !S.defCommit) doBrake(p);   // v672 : le plan coupe avant sa fin -- son frein compte quand meme
     p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0; p._skatedLastStep=false; p._skatedInPlan=false;
   }
+  if(!S.planning && !S.defCommit) S.brakes={};
 }
 function seqEndGlide(){
   var got=null;
@@ -4378,9 +4417,10 @@ function seqEndGlide(){
     if(!p.onIce || p.type!=='sk') continue;
     // v393 : un joueur n'agit qu'une fois par plan (v386) -> qui a patine a N'IMPORTE QUELLE etape garde son elan
     // pour le tour suivant, sans glisse. Glisse + frottement -2 : seulement pour qui n'a pas patine du tout.
-    if(!p._skatedLastStep && !p._skatedInPlan && (p.mom||0)>0){ var g=glide(p); if(g && !got) got=g; p.mom=Math.max(0, p.mom-2); }   // v384 : frottement -2
+    if(!p._skatedLastStep && !p._skatedInPlan && (p.mom||0)>0){ var g=glideOrBrake(p); if(g && !got) got=g; }   // v384 : frottement -2 ; v672 : ou il freine
     p._skatedLastStep=false; p._skatedInPlan=false;
   }
+  S.brakes={};   // v672 : un frein ne vaut que pour ce plan
   return got;
 }
 // portee d'un deplacement : en PLANIFICATION, compte l'elan que le joueur aura pris a ses deplacements deja
@@ -5002,7 +5042,7 @@ function planTakeover(){
 }
 function startPlan(){
   cineExit();   // CINE : phase de CHOIX -> la camera remonte au plateau du dessus
-  S.planning=true; S.atkPlan=[]; S.ghost={}; S.planBeep=0; S.mirrorFree={}; clearSel();   // v493 : personne n'est libere du miroir au depart
+  S.planning=true; S.atkPlan=[]; S.ghost={}; S.planBeep=0; S.mirrorFree={}; S.brakes={}; clearSel();   // v493 : personne n'est libere du miroir au depart
   S.planClock = goalieHolding() ? GK_SECS : PLAN_SECS;
   document.getElementById('outcome').innerHTML='<b>Plan up to 3 actions.</b> They stay hidden, then everything resolves at once.';
   setHint('PLAN: pick a player, then a square — or Shoot / Pass. Up to 3 actions.');
@@ -5387,7 +5427,7 @@ function openDefCommit(){
   if(S.defCommit) return;   // une embuscade est deja ouverte : on nefface PAS tes choix
   cineExit();   // CINE : pose de defense = phase de CHOIX -> la camera remonte
   var _gh=S.puckOwner?byId(S.puckOwner):null;
-  tipTrigger('ambush');   /* v456 */ S.planClock=(_gh&&_gh.type==='g')?GK_SECS:PLAN_SECS; S.planBeep=0; S.defCommit={picks:[], selDef:null, lastIdx:null}; S.moves=[]; S.ghost={}; setHint('AMBUSH: tap one of your players, then a square (slide) OR post him on Body check / Block the pass. The mirror partner follows (highlighted square).'); renderDefBar(); }
+  tipTrigger('ambush');   /* v456 */ S.planClock=(_gh&&_gh.type==='g')?GK_SECS:PLAN_SECS; S.planBeep=0; S.defCommit={picks:[], selDef:null, lastIdx:null}; S.brakes={}; S.moves=[]; S.ghost={}; setHint('AMBUSH: tap one of your players, then a square (slide) OR post him on Body check / Block the pass. The mirror partner follows (highlighted square).'); renderDefBar(); }
 function defCommittedPawn(id){ if(!S.defCommit) return false; if(S.defCommit.selDef===id) return true; for(var i=0;i<S.defCommit.picks.length;i++){ var _k=S.defCommit.picks[i]; if(_k.defId===id || (_k.mate && _k.mate.defId===id)) return true; } return false; }   // v622 : le partenaire (Back up) est commande aussi
 function defMovesFor(p, oc, orr){
   if(oc===undefined||oc===null) oc=p.c; if(orr===undefined||orr===null) orr=p.r;   // origine : la position reelle, ou la derniere cible quand on enchaine les coups d'un meme defenseur
@@ -5418,6 +5458,7 @@ function defMovesFor(p, oc, orr){
 function defCommitPiece(p){ if(!S.defCommit) return; if(!p||p.team!==HUMAN_TEAM||p.type!=='sk'||!p.onIce) return;
   var _dc=S.defCommit;
   for(var _ci=0;_ci<_dc.picks.length;_ci++){ if(_dc.picks[_ci].defId===p.id && _dc.picks[_ci].cont){ _dc.picks.splice(_ci,1); p.route=null; setHint('Route cancelled — draw a new one or pick a square.'); break; } }   // v410 : toucher le joueur remplace sa suite
+  if(brakeOn(p.id)){ delete S.brakes[p.id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
   if(_dc.selDef===p.id){ doPivot(p); renderDefBar(); return; }   // 2e clic sur le joueur DEJA selectionne = pivot (uniforme avec l'attaque). Pour lui donner une 2e action : Done d'abord, puis re-taper.
   if(_dc.picks.length>=PLAN_N) return;
   // v386 NOUVELLE PROCEDURE : un defenseur n'a qu'UNE action par tour (3 actions = 3 defenseurs differents)
@@ -5703,7 +5744,7 @@ function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) retur
   var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(108,105,102,116))">+ Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
-  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
+  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
 // v474 : telephone -- si un ordre de l'embuscade reste sous la barre GO, le panneau defile pour le montrer
 function showDefOrders(){
   if(!isVRink() || !S.defCommit) return;
@@ -9434,6 +9475,8 @@ function render(){
   bb.className='act bank'+(S.bankMode?' on':''); bb.textContent=S.bankMode?'Bank pass ✓':'Bank pass';
   var canProt = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&S.protecting!==sp.id;
   document.getElementById('btnProtect').style.display=canProt?'inline-block':'none';
+  var canBrake = !!sp && S.planning && !S.animating && !S.defCommit && !S.bonus && sp.team===HUMAN_TEAM && brakeOK(sp) && !planHasId(sp.id);   // v672
+  document.getElementById('btnBrake').style.display=canBrake?'inline-block':'none';
   var canPoke = sp&&sp.onIce&&sp.team===S.turn&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&S.pokeT&&S.pokeT.length>0;
   var pkb=document.getElementById('btnPoke');
   pkb.style.display=canPoke?'inline-block':'none';
@@ -9849,7 +9892,7 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||'', prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:q.mom||0, role:hj3dRole(q)};
+    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||(brakeOn(q.id)?'brake':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
     if(q.vel && (q.vel.dc||q.vel.dr)) pl.mv=[q.vel.dc||0, q.vel.dr||0];   /* v661 : sa direction de glisse -> les chevrons de vitesse derriere elle (pas derriere son regard) */
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
@@ -10086,6 +10129,7 @@ var _lsp=document.getElementById('lsPause'); if(_lsp) _lsp.onclick=togglePause;
 document.addEventListener('keydown', function(e){ if(e.key==='Escape'||e.key===' '){ e.preventDefault(); togglePause(); } });
 document.getElementById('btnDump').onclick=armDump;
 document.getElementById('btnProtect').onclick=doProtect;
+document.getElementById('btnBrake').onclick=function(){ if(S.sel) toggleBrake(S.sel); };   // v672
 document.getElementById('btnWrap').onclick=function(){ var p=S.sel?byId(S.sel):null; if(p&&canWraparound(p)) doWraparound(p); };
 document.getElementById('btnCycle').onclick=armCycle;
 document.getElementById('btnAlert').onclick=function(){};   // v417 : Alert retire (bouton toujours masque)
@@ -13072,7 +13116,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":620204,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":619676,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
