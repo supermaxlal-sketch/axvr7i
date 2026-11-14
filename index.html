@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v672</title>
+<title>Deck 3D v673</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1375,7 +1375,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v672';
+var GAME_VERSION='v673';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10568,7 +10568,7 @@ function careerContact(id, kind, by){   // v489 : un contact peut blesser (selon
 }
 function careerInjWhy(kind, by){ var n=(by && by.name) ? by.name : 'a rival';   // v516 : la cause, dans le message
   return ({hit3:'big hit by '+n, hit4:'big hit by '+n, blast:'flattened by '+n, behind:'hit from behind by '+n, boards:(by ? 'driven into the boards by '+n : 'crashed into the boards'), blk:'blocking a shot from '+n,
-    stick:'hooked by '+n, defl:'tipped puck to the face', crease:n+' crashes into the crease'})[kind] || kind; }
+    stick:'hooked by '+n, clash:'hard collision with '+n, defl:'tipped puck to the face', crease:n+' crashes into the crease'})[kind] || kind; }
 function nearBoards(c, r){ return !onIce(c-1, r) || !onIce(c+1, r) || !onIce(c, r-1) || !onIce(c, r+1); }
 function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- dans le dos, avec elan (3+), ou contre la bande (la plus dangereuse compte)
   var h=byId(d.id), v=byId(d.on); if(!h || !v) return;
@@ -10578,7 +10578,8 @@ function careerHitInjury(d){   // v516 : la mise en echec qui peut blesser -- da
   if(d.big && d.res!=='hold') take('blast');   // v670
   if((d.run||0)>=4) take('hit4'); else if((d.run||0)>=3) take('hit3');
   if(nearBoards(v.c, v.r)) take('boards');
-  if(k) careerContact(d.on, k, h); }
+  if(k) careerContact(d.on, k, h);
+  if(d.res==='hold'){ if(Math.random()<0.5) careerContact(d.on, 'clash', h); else careerContact(d.id, 'clash', v); } }   // v673 : les deux debout -- 0,5 %, le frappe ou le frappeur
 function careerNearDot(c, r){ var D=[[CTR_C_CELL, CTR_R], [NET_B+3, CTR_R-3], [NET_B+3, CTR_R+3], [NET_A-3, CTR_R-3], [NET_A-3, CTR_R+3], [BLUE_A-2, CTR_R-3], [BLUE_A-2, CTR_R+3], [BLUE_B+2, CTR_R-3], [BLUE_B+2, CTR_R+3]], b=D[0], bd=1e9;
   D.forEach(function(x){ var v=Math.abs(x[0]-c)+Math.abs(x[1]-r); if(v<bd){ bd=v; b=x; } }); return {c:b[0], r:b[1]}; }
 function careerInjuryWhistle(){   // le sifflet attend la fin de l'action en cours (comme le gardien qui gele)
@@ -11346,6 +11347,7 @@ CAREER_INJ_TYPES.sim=CAREER_INJ_TYPES.hit.concat(CAREER_INJ_TYPES.bat.slice(0, 2
 // ordinaire ou une bataille ne blesse plus. Les matchs simules gardent CAREER_INJ.sim.
 var CAREER_INJ_EV={hit3:0.025, hit4:0.04, blast:0.08, behind:0.05, boards:0.02, blk:0.025, stick:0.025, defl:0.025, crease:0.01};
 CAREER_INJ_TYPES.hit3=CAREER_INJ_TYPES.hit4=CAREER_INJ_TYPES.behind=CAREER_INJ_TYPES.boards=CAREER_INJ_TYPES.hit;
+CAREER_INJ_EV.clash=0.005; CAREER_INJ_TYPES.clash=CAREER_INJ_TYPES.hit;   // v673 (son choix : « Mise en echec, 2 debout ») : il encaisse, les deux restent debout -- 0,5 %, l'un ou l'autre
 CAREER_INJ_TYPES.stick=[['Wrist', ['tir']], ['Hand', ['tir', 'passe']]];
 CAREER_INJ_TYPES.defl=[['Face', ['maniement']], ['Jaw', ['passe']]];
 CAREER_INJ_TYPES.crease=CAREER_INJ_TYPES.goalie;
