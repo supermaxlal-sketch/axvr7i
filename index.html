@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v677</title>
+<title>Deck 3D v678</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1376,7 +1376,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v677';
+var GAME_VERSION='v678';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2948,7 +2948,8 @@ function shotOddsDetail(sh, slap){   // ventilation du % de tir (esperance reali
   if(cleanFar && cdist>=3){ cap=(cdist>=4 ? (slap?0.05:0.02) : (slap?0.10:0.06)); prob=Math.min(prob, cap); }   // tir de loin sans ecran : le gardien voit tout (v649 : le slap shot un peu moins)
   var wideP=wideOf(sh, !!slap);     // rater le filet (visible : angle+distance) ; v649 : +12 au slap shot
   prob=Math.max(0, Math.min(1, prob*(1-wideP)));
-  return {prob:prob, corner:t, base:base, exp:exp, boost:SHOT_BOOST, afterBoost:afterBoost,
+  var _prot=!!protHinder(sh); if(_prot) prob*=PROT_SHOT;   // v678 : Protect net
+  return {prot:_prot, prob:prob, corner:t, base:base, exp:exp, boost:SHOT_BOOST, afterBoost:afterBoost,
           cleanFar:cleanFar, cdist:cdist, cap:cap, wideP:wideP,
           screen:(line.screen?line.screen.name:null), blocker:(line.blocker?line.blocker.name:null),
           sev:shotAngle(sh).sev, pen:shotPenalty(shotDist(sh)), dist:shotDist(sh)};
@@ -2997,7 +2998,29 @@ function saucerLand(p, tc, tr){
   for(var k=0;k<30;k++){ var a=Math.random()*Math.PI*2, d=R*Math.sqrt(Math.random()), c=Math.round(tc+d*Math.cos(a)), r=Math.round(tr+d*Math.sin(a)), q=onIce(c, r) ? pieceAt(c, r) : null;
     if(onIce(c, r) && !(q && q.type==='g')) return {c:c, r:r}; }
   return {c:tc, r:tr}; }
-function saucerMiss(t){ return Math.max(0.05, Math.min(0.5, SAUCER_MISS-0.004*(n100(t.maniement)-60)+0.5*passRattle(t))); }
+function saucerMiss(t){ return Math.max(0.05, Math.min(0.5, SAUCER_MISS-0.004*(n100(t.maniement)-60)+0.5*passRattle(t)+(protHinder(t)?PROT_BOBBLE:0))); }   // v678 : +30 % dans l'enclave gardee
+// v678 (son bouton « Protect net », 2026-11-15 : « un bouton Protect net, def crosscheck every player that comes in the slot ... Risk de penalite » ;
+// ses choix : l'enclave = « le premier carre, celui qui touche au filet » (3 x 3) ; « Il le gene » ; « Tous, dans l'enclave » ; penalite « selon sa stat
+// de defense », « je ne veux pas trop de penalite » ; « Oui, l'IA aussi »). L'enclave d'une equipe = les 3 colonnes devant le filet qu'elle defend, rangees
+// CTR_R-1..CTR_R+1. Un patineur dans son enclave recoit l'ordre Protect net (1 des 3 choix de l'embuscade) ; l'IA protege sans ordre quand ton porteur est
+// dans sa zone. Tout adversaire dans l'enclave gardee : son tir x PROT_SHOT, sa reception echappee +PROT_BOBBLE ; penalite cross-checking 2 a 6 % selon
+// la defense, une fois par adversaire et par echange (S._protSeen).
+var PROT_SHOT=0.6, PROT_BOBBLE=0.30;
+function netSlot(team, c, r){ var nc=ownGoalCol(team), d=(team==='A') ? c-nc : nc-c; return d>=1 && d<=3 && Math.abs(r-CTR_R)<=1; }
+function protNetOf(team){
+  if(S.tut || S.so) return null;
+  if(team===HUMAN_TEAM){ var o=S.defOrders||[];
+    for(var i=0;i<o.length;i++){ if(o[i].order!=='protnet') continue; var d=byId(o[i].defId); if(d && d.onIce && d.type==='sk' && d.team===team && netSlot(team, d.c, d.r)) return d; }
+    return null; }
+  var ow=S.puckOwner ? byId(S.puckOwner) : null; if(!ow || !ow.onIce || ow.team!==HUMAN_TEAM || !inOwnZone(team, ow.c)) return null;
+  var nc=ownGoalCol(team), best=null; onIceSkaters(team).forEach(function(q){ if(netSlot(team, q.c, q.r) && (!best || Math.abs(q.c-nc)<Math.abs(best.c-nc))) best=q; });
+  return best; }
+function protOK(d){ return !!d && d.type==='sk' && d.onIce && !S.tut && !S.so && netSlot(d.team, d.c, d.r); }   // v678 : le bouton Protect net
+function protHinder(q){ if(!q || !q.onIce || q.type!=='sk') return null; var opp=(q.team==='A') ? 'B' : 'A', d=protNetOf(opp); return (d && netSlot(opp, q.c, q.r)) ? d : null; }
+function protPenProb(d){ return Math.max(0.02, Math.min(0.06, 0.06-0.001*(n100(d.defense)-50))); }
+function protFoul(q){ var d=protHinder(q); if(!d) return; if(!S._protSeen) S._protSeen={}; if(S._protSeen[q.id]) return; S._protSeen[q.id]=true;
+  pushLog('<b>'+d.name+'</b> cross-checks '+q.name+' in front of the net.'); matchEv('protnet', {id:d.id, on:q.id});
+  penTry(d, protPenProb(d), 'xcheck'); }
 function armSaucer(){
   if(S.animating||S.gameEnded) return;
   var p=S.sel?byId(S.sel):null;
@@ -5283,7 +5306,7 @@ function toggleMirror(){
 // Attaque = S.atkPlan (+ joueur selectionne en cours) ; defense = S.defCommit.picks (+ dc.selDef).
 function tbEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
 var TB_VERB={bank:'Bank pass',bankgo:'Bank & go',move:'Skate',pass:'Pass',cycle:'Cycle',shoot:'Shoot',wrap:'Wrap',dump:'Dump',dangle:'Deke',deke:'Deke',protect:'Protect',pivot:'Pivot',hold:'Hold',zoneout:'Out of the zone'};   // v578 : sortie de zone
-var TB_ORDER={check:'Check',block:'Block pass',poke:'Poke',lift:'Stick lift',sblock:'Block shot',mark:'Mark'};
+var TB_ORDER={check:'Check',block:'Block pass',poke:'Poke',lift:'Stick lift',sblock:'Block shot',mark:'Mark', protnet:'Protect net'};
 function tbAtkVerb(a){ if(a.cont) return 'Route'; if(a.go) return 'Go'; if(a.stride) return 'In stride'; return TB_VERB[a.kind]||a.kind; }   // v419 : passe dans la course
 function tbDefVerb(k){ if(k.backup) return 'Back up'; if(k.cont) return 'Route'; if(k.kind==='order') return TB_ORDER[k.order]||k.order; return 'Move'+(k.order?(' + '+(TB_ORDER[k.order]||k.order)):''); }
 function tbSlot(i, id, what, st){
@@ -5457,7 +5480,7 @@ function startExchange(){
   penRelease();   // v445 : les punis dont le temps est fini reviennent
   flushPlanMomentum();   // v393 : une sequence coupee (passe, tir, contact) compte quand meme l'elan de ses gestes
   resetAlert();   // v380 : l'Alerte-passe ne dure qu'un tour
-  S.gestes=3; S.carrierMoved=false; S.hiddenDef=[]; S.defRevealIdx=0; S.defOrders=[];
+  S.gestes=3; S.carrierMoved=false; S.hiddenDef=[]; S.defRevealIdx=0; S.defOrders=[]; S._protSeen={};
   S._exStart={}; S.pieces.forEach(function(q){ if(q.onIce && q.type==='sk') S._exStart[q.id]={c:q.c, r:q.r}; });   // v642 : ou etait chacun au debut de l'echange (qui ARRIVE dans un couloir de passe)
   momDecay();   // v554 : le momentum revient vers le neutre a chaque tour
   var _atk=S.puckOwner?byId(S.puckOwner).team:null;
@@ -5853,7 +5876,7 @@ function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) retur
   var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(108,105,102,116))">+ Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
-  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
+  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(protOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(112,114,111,116,110,101,116))">Protect net</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
 // v474 : telephone -- si un ordre de l'embuscade reste sous la barre GO, le panneau defile pour le montrer
 function showDefOrders(){
   if(!isVRink() || !S.defCommit) return;
@@ -6689,6 +6712,7 @@ function doPass(p,targetId){
   }
   var offPass=(ttype==='sk' && !inOffZone(team,pc) && inOffZone(team,tc));
   flyPuckBoard(pc,pr,tc,tr,function(){
+    if(t && t.type==='sk' && protHinder(t)){ protFoul(t); if(Math.random()<PROT_BOBBLE && pressBobble(t, p)){ S._prsPass=false; looseOffside(team, pc); return; } }   // v678 : Protect net
     var _rb=(t && t.type==='sk') ? passRattle(t) : 0; if(_rb>0 && Math.random()<_rb && pressBobble(t, p)){ S._prsPass=false; looseOffside(team, pc); return; }   // v671 : la reception sous pression
     S.puckOwner=tid; S.rcvPop=tid; checkFx('pass', tc, tr); careerTrack('passok', {id:p.id, to:tid, prs:!!S._prsPass}); S._prsPass=false; morPass(p, true);   // v484
     if(t && t.type==='g') S.gkSide=(p.r<CTR_R)?'T':((p.r>CTR_R)?'B':null);
@@ -7188,7 +7212,7 @@ function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
 var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_P_ROUGH=0.10, PEN_MAX=2;   /* v581 : rudesse (fache, mise en echec propre) */   // v497 : accrochage (choix du concepteur, 30 %)
 // v563 (le concepteur : « penalites plus longues, fini trop rapide » ; choix : 36 s, environ 6 jeux) : PEN_SECS 18 -> 36
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping'};   // v631 : goalie
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping', xcheck:'cross-checking'};   // v631 : goalie
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
@@ -7733,6 +7757,7 @@ function onShotTarget(t){
   if(_slap && slapPokeTry(sh)) return;                             // il arme : un adversaire colle peut le poker avant le tir
   if(_slap) pushLog('<b>Slap shot</b>: '+sh.name+' winds up and lets it rip!');
   checkFx('shot', sh.c, sh.r);
+  protFoul(sh);   // v678 : Protect net
   var base=shotChance(sh,t);
   if(S.tut && sh.team===HUMAN_TEAM) S.tut.shots=(S.tut.shots||0)+1;   // v453 : tirs de la lecon
   
@@ -7845,6 +7870,7 @@ function onShotTarget(t){
   prob = Math.min(0.95, prob + feintSpaceBonus(sh.id)); consumeFeintSpace(sh.id);   // spin-o-rama : espace ouvert par la feinte -> +10% sur ce tir, consomme une fois
   prob = Math.min(0.97, prob + cycleShotBonus()); resetCycle();   // cycle : defense brouillee -> +10% par cycle (plafond +30%), consomme sur le tir
   prob = angleProb((_defl && _defl.team===sh.team) ? _defl : sh, prob);   // v575 : l'angle, apres TOUS les bonus (une deviation d'un adversaire reste sous le plafond du tireur ; celle d'un coequipier : son angle a lui)
+  if(protHinder(sh)) prob*=PROT_SHOT;   // v678 : Protect net (meme facteur que shotOddsDetail)
   S._shotProb = prob;   // expose pour tests/diagnostic
   var rl=Math.random();
   var res;
@@ -10007,7 +10033,7 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||(brakeOn(q.id)?'brake':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
+    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||(brakeOn(q.id)?'brake':'')||((q.type==='sk' && protNetOf(q.team)===q)?'protect':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
     if(q.vel && (q.vel.dc||q.vel.dr)) pl.mv=[q.vel.dc||0, q.vel.dr||0];   /* v661 : sa direction de glisse -> les chevrons de vitesse derriere elle (pas derriere son regard) */
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
@@ -13252,7 +13278,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":630492,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":630284,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
