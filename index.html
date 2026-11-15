@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v678</title>
+<title>Deck 3D v679</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1376,7 +1376,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v678';
+var GAME_VERSION='v679';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1500,7 +1500,7 @@ function defRoleTarget(role){
 function huntShown(){
   if(!isHumanAttackPlan() || !S.puckOwner || S.bonus) return null; var car=byId(S.puckOwner); if(!car || car.team!==HUMAN_TEAM || !car.onIce) return null;
   var o=S.defOrders||[]; for(var i=0;i<o.length;i++){ if(!o[i].hunt || o[i].used) continue; var h=byId(o[i].defId);
-    if(h && h.onIce && h.team!==HUMAN_TEAM && hasPos(h)) return {h:h, car:car}; }
+    if(h && h.onIce && !isDown(h) && h.team!==HUMAN_TEAM && hasPos(h)) return {h:h, car:car}; }
   return null; }
 // v383 : le CHASSEUR IA colle au porteur tente une reprise (une fois par echange). On le rend comme
 // "defenseur de ce temps" : les appelants passent deja par resolveSeqContact -> resolveCheck.
@@ -1510,7 +1510,7 @@ function hunterReady(){
   for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i];
     if(!o.hunt || o.tried) continue;
     var h=byId(o.defId);
-    if(h && h.onIce && h.team!==car.team && Math.max(Math.abs(h.c-car.c),Math.abs(h.r-car.r))===1){ o.tried=true; return h; }
+    if(h && h.onIce && !isDown(h) && h.team!==car.team && Math.max(Math.abs(h.c-car.c),Math.abs(h.r-car.r))===1){ o.tried=true; return h; }
   }
   return null;
 }
@@ -1530,9 +1530,9 @@ function resolveSeqDefStepCore(seq){
   seq.defDone=seq.rank;
   S._tempoCheck=null;   // trajet du checkeur pour CE temps (croisement) : remis a zero, rempli si un checkeur bouge
   var dMove=seq.def[seq.rank]; if(!dMove) return null;
-  var df=byId(dMove.defId), r=(df && df.onIce) ? defStepMove(seq, dMove, df) : null;
+  var df=byId(dMove.defId), r=(df && df.onIce && !downNow(df, seq)) ? defStepMove(seq, dMove, df) : null;
   if(r==='takeover' || !dMove.mate) return r;
-  var _cr=S.checkRun, mf=byId(dMove.mate.defId), r2=(mf && mf.onIce) ? defStepMove(seq, dMove.mate, mf) : null;   // v622 : Back up -- le partenaire de ce temps (2, 2, 1)
+  var _cr=S.checkRun, mf=byId(dMove.mate.defId), r2=(mf && mf.onIce && !downNow(mf, seq)) ? defStepMove(seq, dMove.mate, mf) : null;   // v622 : Back up -- le partenaire de ce temps (2, 2, 1)
   if(r2==='takeover') return r2;
   var car=S.puckOwner?byId(S.puckOwner):null;
   if(r2 && car && cheb(r2, car)===1 && !(r && cheb(r, car)===1)) return r2;   // celui qui touche le porteur a la priorite
@@ -1591,12 +1591,14 @@ function resolveSeq(seq){
   if(!seq.acted) seq.acted=false;
   if(seq._momRank!==seq.rank){ seqStepMomentum(); seq._momRank=seq.rank; S._rankMoves={}; S._rankDuel={}; S._rankBrush={}; }   // v432 : nouvelle etape -> nouvelles courses   // v382 : l'elan se construit a chaque etape du plan
   var n=Math.max(seq.atk.length, seq.def.length);
+  if(!seq.isBonus) downBegin(seq);   // v679
   if(seq.rank>=n && seq.isBonus){   // v438 : fin de l echappee -> le plan reprend ou il etait (pas de glisse ici)
-    var _o=seq.outer; killSeq(seq); var _own=S.puckOwner?byId(S.puckOwner):null;
+    downSeqEnd(seq, n); var _o=seq.outer; killSeq(seq); var _own=S.puckOwner?byId(S.puckOwner):null;
     if(_o && !_o.dead && _own && _own.team===_o.team){ S.currentSeq=_o; S.animating=true; render(); setTimeout(function(){ S.animating=false; if(S.currentSeq!==_o) return; _o.rank++; resolveSeq(_o); }, TEMPO.beat); return; }
     S.currentSeq=null; if(S.puckLoose && !S.puckOwner){ looseBall(_o?(_o.team==='A'?'B':'A'):S.turn); return; } endExchange(); return;
   }
   if(seq.rank>=n){
+    downSeqEnd(seq, n);   // v679
     S._acting=null;
     S.oneTimer=null;   // v630 : un one-timer arme et pas servi ne survit pas au plan   // fin de sequence : plus de halo
     var _eg=seqEndGlide();   // v382 : fin du plan -> UNE glisse des pieces non commandees a la derniere etape
@@ -1633,7 +1635,8 @@ function resolveSeq(seq){
     if(_own3 && _own3.team!==p.team){ killSeq(seq); S.currentSeq=null; endExchange(); return; } }
   if(p && p.team===AI_TEAM) seq.acted=true;
 
-  if(!a || !p || !p.onIce){
+  var _dn=!!(p && p.onIce && downNow(p, seq)); if(_dn) pushLog('<b>'+p.name+'</b> is down — he cannot act.');   // v679
+  if(!a || !p || !p.onIce || _dn){
     var df0=resolveSeqDefStep(seq);
     if(df0==='takeover') return;
     if(!df0){ seq.rank++; resolveSeq(seq); return; }
@@ -2547,7 +2550,7 @@ function newGame(firstTeam){
   soHideAll();   // v536 : les panneaux de la fusillade
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, err:{}, stSeen:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, down:{}, err:{}, stSeen:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
@@ -3010,10 +3013,10 @@ function netSlot(team, c, r){ var nc=ownGoalCol(team), d=(team==='A') ? c-nc : n
 function protNetOf(team){
   if(S.tut || S.so) return null;
   if(team===HUMAN_TEAM){ var o=S.defOrders||[];
-    for(var i=0;i<o.length;i++){ if(o[i].order!=='protnet') continue; var d=byId(o[i].defId); if(d && d.onIce && d.type==='sk' && d.team===team && netSlot(team, d.c, d.r)) return d; }
+    for(var i=0;i<o.length;i++){ if(o[i].order!=='protnet') continue; var d=byId(o[i].defId); if(d && d.onIce && !isDown(d) && d.type==='sk' && d.team===team && netSlot(team, d.c, d.r)) return d; }
     return null; }
   var ow=S.puckOwner ? byId(S.puckOwner) : null; if(!ow || !ow.onIce || ow.team!==HUMAN_TEAM || !inOwnZone(team, ow.c)) return null;
-  var nc=ownGoalCol(team), best=null; onIceSkaters(team).forEach(function(q){ if(netSlot(team, q.c, q.r) && (!best || Math.abs(q.c-nc)<Math.abs(best.c-nc))) best=q; });
+  var nc=ownGoalCol(team), best=null; onIceSkaters(team).forEach(function(q){ if(!isDown(q) && netSlot(team, q.c, q.r) && (!best || Math.abs(q.c-nc)<Math.abs(best.c-nc))) best=q; });
   return best; }
 function protOK(d){ return !!d && d.type==='sk' && d.onIce && !S.tut && !S.so && netSlot(d.team, d.c, d.r); }   // v678 : le bouton Protect net
 function protHinder(q){ if(!q || !q.onIce || q.type!=='sk') return null; var opp=(q.team==='A') ? 'B' : 'A', d=protNetOf(opp); return (d && netSlot(opp, q.c, q.r)) ? d : null; }
@@ -3565,6 +3568,7 @@ function moveFar(p, m){ if(!S.planning || !p || p.type!=='sk' || !ownsPuck(p.id)
 function planWaitsForPlay(){ var L=null; if(S.atkPlan) for(var i=S.atkPlan.length-1;i>=0;i--){ if(!S.atkPlan[i].att){ L=S.atkPlan[i]; break; } }
   return !!(L && L.kind==='move' && ghostOwner()===L.id && planCanAttach(L.id)); }
 function setSel(id){ if(S.animating)return;
+  if(id && S.planning && downId(id) && planCount()===0){ setHint('He is down — he can act from the 2nd action.'); render(); return; }   // v679
   if(id && S.planning && brakeOn(id)){ delete S.brakes[id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
   if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.saucerAim=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
 function clearSel(){ S.sel=null; S.saucerAim=false; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
@@ -3953,7 +3957,7 @@ function flyPuckPath(pts, onDone, noEv){   // v441 : la rondelle suit la simulat
 function distToSeg(px,py,ax,ay,bx,by){ var dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy; var t=L?((px-ax)*dx+(py-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); var qx=ax+t*dx, qy=ay+t*dy; return {d:Math.sqrt((px-qx)*(px-qx)+(py-qy)*(py-qy)), t:t}; }
 function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PUR (sans jet, sans effet de bord) — sert a la resolution ET a l'affichage
   var lane=[];
-  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(!e.onIce||e.type!=='sk'||e.team===p.team) continue; var sg=distToSeg(e.c,e.r,p.c,p.r,t.c,t.r); if(sg.d<=0.85 && sg.t>0.12 && sg.t<0.92){ lane.push({e:e,d:sg.d}); } }
+  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(!e.onIce||e.type!=='sk'||e.team===p.team||isDown(e)) continue; var sg=distToSeg(e.c,e.r,p.c,p.r,t.c,t.r); if(sg.d<=0.85 && sg.t>0.12 && sg.t<0.92){ lane.push({e:e,d:sg.d}); } }
   if(!lane.length) return {def:null, crowd:0, thr:0, prob:0};
   lane.sort(function(a,b){return a.d-b.d;});
   var best=lane[0].e, crowd=lane.length, bd=lane[0].d;
@@ -3983,7 +3987,7 @@ function laneReachRisk(p,t){
   if(!p||!t) return 0;
   var steps=Math.max(1, Math.max(Math.abs(t.c-p.c),Math.abs(t.r-p.r))*2), risk=0;
   for(var i=0;i<S.pieces.length;i++){ var d=S.pieces[i];
-    if(!d.onIce||d.type!=='sk'||d.team===p.team) continue;
+    if(!d.onIce||d.type!=='sk'||d.team===p.team||isDown(d)) continue;
     var md=1e9;
     for(var k=0;k<=steps;k++){ var tt=k/steps, xx=p.c+(t.c-p.c)*tt, yy=p.r+(t.r-p.r)*tt;
       var dd=Math.max(Math.abs(xx-d.c),Math.abs(yy-d.r)); if(dd<md) md=dd; }
@@ -4008,7 +4012,7 @@ function pressCharge(q, p){ var el=Math.min(1, Math.max(q.mom||0, q.speed||0)/5)
   if(f && (f.dc*dx+(f.dr||0)*dy)/(n*(Math.hypot(f.dc, f.dr||0)||1))>0.5) ap=1;   // ou il patine vers lui
   return el*ap; }
 function passPressure(p, skip){ var P=0, near=null, nk=-1;   // v671 : skip = un joueur qui ne compte pas (le defenseur feinte)
-  if(p) S.pieces.forEach(function(q){ if(!q.onIce || q.type!=='sk' || q.team===p.team || q.id===skip) return; var d=cheb(q, p); if(d<1 || d>4) return;
+  if(p) S.pieces.forEach(function(q){ if(!q.onIce || q.type!=='sk' || q.team===p.team || q.id===skip || isDown(q)) return; var d=cheb(q, p); if(d<1 || d>4) return;
     var k=pressCharge(q, p), part=100*PRESS_W[d]*(0.30+0.70*k);
     if(S._stratDef && S._stratDef.kind==='pressure' && q.team===S._stratDef.team) part*=1.5;   // le bonus « pressure » du Forecheck (prepare, jamais lu avant)
     P+=part; if(d===1 && k>nk){ nk=k; near=q; } });
@@ -4159,7 +4163,7 @@ function boardsFall(p, wait){   // il s'ecrase : il tombe, perd la rondelle (lib
   var _v=(p.vel && (p.vel.dc||p.vel.dr)) ? p.vel : facingOf(p), _fe={id:p.id, boards:true, c:p.c, r:p.r, dc:_v.dc||0, dr:_v.dr||0};   // la 3D : il tombe sur le dos, a l'oppose de sa course
   var _fw=wait ? slideMs(S.slides && S.slides[p.id]) : 0; if(_fw>0) setTimeout(function(){ matchEv('fall', _fe); }, _fw); else matchEv('fall', _fe);   // a la bande, pas au debut de sa glisse
   p.mom=0; p.speed=0; p.route=null; p._inA=null; p._skatedDist=0; p._inKeep=0; p._detourLoss=0;
-  stSet(p, 'stun'); careerContact(p.id, 'boards', null);
+  downSet(p); careerContact(p.id, 'boards', null);   // v679 : par terre une action (plus sonne)
   if(had){ S._looseLoser=p.id; S.puckOwner=null; placeLooseNear(p.c, p.r); }
   S._bothDown=(S._bothDown||[]).concat([p.id]);   // au sol : il ne dispute pas cette rondelle (v657)
   render(); checkFx('trip', p.c, p.r);
@@ -4444,6 +4448,15 @@ function glide(p){
 // case, elan 0. S.brakes = {id:1} : mes freins poses au plan (attaque ou embuscade). L'IA freine seule (aiBrake).
 function brakeOK(p){ return !!p && p.type==='sk' && !!p.onIce && (p.mom||0)>0; }
 function brakeOn(id){ return !!(S.brakes && S.brakes[id]); }
+// v679 (sa regle : « Si tu tombe apres une mise en echec, tu perds ta vitesse et tu reste une action par terre ») : S.down[id]={rank, seq} ;
+// il est par terre pendant l'action SUIVANTE (rang+1 du plan en cours) ; tombe a la derniere etape ou hors plan : action 1 du plan suivant
+function downSet(p){ if(!p || p.type!=='sk' || !S || S.tut || S.so) return; if(!S.down) S.down={}; var sq=S.currentSeq, live=!!(sq && !sq.dead && !sq.isBonus);
+  S.down[p.id]={rank:live ? sq.rank : -1, seq:live ? sq : null}; p.mom=0; p.speed=0; p.route=null; }
+function downId(id){ return !!(S && !S.tut && !S.so && S.down && S.down[id]); }
+function isDown(p){ return !!p && downId(p.id); }
+function downNow(p, seq){ var e=p && S.down && S.down[p.id]; if(!e || S.tut || S.so) return false; if(!seq || seq.isBonus) return true; return e.seq===seq && seq.rank===e.rank+1; }
+function downBegin(seq){ if(!S.down) return; for(var id in S.down){ var e=S.down[id]; if(e.seq!==seq){ e.seq=seq; e.rank=seq.rank-1; } else if(seq.rank>e.rank+1) delete S.down[id]; } }   // le plan suivant l'adopte ; passe son action, il se releve
+function downSeqEnd(seq, n){ if(!S.down) return; for(var id in S.down){ var e=S.down[id]; if(e.seq!==seq) continue; if(seq.isBonus || e.rank>=n-1){ e.seq=null; e.rank=-1; } else delete S.down[id]; } }   // tombe a la derniere etape : encore par terre au 1er coup du plan suivant
 function glideEnd(p){   // ou sa glisse finirait (meme calcul que glide, sans rien bouger) ; crash : dans la bande a pleine vitesse (v669)
   if(!brakeOK(p)) return null;
   var f=(p.vel && (p.vel.dc||p.vel.dr)) ? p.vel : facingOf(p); if(!f.dc && !f.dr) return null;
@@ -4617,7 +4630,7 @@ function findBattlePair(L){
   // BATAILLE seulement si les deux camps ont un joueur COLLE sur la rondelle (1 case)
   var bestA=null, bestB=null, sa=-1e9, sb=-1e9;
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
-    if(!p.onIce || p.type!=='sk' || (S._bothDown && S._bothDown.indexOf(p.id)>=0)) continue;   // v657 : les deux au sol ne se battent pas pour cette rondelle
+    if(!p.onIce || p.type!=='sk' || isDown(p) || (S._bothDown && S._bothDown.indexOf(p.id)>=0)) continue;   // v657 ; v679 : les deux au sol ne se battent pas pour cette rondelle
     if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r)) > 1) continue;
     if(!looseCan(p, L)) continue;   // v667 : il ne peut pas y aller (vitesse, direction)
     var sc=battleScore(p,L);
@@ -4628,7 +4641,7 @@ function findBattlePair(L){
 }
 var BATTLE_SEQ=0;
 var BATTLE_ROUNDS=1;   // 1 choc et BANG, resolution : batailles rapides et intenses
-function canReachLoose(p, L){ if(S._bothDown && S._bothDown.indexOf(p.id)>=0) return false;   /* v657 : au sol */
+function canReachLoose(p, L){ if(isDown(p)) return false; if(S._bothDown && S._bothDown.indexOf(p.id)>=0) return false;   /* v657 : au sol */
   // v398 (choix du concepteur) : RAMASSAGE AUTOMATIQUE seulement si COLLE (1 case). Plus loin, il faut une
   // action pour aller la chercher (vraie course) -- l'elan ne permet plus d'aspirer une rondelle a 2-5 cases.
   if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r))>1) return false;
@@ -5212,7 +5225,7 @@ function mirrorRelease(id){
 }
 function mirrorMoveNow(seq, p, oc, orr, nc, nr){
   if(!S.mirror || !p || p.type!=='sk') return;
-  var mp=mirrorPartnerOf(p); if(!mp) return;
+  var mp=mirrorPartnerOf(p); if(!mp || isDown(mp)) return;
   if(seq && seq.noMirror && seq.noMirror[mp.id]) return;   // v493 : libere du miroir pendant le plan
   if(seqCommands(seq, mp.id)) return;                 // le partenaire est deja commande : il bouge tout seul
   var dc=nc-oc, dr=nr-orr; if(!dc && !dr) return;
@@ -5589,6 +5602,7 @@ function defMovesFor(p, oc, orr){
 }
 function defCommitPiece(p){ if(!S.defCommit) return; if(!p||p.team!==HUMAN_TEAM||p.type!=='sk'||!p.onIce) return;
   var _dc=S.defCommit;
+  if(isDown(p) && _dc.picks.length===0){ setHint('He is down — he can act from the 2nd action.'); render(); return; }   // v679
   for(var _ci=0;_ci<_dc.picks.length;_ci++){ if(_dc.picks[_ci].defId===p.id && _dc.picks[_ci].cont){ _dc.picks.splice(_ci,1); p.route=null; setHint('Route cancelled — draw a new one or pick a square.'); break; } }   // v410 : toucher le joueur remplace sa suite
   if(brakeOn(p.id)){ delete S.brakes[p.id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
   if(_dc.selDef===p.id){ doPivot(p); renderDefBar(); return; }   // 2e clic sur le joueur DEJA selectionne = pivot (uniforme avec l'attaque). Pour lui donner une 2e action : Done d'abord, puis re-taper.
@@ -5741,7 +5755,7 @@ function markPursueAll(seq){   // a chaque temps : chaque marqueur poursuit son 
     var from=o.hunt ? huntLag(o, marked) : null;   // v560 : le chasseur vise ou il etait au debut de l'action d'avant
     if(S._shook && S._shook.id===(marked?marked.id:o.markId) && seq && S._shook.rank===seq.rank) continue;   // seme ce temps : le marqueur ne suit pas
     if(o.hunt && o.biteTo!=null && seq && seq.rank<=o.biteTo) continue;   // v560 : il a mordu a la feinte
-    if(marker&&marked&&marker.onIce&&marked.onIce&&marker.team!==marked.team){
+    if(marker&&marked&&marker.onIce&&!isDown(marker)&&marked.onIce&&marker.team!==marked.team){
       if(markPursue(marker, marked, from, o.hunt)) pushLog('<span style="color:#ff8fbf">Mark</span>: '+marker.name+' stays with '+marked.name+'.');
     }
   }
@@ -5781,7 +5795,7 @@ function cutDuel(seq, p){
     // v665 (ses choix) : la coupe seche seme le couvreur pour ce temps, sans action bonus (avant : l'echappee v438)
   }
 }
-function hasOrder(id,kind){ if(!S.defOrders) return null; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id && o.order===kind && !o.used) return o; } return null; }
+function hasOrder(id,kind){ if(!S.defOrders || downId(id)) return null;   /* v679 : par terre, ses ordres ne partent pas */ for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id && o.order===kind && !o.used) return o; } return null; }
 function activeOrderClass(id){ if(!S.defOrders) return ''; for(var i=0;i<S.defOrders.length;i++){ var o=S.defOrders[i]; if(o.defId===id&&!o.used) return o.order==='check'?' ordc':((o.order==='poke'||o.order==='lift')?' ordp':(o.order==='sblock'?' ords':' ordb')); } return ''; }
 // v589 (le concepteur : « couper sur le trajet ») : ou le defenseur atteint la ligne de la passe (u : 0 = le passeur, 1 = le receveur)
 function passCutU(pc, pr, tc, tr, d){ var dx=tc-pc, dy=tr-pr, L2=dx*dx+dy*dy; return L2 ? ((d.c-pc)*dx+(d.r-pr)*dy)/L2 : 1; }
@@ -7035,7 +7049,7 @@ var PASSBY_POKE=0.5, PASSBY_TRIP=0.03;
 function passPokeProb(d, p){ return pokeProb(d, p)*PASSBY_POKE; }
 function passTripProb(d, p){ var def=(typeof d.defense==='number')?d.defense:50, k=Math.max(0.5, Math.min(1.5, 1-(def-60)*0.015)), pr=PASSBY_TRIP*k*(1-0.05*speechK(d.team, 'dis'));
   return stState(d)==='angry' ? pr*ST_PEN : pr; }
-function passByHasOrder(d){ var o=S.defOrders||[]; for(var i=0;i<o.length;i++) if(o[i].defId===d.id && (o[i].order==='check' || o[i].order==='poke' || o[i].order==='lift')) return true; return false; }
+function passByHasOrder(d){ if(isDown(d)) return false; var o=S.defOrders||[]; for(var i=0;i<o.length;i++) if(o[i].defId===d.id && (o[i].order==='check' || o[i].order==='poke' || o[i].order==='lift')) return true; return false; }
 // cells = le trajet sans la case de depart ; om = l'ordre v614 sur ce trajet (seulement ce qui vient avant lui) ; renvoie {k, n, cell, d, o, passBy} ou null.
 function passByMeet(p, cells, om){
   if(!p || p.type!=='sk' || S.puckOwner!==p.id || S.tut || S.so || !cells || !cells.length) return null;
@@ -7069,7 +7083,7 @@ function passByTrip(seq, p, m){
   matchEv('hit', {id:d.id, on:p.id, body:false, ok:false, run:0, pen:true});   // ok:false : le geste, sans vol de rondelle au credit ; pen : la victime ne perd pas de moral
   matchEv('fall', {id:p.id, by:d.id});   // v647 : on le voit tomber
   p.mom=0; p.speed=0; p.route=null; p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0;
-  stSet(p, 'stun');
+  downSet(p);   // v679 : par terre une action (plus sonne)
   S._looseLoser=p.id; placeLooseNear(cc, cr); looseOffside(d.team, cc);
   penTry(d, 1, 'trip');
   render(); checkFx('trip', cc, cr);
@@ -7190,14 +7204,14 @@ function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
   var mine=function(){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; S._hitRecover=null; S._looseLoser=C.id; };
   if(res==='hold'){ S._hitRecover=null; S._looseLoser=null; return {res:res, knock:0, fall:false, recoil:0, keep:true}; }
   if(res==='onto'){ S._hitRecover=null; S._looseLoser=null; placeLooseNear(cc, cr); S._bothDown=[C.id, checker.id];
-    matchEv('fall', {id:C.id, by:checker.id}); matchEv('fall', {id:checker.id, by:C.id, onto:true});
+    matchEv('fall', {id:C.id, by:checker.id}); matchEv('fall', {id:checker.id, by:C.id, onto:true}); downSet(C); downSet(checker);
     return {res:res, knock:0, fall:true, recoil:0}; }
   if(res==='blast'){ var bx=cc+pushC, by=cr+pushR, bk=0;   // v670 : projete d'une case dans le sens du coup (si elle est libre), a terre, rondelle libre
     if((pushC||pushR) && onIce(bx,by) && !pieceAt(bx,by)){ C.c=bx; C.r=by; addSlide(C.id, cc-bx, cr-by); bk=1; }
-    matchEv('fall', {id:C.id, by:checker.id, blast:true, knock:bk});
+    matchEv('fall', {id:C.id, by:checker.id, blast:true, knock:bk}); downSet(C);
     S._hitRecover=null; S._looseLoser=C.id; S.puckOwner=null; placeLooseNear(cc, cr); S._bothDown=[C.id];
     return {res:res, knock:bk, fall:true, recoil:0}; }
-  if(res==='fall'){ matchEv('fall', {id:C.id, by:checker.id}); mine(); return {res:res, knock:0, fall:true, recoil:0, gain:true}; }
+  if(res==='fall'){ matchEv('fall', {id:C.id, by:checker.id}); downSet(C); mine(); return {res:res, knock:0, fall:true, recoil:0, gain:true}; }
   if(res==='back'){ var tx=cc+pushC, ty=cr+pushR;
     if((pushC||pushR) && onIce(tx,ty) && !pieceAt(tx,ty)){ C.c=tx; C.r=ty; addSlide(C.id, cc-tx, cr-ty); steps=1; }
     mine(); return {res:res, knock:steps, fall:false, recoil:0, gain:true}; }
@@ -8020,7 +8034,7 @@ function morTrack(e, d){   // depuis matchEv : les tirs, les feintes, les contac
   else if(e==='hit'){ var ck=byId(d.id), cv=byId(d.on);
     if(d.body){ if(d.ok) morAdd(ck, MOR_HIT, 0); }
     else morAdd(ck, d.ok ? MOR_ACT : -MOR_ACT, d.ok ? MOR_TEAM : -MOR_TEAM);
-    if(d.ok){ stGood(ck); if(cv && !d.pen) stErr(cv); if(cv && d.body && !d.pen && d.res!=='hold' && d.res!=='onto') stSet(cv, 'stun'); }   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
+    if(d.ok){ stGood(ck); if(cv && !d.pen) stErr(cv); if(cv && d.body && !d.pen && d.res==='blast') stSet(cv, 'stun'); }   // v679 : sonne seulement apres la percutante   // v559 : la rondelle perdue ; la mise en echec subie sonne (le plus recent gagne)
     if(d.ok && cv && !d.pen) morAdd(cv, -MOR_ACT, -MOR_TEAM); }   // v581 : la victime d une faute sifflee : rien (la penalite suffit)
 }
 // v559 (le moral et le momentum, morceau 4 : les etats des joueurs ; choix du concepteur : sonne, fache, en confiance, panique ;
@@ -8546,7 +8560,7 @@ function deployLineup(){
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
 }
-function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return;   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
+function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; S.down={};   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
   matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
@@ -10033,7 +10047,7 @@ function hj3dSnapshot(slides){
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
-    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:stState(q)||(brakeOn(q.id)?'brake':'')||((q.type==='sk' && protNetOf(q.team)===q)?'protect':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
+    var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:(isDown(q)?'down':'')||stState(q)||(brakeOn(q.id)?'brake':'')||((q.type==='sk' && protNetOf(q.team)===q)?'protect':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
     if(q.vel && (q.vel.dc||q.vel.dr)) pl.mv=[q.vel.dc||0, q.vel.dr||0];   /* v661 : sa direction de glisse -> les chevrons de vitesse derriere elle (pas derriere son regard) */
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
@@ -13278,7 +13292,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":630284,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":630604,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
