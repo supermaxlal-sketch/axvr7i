@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v682</title>
+<title>Deck 3D v683</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1376,7 +1376,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v682';
+var GAME_VERSION='v683';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2799,7 +2799,9 @@ function passCatchProb(p,t){   // reception d'une passe longue / dos au jeu : 60
   return Math.max(0.05, Math.min(0.95, pr)); }
 function recvBackDrop(p,t){ if(!p||!t||t.type!=='sk' || S.tut) return 0;   /* v630 : pas dans les lecons (la passe du cycle de la lecon 8 ratait 1 fois sur 5) */ var tc=Math.sign(p.c-t.c), f=facingOf(t).dc; if(!(tc && f && f!==tc)) return 0;   // v628 : receveur de dos au porteur (passe courte)
   return (f===dir(t.team) && (t.mom||0)>0) ? 0.10 : 0.20; }   // son choix : -10 s'il file vers le filet adverse (la passe dans sa course), -20 s'il est arrete ou recule
-function passCatch(p,t){ if(passRolls(p,t)) return passCatchProb(p,t); return 1-recvBackDrop(p,t); }   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
+function ddPass(p,t){ if(S.tut || !p || !t || p.type!=='sk' || t.type!=='sk' || p.team!==t.team || p.pos!=='D' || t.pos!=='D' || Math.abs(p.c-t.c)>1 || inOffZone(p.team,p.c) || inOffZone(p.team,t.c)) return false; return !laneThreat(p,t).def; }   // v683 (« Passe def a def devrait avoir un haut % de reussite surtout si personne entre les 2 ») : 2 defenseurs, meme colonne +-1, hors zone offensive, couloir vide
+function ddPassProb(p){ return 0.85 + 0.12*Math.max(0, Math.min(1, (n100(p.passe)-50)/50)); }   // v683 : 85 % (passe 50 ou moins) a 97 % (passe 100)
+function passCatch(p,t){ var old=passRolls(p,t) ? passCatchProb(p,t) : 1-recvBackDrop(p,t); return ddPass(p,t) ? Math.max(old, ddPassProb(p)) : old; }   /* v683 : def a def -- jamais moins bien qu'avant (la passe courte reste a 100) */   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
   return Math.max(0.05, Math.min(0.90, 0.55 + 0.006*(n100(def.defense)-n100(passer.passe)) + (hasPerk(def,'intercepteur')?0.20:0) - (hasPerk(passer,'passeur')?0.30:0) + 0.005*speechK(def.team, 'sys'))); }   // v504
@@ -4053,7 +4055,7 @@ function passOdds(p,t){   // % que la passe passe : couloir actuel (1-thr/6) ET 
   var _catch=passCatch(p,t);   // v421 : passe longue / dos au jeu -> reception sur 100 ; v628 : receveur de dos -> 80
   var pct=Math.round(laneProb*(1-laneReachRisk(p,t))*_catch*100);
   pct=Math.round(pct*(1-passRattle(p)));   // v646 : la pression du moment
-  var cap=Math.max(80, 96 - cheb(p,t));   // meme couloir vide : embuscade cachee, mauvaise reception -> jamais 100
+  var cap=ddPass(p,t) ? 97 : Math.max(80, 96 - cheb(p,t));   /* v683 : def a def, plafond 97 */   // meme couloir vide : embuscade cachee, mauvaise reception -> jamais 100
   return Math.max(5, Math.min(pct, cap));   // plancher : une passe n'est jamais 0% (deviation chanceuse, rondelle dans les patins) — comme jamais 100%
 }
 /* targetPct : % de l'action que represente la case (c,r) pour le joueur selectionne — pour le badge
@@ -6605,7 +6607,7 @@ function doPass(p,targetId){
   [intc, blk].forEach(function(x){ if(x && x.def && !x.intercepted){ var dd=distToSeg(x.def.c, x.def.r, pc, pr, tc, tr).d; if(!_near || dd<_near.d) _near={id:x.def.id, d:dd}; } });
   var _lf=liftRecvTry(p, t); if(_lf && _lf.ok){ liftRecvPlay(p, t, _lf.d, _flow); return; }   // v648 : stick lift sur le receveur colle
   var pdist=cheb(p,t), pmiss=false, pdie=0, pthr=0;
-  if(passRolls(p,t) || recvBackDrop(p,t)){   // la passe roule si elle est longue OU dos au jeu (v421) ; v628 : receveur de dos aussi
+  if(passRolls(p,t) || recvBackDrop(p,t)){   // v683 : def a def ; la passe roule si elle est longue OU dos au jeu (v421) ; v628 : receveur de dos aussi
     var _pcp=passCatch(p,t); pthr=Math.round(_pcp*100); pdie=1+Math.floor(Math.random()*100); pmiss=(pdie>pthr); if(tutGuided()) pmiss=(p.team!==HUMAN_TEAM);   /* v451 */
     if(_stride && pmiss && Math.random()<_rescue) pmiss=false;   // v419 : recue dans la course malgre tout
   }
