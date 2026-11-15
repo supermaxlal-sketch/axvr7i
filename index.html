@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v675</title>
+<title>Deck 3D v676</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1375,7 +1375,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v675';
+var GAME_VERSION='v676';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1586,6 +1586,7 @@ function resolveSeqContact(seq, df){
 }
 function resolveSeq(seq){
   if(!seq || seq!==S.currentSeq){ return; }
+  if(S.puckLoose && !S.puckOwner && !seq.isBonus && seqLooseCheck(seq)) return;   // v676 : la rondelle libre pendant le plan : un joueur a 1 case la prend
   if(!seq.acted) seq.acted=false;
   if(seq._momRank!==seq.rank){ seqStepMomentum(); seq._momRank=seq.rank; S._rankMoves={}; S._rankDuel={}; S._rankBrush={}; }   // v432 : nouvelle etape -> nouvelles courses   // v382 : l'elan se construit a chaque etape du plan
   var n=Math.max(seq.atk.length, seq.def.length);
@@ -1617,8 +1618,8 @@ function resolveSeq(seq){
     if(S.puckLoose && !S.puckOwner){
       killSeq(seq); S.currentSeq=null;
       // celui qui vient de perdre la rondelle na PAS la premiere chance dessus
-      var _lost=seq.team || S.turn;
-      looseBall(_lost==='A'?'B':'A'); return;
+      var _lost=seq.team || S.turn, _lk=S._lk; S._lk=null;
+      if(_lk) looseBall(_lk.team, _lk.prio); else looseBall(_lost==='A'?'B':'A'); return;   // v676 : la priorite que l'appelant avait demandee
     }
     killSeq(seq); S.currentSeq=null; endExchange(); return;
   }
@@ -1758,7 +1759,7 @@ function resolveSeq(seq){
       if(S.puckOwner===p.id && inOffZone(p.team, p.c) && !inOffZone(p.team, oc) && _preMateInZone){
         killSeq(seq); S.currentSeq=null; render(); triggerOffside(p.team, p.r); return;
       }
-      if(boardsCheck(p)==='fall' && !S.puckOwner && S.puckLoose){ killSeq(seq); S.currentSeq=null; S.animating=true; render(); setTimeout(function(){ S.animating=false; looseBall(p.team==='A'?'B':'A'); }, 700); return; }   // v669 : il s'ecrase avec la rondelle
+      if(boardsCheck(p)==='fall' && !S.puckOwner && S.puckLoose){ S.animating=true; render(); setTimeout(function(){ S.animating=false; looseBall(p.team==='A'?'B':'A'); }, 700); return; }   // v669 : il s'ecrase avec la rondelle
       render();
       var _car=byId(S.puckOwner);
       var ambushId=(df && df!=='takeover' && _car && _car.id===p.id && _car.id!==df.id && df.team!==_car.team &&
@@ -1791,7 +1792,7 @@ function resolveSeq(seq){
       resolveSeqDefStep(seq);
       S.animating=true; render();
       var _pc=p.c, _pr=p.r;
-      setTimeout(function(){ S.animating=false; killSeq(seq); S.currentSeq=null;
+      setTimeout(function(){ S.animating=false;   /* v676 : le plan continue */
         placeLooseNear(_pc,_pr); render(); looseBall(p.team==='A'?'B':'A'); }, TEMPO.slide);
       return;
     }
@@ -1823,7 +1824,7 @@ function resolveSeq(seq){
       resolveSeqDefStep(seq);
       S.animating=true; render();
       var _pc2=p.c, _pr2=p.r;
-      setTimeout(function(){ S.animating=false; killSeq(seq); S.currentSeq=null;
+      setTimeout(function(){ S.animating=false;   /* v676 : le plan continue */
         placeLooseNear(_pc2,_pr2); render(); looseBall(p.team==='A'?'B':'A'); }, TEMPO.slide);
       return;
     }
@@ -1831,7 +1832,7 @@ function resolveSeq(seq){
       if(t.c!==a.toC || t.r!==a.toR){   // il n'est pas arrive au bout de sa course : la rondelle file vers la case, libre
         pushLog('<b>'+p.name+'</b> leads '+t.name+' — but he never gets there. The puck is loose.');
         S.puckOwner=null; S.animating=true; render(); sfx('pass');
-        flyPuckBoard(p.c,p.r,a.toC,a.toR,function(){ S.animating=false; killSeq(seq); S.currentSeq=null; placeLooseNear(a.toC,a.toR); render(); looseBall(p.team, null); });
+        flyPuckBoard(p.c,p.r,a.toC,a.toR,function(){ S.animating=false; placeLooseNear(a.toC,a.toR); render(); looseBall(p.team, null); });   /* v676 : le plan continue */
         return;
       }
       seq.def.splice(seq.rank, 0, null);   // v428 : le coup de defense de ce rang n'est pas perdu -- il passe au rang suivant
@@ -4694,7 +4695,33 @@ function goalieCoverRebound(gk, L){
   sfx('save'); S.animating=true; render();
   setTimeout(function(){ S.animating=false; gkFreeze(gk); }, 420);   // v613 : puis le sifflet (comme goalieCover)
 }
-function looseBall(team, prio){ decaySpeed(S.turn); S.foPress=null; S.seqDef=null; S.feintBeaten=null; S.feintSpace=null; S.cycleN=0; S.stepDone=null;   // toute sequence en cours est morte ici
+// v676 (sa regle : « meme quand la rondelle est perdue, on doit avoir le reste des actions planifie et apres la bataille ») : une rondelle perdue
+// PENDANT un plan ne tue plus le plan. Le reste se joue ; un joueur a 1 case (ou qui arrive a 1 case pendant le reste) la prend -- le camp du plan :
+// le plan continue (il bouge avec elle) ; l'autre camp : nouveau plan ; les deux camps : bataille. Personne : le plan finit, puis la rondelle libre.
+function looseKeep(team, prio){
+  var seq=S.currentSeq;
+  if(!seq || seq.dead || seq.isBonus || S.tut || S.so || S.gameEnded || S.paused || !S.puckLoose || S.puckOwner) return false;
+  if(seq.rank>=Math.max(seq.atk.length, seq.def.length)) return false;
+  S.planResume=null; S.planNext=null; S._lk={team:team, prio:(prio===undefined ? team : prio)};
+  S.animating=true; render();
+  setTimeout(function(){ S.animating=false; if(S.currentSeq!==seq || seq.dead) return; seq.rank++; resolveSeq(seq); }, TEMPO.beat);
+  return true; }
+function seqLooseCheck(seq){   // a chaque etape : un joueur a 1 case de la rondelle libre ?
+  if(!S.puckLoose || S.puckOwner || seq._lkRank===seq.rank) return false;
+  seq._lkRank=seq.rank;
+  var L={c:S.puckLoose.c, r:S.puckLoose.r}; S.loosePrio=S._lk ? S._lk.prio : null;
+  var pair=findBattlePair(L);
+  if(pair){ S.animating=true; render(); puckBattle(pair, L, function(ch){ seqLooseWon(seq, ch); }); return true; }
+  var got=nearestToLoose(L);
+  if(got && got.p.type==='sk') return takeLooseSolo(L, function(p){ seqLooseWon(seq, p); });
+  return false; }
+function seqLooseWon(seq, ch){
+  S._lk=null; S._looseLoser=null;
+  if(seq!==S.currentSeq || seq.dead || ch.team!==seq.team){   // l'autre camp (ou le plan est mort) : changement de possession, nouveau plan
+    if(seq===S.currentSeq) killSeq(seq); S.currentSeq=null; gainPuck(ch.team); return; }
+  S.animating=true; render();
+  setTimeout(function(){ S.animating=false; if(S.currentSeq!==seq || seq.dead) return; pushLog('<b>'+ch.name+'</b> has the puck — the play goes on.'); resolveSeq(seq); }, TEMPO.beat); }
+function looseBall(team, prio){ if(looseKeep(team, prio)) return; S._lk=null; decaySpeed(S.turn); S.foPress=null; S.seqDef=null; S.feintBeaten=null; S.feintSpace=null; S.cycleN=0; S.stepDone=null;   // toute sequence en cours est morte ici
   S.wearId=null; S.wearN=0; S.lunge=null; S.slide=null; S.anticip=null; S.turn=team;
   S.loosePrio=(prio===undefined?team:prio);   // qui a la premiere chance ; null = course neutre
   S.gestes=1; S.carrierMoved=false; S.campStreak=0;
