@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v683</title>
+<title>Deck 3D v684</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1025,6 +1025,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <button class="act selfbank" id="btnSelfBank" style="display:none">↪ Bank and go</button>
     <button class="act dump" id="btnDump" style="display:none">⤒ Dump in</button>
     <button class="act dump" id="btnSaucer" style="display:none">⤴ Saucer pass</button>
+    <button class="act dump" id="btnDrop" style="display:none">⤵ Drop pass</button>
     <button class="act poke" id="btnPoke" style="display:none">🥍 Poke check</button>
     <button class="act poke" id="btnLift" style="display:none">🥍 Stick lift</button>
     <button class="act prot" id="btnBrake" style="display:none">⏹ Brake</button>
@@ -1376,10 +1377,11 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v683';
+var GAME_VERSION='v684';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
+  S._drop=null;   // v684 : un nouvel echange : la rondelle laissee n'a plus de marque
   if(S.hiddenDef) S.defRevealIdx=S.hiddenDef.length;   // v459 (ecart 11) : la sequence prend le devoilement (une passe ou un deplacement ne le rejoue plus)
   return { id: (S._seqCounter=(S._seqCounter||0)+1), team: team,
     atk: atkPlan||[], def: defMoves||[], rank:0, revealIdx:0, dead:false };
@@ -1898,6 +1900,21 @@ function resolveSeq(seq){
     var _sut=a.target ? byId(a.target) : null, _suc=(_sut && _sut.onIce) ? _sut.c : a.toC, _sur=(_sut && _sut.onIce) ? _sut.r : a.toR;
     S.animating=true; render();
     setTimeout(function(){ S.animating=false; doSaucer(p, _suc, _sur); lateDefStep(seq); }, TEMPO.settle);
+    return;
+  }
+  if(a.kind==='drop'){   // v684 : la passe en retrait (« trailer ») : la rondelle reste sur la case derriere le porteur, 1 action, sans jet
+    if(S.puckOwner!==p.id){
+      pushLog(p.name+' no longer has the puck.');
+      resolveSeqDefStep(seq);
+      S.animating=true; render();
+      setTimeout(function(){ S.animating=false; render();
+        if(seq!==S.currentSeq) return; seq.rank++; resolveSeq(seq); }, TEMPO.slide);
+      return;
+    }
+    defStepOrLate(seq);
+    S.planResume={v2seq:seq};
+    S.animating=true; render();
+    setTimeout(function(){ S.animating=false; doDrop(p); lateDefStep(seq); }, TEMPO.settle);
     return;
   }
   if(a.kind==='dump'){
@@ -3071,6 +3088,51 @@ function saucerLanded(p, L, pc){
   document.getElementById('outcome').innerHTML='Saucer pass — the puck lands.'; pushLog('<b>'+pname+'</b> lifts it to ('+L.c+','+L.r+') — the puck is loose.');
   S.animating=false; render(); looseBall(team, null);
 }
+// v684 : la passe en retrait (« drop pass », le trailer). La rondelle reste sur la case DERRIERE le porteur (a l'oppose de son patin ; sinon de son
+// regard ; sinon de son but) ; case hors glace ou prise : la case libre la plus proche derriere lui. Aucun jet. Puis les regles de la rondelle libre (v676).
+var AI_DROP_P=0.6;
+function dropBehind(p, pos){
+  var v=(p.vel && (p.vel.dc||p.vel.dr)) ? p.vel : facingOf(p), sdc=v.dc?(v.dc>0?1:-1):0, sdr=v.dr?(v.dr>0?1:-1):0;
+  if(!sdc && !sdr) sdc=dir(p.team);
+  return {c:pos.c-sdc, r:pos.r-sdr, dc:sdc, dr:sdr}; }
+function dropCell(p){
+  var b=dropBehind(p, {c:p.c, r:p.r}), best=null, bs=1e9;
+  for(var dc=-2;dc<=2;dc++) for(var dr=-2;dr<=2;dr++){ var x=p.c+dc, y=p.r+dr;
+    if((!dc && !dr) || !onIce(x,y) || pieceAt(x,y)) continue;
+    var behind=(dc*b.dc+dr*b.dr)<=0 ? 0 : 5;   // derriere (ou a cote) d'abord
+    var sc=behind*10 + Math.max(Math.abs(x-b.c), Math.abs(y-b.r))*3 + Math.max(Math.abs(dc),Math.abs(dr));
+    if(sc<bs){ bs=sc; best={c:x,r:y}; } }
+  return best || {c:Math.max(0,Math.min(COLS-1,b.c)), r:Math.max(0,Math.min(ROWS-1,b.r))}; }
+function dropMark(){   // la rondelle laissee par un drop pass : elle perd sa marque des que quelqu'un la possede ou qu'elle bouge
+  var d=S._drop; if(!d) return null;
+  if(S.puckOwner || !S.puckLoose || S.puckLoose.c!==d.c || S.puckLoose.r!==d.r){ S._drop=null; return null; }
+  return d; }
+function doDrop(p){
+  if(!p) return;
+  if(S.planning){ if(!ownsPuck(p.id)) return; planPush({kind:'drop', id:p.id}); return; }
+  if(S.animating || S.puckOwner!==p.id) return;
+  var team=p.team, cell=dropCell(p);
+  clearSel(); S.puckOwner=null; S.puckLoose={c:cell.c, r:cell.r}; S.carrierMoved=true;
+  S._drop={team:team, c:cell.c, r:cell.r, from:p.id, seq:S.currentSeq};   // « le coequipier d'abord » (sa regle) ; le passeur ne se re-sert pas pendant ce plan
+  sfx('drop'); morPass(p, true);
+  document.getElementById('outcome').innerHTML='Drop pass — the puck stays behind.'; pushLog('<b>'+p.name+'</b> drops the puck back.');
+  S.animating=false; render(); looseBall(team, team);
+}
+function armDrop(){
+  if(S.animating||S.gameEnded) return;
+  var p=S.sel?byId(S.sel):null;
+  if(!p||p.type!=='sk'||!ownsPuck(p.id)||S.gestes<=0) return;
+  doDrop(p); }
+// v684 : l'IA laisse la rondelle a un coequipier (1-2 cases derriere) quand un adversaire la bloque juste devant
+function aiDropAct(car, at, posOf){
+  var pos=at||{c:car.c, r:car.r}, po=posOf||function(q){ return {c:q.c, r:q.r}; }, d=dir(car.team), mate=null, md=9, blocked=false;
+  for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.type!=='sk' || q.id===car.id) continue;
+    var g=po(q), ahead=(g.c-pos.c)*d, behind=(pos.c-g.c)*d;
+    if(q.team!==car.team){ if(ahead===1 && Math.abs(g.r-pos.r)<=1) blocked=true; continue; }   // devant lui, a 1 case
+    if(isDown(q) || behind<1 || behind>2 || Math.abs(g.r-pos.r)>1) continue;
+    if(behind<md){ md=behind; mate=q; } }
+  if(!mate || !blocked || Math.random()>=AI_DROP_P) return null;
+  return {kind:'drop', id:car.id, target:mate.id}; }
 // v677 : l'IA leve sa passe quand le couloir est dangereux (un de tes joueurs dedans, ou deux)
 function aiPassAct(car, t){
   var lt=laneThreat(car, t);
@@ -4085,7 +4147,7 @@ function targetPct(sel, c, r){
   if(pc && passEntry(pc.id)) return oddsFromPlanPos(sel, function(){ return oddsFromPlanPos(pc, function(){ return actionOdds(sel,'pass', pc); }); });   // projeter AUSSI le receveur vers sa case fantome : le badge suit ou il ARRIVE, pas ou il est
   return null;
 }
-function gainPuck(team){ S._bothDown=null; S._hitRecover=null;   /* v468 : le bonus du plaqueur ne vaut que pour cette rondelle */ if(penStop(team)) return;   /* v445 : l equipe fautive touche la rondelle -> sifflet */ decaySpeed(S.turn); S.aiZoneTurns=0;   /* v437 : nouvelle possession */ for(var _gi=0;_gi<S.pieces.length;_gi++) S.pieces[_gi].route=null;   /* v410 : changement de possession -> les traces tombent */ S.foEdge=null; S.loosePrio=null; S._looseLoser=null; S.foPress=null; S._stratDef=null; S._pressLogged=false;
+function gainPuck(team){ S._drop=null; S._bothDown=null; S._hitRecover=null;   /* v468 : le bonus du plaqueur ne vaut que pour cette rondelle */ if(penStop(team)) return;   /* v445 : l equipe fautive touche la rondelle -> sifflet */ decaySpeed(S.turn); S.aiZoneTurns=0;   /* v437 : nouvelle possession */ for(var _gi=0;_gi<S.pieces.length;_gi++) S.pieces[_gi].route=null;   /* v410 : changement de possession -> les traces tombent */ S.foEdge=null; S.loosePrio=null; S._looseLoser=null; S.foPress=null; S._stratDef=null; S._pressLogged=false;
   if(S.foDrawPending){ var _fp=S.foDrawPending; S.foDrawPending=null; var _fo=S.puckOwner?byId(S.puckOwner):null;   // recuperation d'un scramble de mise au jeu : le recuperateur pres du point, avec un adversaire colle, est sous pression et doit passer
     if(_fo && _fo.type==='sk' && Math.max(Math.abs(_fo.c-_fp.c),Math.abs(_fo.r-_fp.r))<=2){ var _fopp=nearestSkater(_fo.team==='A'?'B':'A', _fp.c, _fp.r);
       if(_fopp && Math.max(Math.abs(_fopp.c-_fo.c),Math.abs(_fopp.r-_fo.r))<=1){ S.foPress={id:_fo.id, oppId:_fopp.id}; pushLog('<b>'+_fo.name+'</b> digs it out of the scramble — '+_fopp.name+' is right on him.'); } } }
@@ -4634,17 +4696,20 @@ function findBattlePair(L){
   var bestA=null, bestB=null, sa=-1e9, sb=-1e9;
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || p.type!=='sk' || isDown(p) || (S._bothDown && S._bothDown.indexOf(p.id)>=0)) continue;   // v657 ; v679 : les deux au sol ne se battent pas pour cette rondelle
+    if(dropFrom(p)) continue;   // v684 : le passeur ne reprend pas sa rondelle laissee
     if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r)) > 1) continue;
     if(!looseCan(p, L)) continue;   // v667 : il ne peut pas y aller (vitesse, direction)
     var sc=battleScore(p,L);
     if(p.team==='A'){ if(sc>sa){ sa=sc; bestA=p; } }
     else { if(sc>sb){ sb=sc; bestB=p; } }
   }
+  var _dm=dropMark(); if(_dm && (_dm.team==='A' ? bestA : bestB)) return null;   // v684 : « le coequipier d'abord » : pas de bataille, il la prend
   return (bestA && bestB) ? {a:bestA, b:bestB, sa:sa, sb:sb} : null;
 }
+function dropFrom(p){ var d=dropMark(); return !!(d && d.from===p.id && d.seq===S.currentSeq); }   // v684
 var BATTLE_SEQ=0;
 var BATTLE_ROUNDS=1;   // 1 choc et BANG, resolution : batailles rapides et intenses
-function canReachLoose(p, L){ if(isDown(p)) return false; if(S._bothDown && S._bothDown.indexOf(p.id)>=0) return false;   /* v657 : au sol */
+function canReachLoose(p, L){ if(isDown(p)) return false; if(dropFrom(p)) return false;   /* v684 : le passeur de la rondelle laissee */ if(S._bothDown && S._bothDown.indexOf(p.id)>=0) return false;   /* v657 : au sol */
   // v398 (choix du concepteur) : RAMASSAGE AUTOMATIQUE seulement si COLLE (1 case). Plus loin, il faut une
   // action pour aller la chercher (vraie course) -- l'elan ne permet plus d'aspirer une rondelle a 2-5 cases.
   if(Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r))>1) return false;
@@ -4659,10 +4724,12 @@ function nearestToLoose(L){
   var skReach={A:false,B:false}, anyAdj=false;
   for(var k=0;k<S.pieces.length;k++){ var q=S.pieces[k]; if(q.onIce && q.type==='sk' && canReachLoose(q,L)){ skReach[q.team]=true;
     if(Math.max(Math.abs(q.c-L.c), Math.abs(q.r-L.r))<=1 && q.id!==S._looseLoser) anyAdj=true; } }   // "il est juste la" : un patineur COLLE (1 case), SAUF celui qui vient de la perdre (il ne se re-sert pas tout seul)
-  var best=null, bd=1e9;
+  var best=null, bd=1e9, _dm=dropMark(), _dmHas=false;   // v684 : rondelle laissee : si un coequipier peut la prendre, l'adversaire ne la prend pas
+  if(_dm){ for(var _di=0;_di<S.pieces.length;_di++){ var _dq=S.pieces[_di]; if(_dq.onIce && _dq.team===_dm.team && canReachLoose(_dq,L)){ _dmHas=true; break; } } }
   for(var i=0;i<S.pieces.length;i++){ var p=S.pieces[i];
     if(!p.onIce || (p.type!=='sk' && p.type!=='g')) continue;
     if(!canReachLoose(p, L)) continue;
+    if(_dmHas && p.team!==_dm.team) continue;
     if(p.type==='g' && skReach[p.team==='A'?'B':'A']) continue;   // un patineur adverse peut l'atteindre : le gardien ne gele pas
     if(p.type==='g' && !gkBehindLine(p, L.c) && !inCrease(p, L)) continue;   // v613 : devant lui mais hors de son demi-cercle -- la course (pas de gel)
     var d=Math.max(Math.abs(p.c-L.c), Math.abs(p.r-L.r));
@@ -4981,7 +5048,7 @@ function ghostOwner(){
   if(!S.planning||!S.atkPlan) return own;
   for(var i=0;i<S.atkPlan.length;i++){ var a=S.atkPlan[i];
     if(a.kind==='pass' || a.kind==='cycle' || a.kind==='bank') own=a.target;   // v457
-    else if(a.kind==='shoot' || a.kind==='wrap' || a.kind==='saucer') own=null; }
+    else if(a.kind==='shoot' || a.kind==='wrap' || a.kind==='saucer' || a.kind==='drop') own=null; }
   return own;
 }
 function ownsPuck(id){ return S.planning ? (ghostOwner()===id) : (S.puckOwner===id); }
@@ -5005,6 +5072,7 @@ function planLabel(a){
   if(a.kind==='protect') return nm+' protects the puck';
   if(a.kind==='dump')    return nm+' dumps it in ('+a.toC+','+a.toR+')';
   if(a.kind==='saucer')  return nm+' saucers it to ('+a.toC+','+a.toR+')';   // v677
+  if(a.kind==='drop')    return nm+' drops the puck back';   // v684
   if(a.kind==='dangle')  return nm+(a.feint?(' — '+({toedrag:'toe drag',spin:'spin-o-rama',fakeshot:'fake shot',betweenlegs:'between the legs',cutmiddle:'cut inside'})[a.feint]||(SO_FEINTS[a.feint]?SO_FEINTS[a.feint].n:'feint')):' dekes '+(byId(a.target)?byId(a.target).name:'?'));
   if(a.kind==='dump')  return nm+' dumps it in';
   return nm;
@@ -6087,6 +6155,9 @@ function aiBuildPlan(){
     car.c=realC; car.r=realR;
     if(sc && sc.p>=0.16){ plan.push({kind:'shoot', id:car.id}); break; }
 
+    // v684 : bloque devant, un coequipier 1-2 cases derriere : il laisse la rondelle (passe en retrait, le trailer) ; compte 1 action
+    var _dpa=aiDropAct(car, cg, gp);
+    if(_dpa){ plan.push(_dpa); owner=_dpa.target; continue; }
     // 2. servir un coequipier mieux place
     var bestT=null, bestP=-1;
     for(var i=0;i<mates.length;i++){ var m=mates[i]; if(m.id===car.id) continue;
@@ -9642,6 +9713,8 @@ function render(){
   if(canDump){ var _dl=ownZone(sp.team,sp.c)?'⤒ Clear':'⤒ Dump in'; dbn.textContent=S.dumpAim?(_dl+' ✓'):_dl; }
   var canSaucer = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v677
   var sbn=document.getElementById('btnSaucer'); sbn.style.display=canSaucer?'inline-block':'none'; sbn.className='act dump'+(S.saucerAim?' on':''); sbn.textContent=S.saucerAim?'⤴ Saucer pass ✓':'⤴ Saucer pass';
+  var canDrop = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v684
+  var dpb=document.getElementById('btnDrop'); dpb.style.display=canDrop?'inline-block':'none'; dpb.className='act dump'; dpb.textContent='⤵ Drop pass';
   var canWrap = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&canWraparound(sp);
   var wbn=document.getElementById('btnWrap');
   if(canWrap && sp.team===HUMAN_TEAM) tipTrigger('wrap');   // v456
@@ -10289,6 +10362,7 @@ var _lsp=document.getElementById('lsPause'); if(_lsp) _lsp.onclick=togglePause;
 document.addEventListener('keydown', function(e){ if(e.key==='Escape'||e.key===' '){ e.preventDefault(); togglePause(); } });
 document.getElementById('btnDump').onclick=armDump;
 document.getElementById('btnSaucer').onclick=armSaucer;   // v677
+document.getElementById('btnDrop').onclick=armDrop;   // v684
 document.getElementById('btnProtect').onclick=doProtect;
 document.getElementById('btnBrake').onclick=function(){ if(S.sel) toggleBrake(S.sel); };   // v672
 document.getElementById('btnWrap').onclick=function(){ var p=S.sel?byId(S.sel):null; if(p&&canWraparound(p)) doWraparound(p); };
