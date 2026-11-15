@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v676</title>
+<title>Deck 3D v677</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1024,6 +1024,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <button class="act bank" id="btnBank" style="display:none">Bank pass</button>
     <button class="act selfbank" id="btnSelfBank" style="display:none">↪ Bank and go</button>
     <button class="act dump" id="btnDump" style="display:none">⤒ Dump in</button>
+    <button class="act dump" id="btnSaucer" style="display:none">⤴ Saucer pass</button>
     <button class="act poke" id="btnPoke" style="display:none">🥍 Poke check</button>
     <button class="act poke" id="btnLift" style="display:none">🥍 Stick lift</button>
     <button class="act prot" id="btnBrake" style="display:none">⏹ Brake</button>
@@ -1375,7 +1376,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v676';
+var GAME_VERSION='v677';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1878,6 +1879,22 @@ function resolveSeq(seq){
     setTimeout(function(){ S.animating=false; render();
       if(seq!==S.currentSeq) return;
       setTimeout(function(){ if(seq!==S.currentSeq) return; seq.rank++; resolveSeq(seq); }, TEMPO.beat); }, TEMPO.slide);
+    return;
+  }
+  if(a.kind==='saucer'){   // v677 : la passe soulevee (la case visee ; l'IA : le receveur, ou il est a ce moment)
+    if(S.puckOwner!==p.id){
+      pushLog(p.name+' no longer has the puck.');
+      resolveSeqDefStep(seq);
+      S.animating=true; render();
+      setTimeout(function(){ S.animating=false; render();
+        if(seq!==S.currentSeq) return; seq.rank++; resolveSeq(seq); }, TEMPO.slide);
+      return;
+    }
+    defStepOrLate(seq);
+    S.planResume={v2seq:seq};
+    var _sut=a.target ? byId(a.target) : null, _suc=(_sut && _sut.onIce) ? _sut.c : a.toC, _sur=(_sut && _sut.onIce) ? _sut.r : a.toR;
+    S.animating=true; render();
+    setTimeout(function(){ S.animating=false; doSaucer(p, _suc, _sur); lateDefStep(seq); }, TEMPO.settle);
     return;
   }
   if(a.kind==='dump'){
@@ -2967,6 +2984,70 @@ function dumpAim(p, tc, tr, pow){
     var sim=puckPath(p.c, p.r, v.x, v.y, pow), dd=Math.hypot(sim.rest.c-tc, sim.rest.r-tr);
     if(!best || dd<best.d-1e-9) best={d:dd, x:v.x, y:v.y}; }
   return best ? {x:best.x, y:best.y} : {x:dx, y:dy}; }
+// v677 (sa passe soulevee, 2026-11-14 ; ses choix : « Un bouton Saucer » ; « par-dessus les batons » ; « Reception plus dure et risque de la
+// manquer plus eleve » ; « l'IA aussi » ; sa demande : la passe peut viser une CASE devant un joueur -- il ira la chercher selon le plan ; plus
+// la stat de passe est haute, plus le cercle ou la rondelle tombe est petit). Le bouton Saucer, puis une case : la rondelle part en l'air et tombe
+// quelque part dans un cercle autour de la case (rayon (100 - passe) / 40 cases : 0 pour 100, 1 pour 60, 1,75 pour 30 ; +0,15 par case au-dela de 6 ;
+// la pression l'elargit). Le couloir ne la coupe que 3 fois moins. Un patineur sur la case qui l'accueille la rate 20 % (stat de maniement, pression) ;
+// personne : rondelle libre (v676 : le reste du plan se joue, un joueur a 1 case la prend).
+var SAUCER_MISS=0.20;
+function saucerRadius(p, tc, tr){ var d=cheb(p, {c:tc, r:tr}), R=(100-n100(p.passe))/40+0.15*Math.max(0, d-6); R*=1+2*passRattle(p); return Math.max(0, Math.min(3, R)); }
+function saucerLand(p, tc, tr){
+  var R=saucerRadius(p, tc, tr); if(R<0.05) return {c:tc, r:tr};
+  for(var k=0;k<30;k++){ var a=Math.random()*Math.PI*2, d=R*Math.sqrt(Math.random()), c=Math.round(tc+d*Math.cos(a)), r=Math.round(tr+d*Math.sin(a)), q=onIce(c, r) ? pieceAt(c, r) : null;
+    if(onIce(c, r) && !(q && q.type==='g')) return {c:c, r:r}; }
+  return {c:tc, r:tr}; }
+function saucerMiss(t){ return Math.max(0.05, Math.min(0.5, SAUCER_MISS-0.004*(n100(t.maniement)-60)+0.5*passRattle(t))); }
+function armSaucer(){
+  if(S.animating||S.gameEnded) return;
+  var p=S.sel?byId(S.sel):null;
+  if(!p||p.type!=='sk'||!ownsPuck(p.id)||S.gestes<=0) return;
+  if(S.saucerAim){ S.saucerAim=false; render(); return; }
+  S.bankMode=false; S.dumpAim=false; S.cycleAim=null; S.dangle=false; S.dekeT=[]; S.saucerAim=true;
+  setHint('Saucer pass: tap a square. The puck flies over the sticks and lands in a circle around it — smaller for a better passer. A teammate who is there has to catch it; if nobody is, it stays loose.');
+  render();
+}
+function doSaucer(p, tc, tr){
+  if(!p || !onIce(tc, tr)) return;
+  if(S.planning){ if(!ownsPuck(p.id)) return; S.saucerAim=false; planPush({kind:'saucer', id:p.id, toC:tc, toR:tr}); return; }
+  if(S.animating || S.puckOwner!==p.id) return;
+  S.saucerAim=false;
+  var team=p.team, pc=p.c, pr=p.r, L=saucerLand(p, tc, tr), pname=p.name;
+  S.animating=true; S.puckOwner=null; S.puckLoose=null; S.carrierMoved=true; clearSel(); sfx('pass'); render();
+  var lt=laneThreat(p, {c:L.c, r:L.r}), cut=(lt.def && Math.random()<lt.prob/3) ? lt.def : null;   // par-dessus les batons : le couloir coupe 3 fois moins
+  if(cut){
+    var cp=passCutPoint(pc, pr, L.c, L.r, cut), cc={c:Math.round(cp.c), r:Math.round(cp.r)};
+    if((cc.c!==cut.c || cc.r!==cut.r) && onIce(cc.c, cc.r) && !pieceAt(cc.c, cc.r)) skateToSpot(cut, cc);
+    flyPuckBoard(pc, pr, cp.c, cp.r, function(){ S.puckOwner=cut.id; S.rcvPop=cut.id; careerTrack('steal', {id:cut.id}); morPass(p, false); checkFx('blockpass', cp.c, cp.r);
+      document.getElementById('outcome').innerHTML='Saucer pass cut off by '+cut.name+'!'; pushLog('<b>Interception</b> : '+cut.name+' gets a stick on '+pname+'\'s saucer pass.'); S.animating=false; gainPuck(cut.team); },
+      Math.max(0.08, 0.62*Math.hypot(cp.c-pc, cp.r-pr)/Math.max(0.01, Math.hypot(L.c-pc, L.r-pr))));
+    return; }
+  flyPuckBoard(pc, pr, L.c, L.r, function(){ saucerLanded(p, L, pc); }, Math.max(0.45, 0.30*Math.hypot(L.c-pc, L.r-pr)));
+}
+function saucerLanded(p, L, pc){
+  var team=p.team, q=pieceAt(L.c, L.r), pname=p.name;
+  if(q && q.type==='sk' && q.onIce){
+    if(Math.random()<saucerMiss(q)){   // la reception est plus dure : il l'echappe, la rondelle est libre a cote de lui
+      var best=null, bd=1e9; DIRS8.forEach(function(m){ var c=q.c+m[0], r=q.r+m[1]; if(!onIce(c, r) || pieceAt(c, r)) return; var dd=Math.random(); if(dd<bd){ bd=dd; best={c:c, r:r}; } });
+      morPass(p, false); checkFx('passmiss', pc, p.r);
+      document.getElementById('outcome').innerHTML='Saucer pass — '+q.name+' cannot control it!'; pushLog('<b>'+q.name+'</b> cannot control the saucer pass — the puck bounces away, loose.');
+      S.puckOwner=null; S.puckLoose=best||{c:q.c, r:q.r}; S._looseLoser=q.id; looseOffside(team, pc); S.animating=false; render(); looseBall(team, null); return; }
+    if(q.team!==team){   // un adversaire est sur la case : il la prend
+      S.puckOwner=q.id; S.rcvPop=q.id; careerTrack('steal', {id:q.id}); morPass(p, false); checkFx('blockpass', L.c, L.r);
+      document.getElementById('outcome').innerHTML='Saucer pass picked off by '+q.name+'!'; pushLog('<b>Interception</b> : '+q.name+' takes '+pname+'\'s saucer pass out of the air.'); S.animating=false; gainPuck(q.team); return; }
+    S.puckOwner=q.id; S.rcvPop=q.id; S.puckLoose=null; checkFx('pass', L.c, L.r); careerTrack('passok', {id:p.id, to:q.id, prs:false}); morPass(p, true);
+    if(!inOffZone(team, pc) && inOffZone(team, L.c) && teammateInOffZone(team, q.id)){ document.getElementById('outcome').innerHTML='Offside \u2014 '+q.name+' touches the puck inside the zone!'; pushLog('Offside: <b>'+q.name+'</b> receives the saucer pass, already in the zone.'); render(); triggerOffside(team, L.r); return; }
+    document.getElementById('outcome').innerHTML='Saucer pass to '+q.name+'.'; pushLog('Saucer pass: <b>'+pname+'</b> to <b>'+q.name+'</b>.');
+    render(); setTimeout(function(){ S.animating=false; spend(); }, TEMPO.slide); return; }
+  placeLooseNear(L.c, L.r); S.puckOwner=null; looseOffside(team, pc); sfx('drop'); morPass(p, true);
+  document.getElementById('outcome').innerHTML='Saucer pass — the puck lands.'; pushLog('<b>'+pname+'</b> lifts it to ('+L.c+','+L.r+') — the puck is loose.');
+  S.animating=false; render(); looseBall(team, null);
+}
+// v677 : l'IA leve sa passe quand le couloir est dangereux (un de tes joueurs dedans, ou deux)
+function aiPassAct(car, t){
+  var lt=laneThreat(car, t);
+  if(lt.def && (lt.prob>=0.45 || lt.crowd>=2) && Math.random()<0.7) return {kind:'saucer', id:car.id, target:t.id, toC:t.c, toR:t.r};
+  return {kind:'pass', id:car.id, target:t.id}; }
 function doDump(p,tc,tr){
   if(!p) return;
   if(S.planning){ if(!ownsPuck(p.id)) return; S.dumpT=[]; S.dumpAim=false; planPush({kind:'dump', id:p.id, toC:tc, toR:tr}); return; }
@@ -3462,8 +3543,8 @@ function planWaitsForPlay(){ var L=null; if(S.atkPlan) for(var i=S.atkPlan.lengt
   return !!(L && L.kind==='move' && ghostOwner()===L.id && planCanAttach(L.id)); }
 function setSel(id){ if(S.animating)return;
   if(id && S.planning && brakeOn(id)){ delete S.brakes[id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
-  if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
-function clearSel(){ S.sel=null; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
+  if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.saucerAim=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
+function clearSel(){ S.sel=null; S.saucerAim=false; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
 function endTurn(){
     S.turn=S.turn==='A'?'B':'A'; S.gestes=5; S.coachPush=null; S.passBonus=null; S.aiming=null; clearSel(); render();
 }
@@ -4861,7 +4942,7 @@ function ghostOwner(){
   if(!S.planning||!S.atkPlan) return own;
   for(var i=0;i<S.atkPlan.length;i++){ var a=S.atkPlan[i];
     if(a.kind==='pass' || a.kind==='cycle' || a.kind==='bank') own=a.target;   // v457
-    else if(a.kind==='shoot' || a.kind==='wrap') own=null; }
+    else if(a.kind==='shoot' || a.kind==='wrap' || a.kind==='saucer') own=null; }
   return own;
 }
 function ownsPuck(id){ return S.planning ? (ghostOwner()===id) : (S.puckOwner===id); }
@@ -4884,6 +4965,7 @@ function planLabel(a){
   if(a.kind==='pivot')   return nm+' pivots';
   if(a.kind==='protect') return nm+' protects the puck';
   if(a.kind==='dump')    return nm+' dumps it in ('+a.toC+','+a.toR+')';
+  if(a.kind==='saucer')  return nm+' saucers it to ('+a.toC+','+a.toR+')';   // v677
   if(a.kind==='dangle')  return nm+(a.feint?(' — '+({toedrag:'toe drag',spin:'spin-o-rama',fakeshot:'fake shot',betweenlegs:'between the legs',cutmiddle:'cut inside'})[a.feint]||(SO_FEINTS[a.feint]?SO_FEINTS[a.feint].n:'feint')):' dekes '+(byId(a.target)?byId(a.target).name:'?'));
   if(a.kind==='dump')  return nm+' dumps it in';
   return nm;
@@ -5956,7 +6038,7 @@ function aiBuildPlan(){
       var _fpT=null, _fpP=-1, _fcg=gp(car);
       for(var i=0;i<mates.length;i++){ var m=mates[i]; if(m.id===car.id || aiPassOffside(_fcg, gp(m), AI_TEAM)) continue;
         var _fp=oddsAt(car, _fcg, m, gp(m)); if(_fp!=null && _fp>_fpP){ _fpP=_fp; _fpT=m; } }
-      if(_fpT){ plan.push({kind:'pass', id:car.id, target:_fpT.id}); owner=_fpT.id; continue; }
+      if(_fpT){ plan.push(aiPassAct(car, _fpT)); owner=_fpT.id; continue; }
     }
     // 1. un tir qui vaut la peine depuis sa position prevue
     var cg=gp(car), realC=car.c, realR=car.r;
@@ -5976,7 +6058,7 @@ function aiBuildPlan(){
     if(bestT && bestP>=0.12 && bestP>=(sc?sc.p:0)){                                                       // servir un coequipier au moins aussi bien place que son propre tir
       if(inSlot(bestT)){ plan.push({kind:'pass', id:car.id, target:bestT.id, redirect:true}); break; }   // coequipier DANS L'ENCLAVE -> REDIRECT (tip devant le filet)
       if(bestP>=0.13){ plan.push({kind:'pass', id:car.id, target:bestT.id, oneTimer:true}); break; }     // bien place (hors enclave) -> ONE-TIMER (reprise directe) ; seuils abaisses pour que ca serve vraiment
-      plan.push({kind:'pass', id:car.id, target:bestT.id}); owner=bestT.id; continue; }
+      plan.push(aiPassAct(car, bestT)); owner=bestT.id; continue; }
     // v437 : aucun coequipier mieux place -> ENCLAVE des 10 %, ou TIR POUR LE REBOND apres 2 tours en zone sans tirer
     var _betterAny=false;   // un coequipier (en jeu, n importe ou) nettement mieux place : on prepare plutot son tir
     if(sc && (S.aiZoneTurns||0)<2){ for(var _bi2=0;_bi2<mates.length;_bi2++){ var _bm2=mates[_bi2]; if(_bm2.id===car.id || !shotOK(_bm2)) continue; var _bg2=gp(_bm2); if(aiPassOffside(cg,_bg2,AI_TEAM)) continue;
@@ -6082,7 +6164,7 @@ function aiBuildPlan(){
         if(_po==null || _po < 55) continue;                             // % de passe correct
         if(_gain > _bkGain){ _bkGain=_gain; _bkT=_bm; }
       }
-      if(_bkT && _bkGain > _skGain){ plan.push({kind:'pass', id:car.id, target:_bkT.id}); owner=_bkT.id; continue; }
+      if(_bkT && _bkGain > _skGain){ plan.push(aiPassAct(car, _bkT)); owner=_bkT.id; continue; }
     }
     // v416 : avec +1 case de depart, la meilleure avancee depasse souvent 3 cases (plus de tir attache) : si un
     // patinage COURT (<= PLAY_SKATE_MAX) mene a un tir qui vaut la peine, l'IA patine court et tire (action composee v396)
@@ -6103,7 +6185,7 @@ function aiBuildPlan(){
         var _eo=oddsAt(car, cg, m, mg2); if(_eo==null || _eo<AI_PASS_MIN) continue;   // v444 : plus de passe « coince » sous 55 % (une a 32 % avait rate)
         var d2=Math.abs(mg2.c-nc);
         if(d2<ed){ ed=d2; esc=m; } }
-      if(esc){ plan.push({kind:'pass', id:car.id, target:esc.id}); owner=esc.id; continue; }
+      if(esc){ plan.push(aiPassAct(car, esc)); owner=esc.id; continue; }
     }
     // 4. sinon, monter un ailier
     var wing=null, wd=1e9;
@@ -7348,7 +7430,7 @@ function blowbyTargets(){
   var sp=car.speed||0, cur={c:car.c, r:car.r};
   for(var i=0;i<(S.atkPlan||[]).length;i++){ var a=S.atkPlan[i]; if(a.id!==car.id) continue;
     if(a.kind==='move' || a.kind==='bankgo'){ sp+=(a.path && a.path.length) ? a.path.length : cheb(cur, {c:a.toC, r:a.toR}); cur={c:a.toC, r:a.toR}; }
-    else if(a.kind==='pass' || a.kind==='bank' || a.kind==='dump' || a.kind==='shoot' || a.kind==='cycle') return {}; }
+    else if(a.kind==='pass' || a.kind==='bank' || a.kind==='dump' || a.kind==='saucer' || a.kind==='shoot' || a.kind==='cycle') return {}; }
   var g=ghostOf(car), proj={id:car.id, team:car.team, type:'sk', c:g.c, r:g.r, speed:Math.min(spdCap(car), sp)}, out={};
   for(var j=0;j<S.pieces.length;j++){ var d=S.pieces[j]; if(!d.onIce || d.type!=='sk' || d.team===car.team) continue; if(blowsBy(proj, d)) out[d.id]=true; }
   return out; }
@@ -9515,6 +9597,8 @@ function render(){
   dbn.style.display=canDump?'inline-block':'none';
   dbn.className='act dump'+(S.dumpAim?' on':'');
   if(canDump){ var _dl=ownZone(sp.team,sp.c)?'⤒ Clear':'⤒ Dump in'; dbn.textContent=S.dumpAim?(_dl+' ✓'):_dl; }
+  var canSaucer = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v677
+  var sbn=document.getElementById('btnSaucer'); sbn.style.display=canSaucer?'inline-block':'none'; sbn.className='act dump'+(S.saucerAim?' on':''); sbn.textContent=S.saucerAim?'⤴ Saucer pass ✓':'⤴ Saucer pass';
   var canWrap = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&canWraparound(sp);
   var wbn=document.getElementById('btnWrap');
   if(canWrap && sp.team===HUMAN_TEAM) tipTrigger('wrap');   // v456
@@ -9545,6 +9629,7 @@ function render(){
     if(mset[key]){ cell.className+=' mv'+(mset[key]==='far'?' mv-far':(mset[key]==='pivot'?' mv-pivot':(mset[key]==='cut'?' mv-cut':(mset[key]==='curve'?' mv-curve':(mset[key]==='cost'?' mv-cost':''))))); if(_crash[key]) cell.className+=' mv-crash'; clickable=true; }
     if(isDekeApproach(c,r)){ cell.className+=' dka'; clickable=true; }   // guide mauve : va la pour deker
     if(S.dumpAim){ cell.className+=' dmpaim'; clickable=true; if(isDumpTarget(c,r)) cell.className+=' dmpt'; }
+    if(S.saucerAim){ cell.className+=' dmpaim'; clickable=true; }   // v677
     if(S.cycleAim){ var _cap=byId(S.cycleAim); if(_cap && p && cycleTargets(_cap).indexOf(p.id)>=0){ cell.className+=' cyct'; clickable=true; } }
     if(S.dangle && isDekeTarget(c,r)){ cell.className+=' dkt'; clickable=true; }
     if(S.planning||S.defCommit){ for(var _gk in S.ghost){ var _g=S.ghost[_gk]; if(_g&&_g.c===c&&_g.r===r) cell.className+=' ghostc'; if(_g&&_g.viaC!=null&&_g.viaC===c&&_g.viaR===r) cell.className+=' ghostvia'; if(_g&&_g.path){ for(var _gp=0;_gp<_g.path.length-1;_gp++){ if(_g.path[_gp].c===c&&_g.path[_gp].r===r){ cell.className+=' ghostvia'; break; } } } if(_g&&_g.rest){ for(var _gq=0;_gq<_g.rest.length;_gq++){ if(_g.rest[_gq].c===c&&_g.rest[_gq].r===r){ cell.className+=' ghostrest'; break; } } } } }   /* v408 : l'arc d'une courbe planifiee */
@@ -9698,6 +9783,9 @@ function onCellCore(c,r,_tp){
   if(S.defCommit){ var _dp=pieceAt(c,r) || ghostAt(c,r);
     if(S.defCommit.markMode){ if(_dp && _dp.team!==HUMAN_TEAM && _dp.type==='sk') assignMark(_dp); return; }   // en mode Mark : tap un adversaire
     if(_dp){ defCommitPiece(_dp); } else { defCommitCell(c,r); } return; }
+  if(S.saucerAim){ var _ssp=S.sel?byId(S.sel):null;   // v677 : la case de la passe soulevee (une case ou un joueur : il y va selon le plan)
+    if(_ssp && onIce(c,r) && !(c===_ssp.c && r===_ssp.r)){ doSaucer(_ssp, c, r); return; }
+    S.saucerAim=false; render(); renderPlanBar(); }
   if(S.cycleAim){ var _cyp=byId(S.cycleAim), _cyt=pieceAt(c,r)||ghostAt(c,r);
     if(_cyp && _cyt && cycleTargets(_cyp).indexOf(_cyt.id)>=0){ doCycle(_cyp, _cyt.id); return; }
     S.cycleAim=null; render(); renderPlanBar(); }   // tap ailleurs = annule le cycle, on continue vers la selection normale
@@ -10155,6 +10243,7 @@ document.getElementById('btnResume').onclick=togglePause;
 var _lsp=document.getElementById('lsPause'); if(_lsp) _lsp.onclick=togglePause;
 document.addEventListener('keydown', function(e){ if(e.key==='Escape'||e.key===' '){ e.preventDefault(); togglePause(); } });
 document.getElementById('btnDump').onclick=armDump;
+document.getElementById('btnSaucer').onclick=armSaucer;   // v677
 document.getElementById('btnProtect').onclick=doProtect;
 document.getElementById('btnBrake').onclick=function(){ if(S.sel) toggleBrake(S.sel); };   // v672
 document.getElementById('btnWrap').onclick=function(){ var p=S.sel?byId(S.sel):null; if(p&&canWraparound(p)) doWraparound(p); };
