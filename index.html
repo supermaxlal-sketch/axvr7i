@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v681</title>
+<title>Deck 3D v682</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1376,7 +1376,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v681';
+var GAME_VERSION='v682';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3871,7 +3871,8 @@ function goalieReboundPath(gteam, gc, gr, team, t){ var out=dir(gteam), a=(rebou
 var WIDE_MISS_MIN=0.25, WIDE_MISS_MAX=0.85, NET_HALF_CELLS=0.6;
 function wideAim(sh, team){ var side=sh.r<CTR_R ? -1 : (sh.r>CTR_R ? 1 : (Math.random()<0.5 ? -1 : 1)), miss=WIDE_MISS_MIN+Math.random()*(WIDE_MISS_MAX-WIDE_MISS_MIN);
   return {c:goalCol(team), r:CTR_R+side*(NET_HALF_CELLS+miss)}; }   // sur la ligne des buts, a cote du poteau ; elle continue jusqu'a la bande du fond
-function widePath(sh, team){ var a=wideAim(sh, team), pow=boardPower(PUCK_POW.wideNear, PUCK_POW.wideFar, shotDist(sh), 3, 8);   // v441 / v515 : la force selon la distance
+var SLAP_WIDE_POW=1.5;   // v682 (sa demande : « Slap shot doit etre + fort et + rebondir » ; ~2 cases de plus) : un slap shot rate frappe la bande x 1,5
+function widePath(sh, team, slap){ var a=wideAim(sh, team), pow=boardPower(PUCK_POW.wideNear, PUCK_POW.wideFar, shotDist(sh), 3, 8)*(slap ? SLAP_WIDE_POW : 1);   // v441 / v515 : la force selon la distance
   return puckPath(sh.c, sh.r, a.c-sh.c, a.r-sh.r, pow); }
 function wideWhere(team, rest){   // v515 : ou s'arrete un tir rate -- 'behind' (derriere le filet), 'corner' (le coin), 'zone'
   var net=team==='A' ? NET_A : NET_B, beyond=team==='A' ? rest.c>net : rest.c<net;
@@ -7856,7 +7857,7 @@ function onShotTarget(t){
     if(_ir){ ironPlay(sh, t, _ir); return; }
     // TIR WIDE : vrai rebond (modele du Puck Rebound Lab) — la rondelle rate le filet, sonne sur les bandes /
     // le coin arrondi et roule jusqu'a l'arret, au lieu du carom bricole d'avant.
-    var _rb = widePath(sh, team);   // v566 : a cote du poteau, puis la bande derriere le filet (avant : en biais fixe, vers le coin)
+    var _rb = widePath(sh, team, _slap3);   // v566 : a cote du poteau, puis la bande derriere le filet (avant : en biais fixe, vers le coin)
     checkFx('wide', sh.c, sh.r);
     document.getElementById('outcome').innerHTML = shName+' shoots WIDE!';
     var _ww=wideWhere(team, _rb.rest);   // v515 : le message dit ou elle s'arrete vraiment
