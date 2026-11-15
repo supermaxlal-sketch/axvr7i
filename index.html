@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v679</title>
+<title>Deck 3D v680</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1376,7 +1376,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v679';
+var GAME_VERSION='v680';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4163,7 +4163,7 @@ function boardsFall(p, wait){   // il s'ecrase : il tombe, perd la rondelle (lib
   var _v=(p.vel && (p.vel.dc||p.vel.dr)) ? p.vel : facingOf(p), _fe={id:p.id, boards:true, c:p.c, r:p.r, dc:_v.dc||0, dr:_v.dr||0};   // la 3D : il tombe sur le dos, a l'oppose de sa course
   var _fw=wait ? slideMs(S.slides && S.slides[p.id]) : 0; if(_fw>0) setTimeout(function(){ matchEv('fall', _fe); }, _fw); else matchEv('fall', _fe);   // a la bande, pas au debut de sa glisse
   p.mom=0; p.speed=0; p.route=null; p._inA=null; p._skatedDist=0; p._inKeep=0; p._detourLoss=0;
-  downSet(p); careerContact(p.id, 'boards', null);   // v679 : par terre une action (plus sonne)
+  downSet(p, 'knee'); careerContact(p.id, 'boards', null);   // v679 : par terre une action (plus sonne)
   if(had){ S._looseLoser=p.id; S.puckOwner=null; placeLooseNear(p.c, p.r); }
   S._bothDown=(S._bothDown||[]).concat([p.id]);   // au sol : il ne dispute pas cette rondelle (v657)
   render(); checkFx('trip', p.c, p.r);
@@ -4450,8 +4450,8 @@ function brakeOK(p){ return !!p && p.type==='sk' && !!p.onIce && (p.mom||0)>0; }
 function brakeOn(id){ return !!(S.brakes && S.brakes[id]); }
 // v679 (sa regle : « Si tu tombe apres une mise en echec, tu perds ta vitesse et tu reste une action par terre ») : S.down[id]={rank, seq} ;
 // il est par terre pendant l'action SUIVANTE (rang+1 du plan en cours) ; tombe a la derniere etape ou hors plan : action 1 du plan suivant
-function downSet(p){ if(!p || p.type!=='sk' || !S || S.tut || S.so) return; if(!S.down) S.down={}; var sq=S.currentSeq, live=!!(sq && !sq.dead && !sq.isBonus);
-  S.down[p.id]={rank:live ? sq.rank : -1, seq:live ? sq : null}; p.mom=0; p.speed=0; p.route=null; }
+function downSet(p, kind){ if(!p || p.type!=='sk' || !S || S.tut || S.so) return; if(!S.down) S.down={}; var sq=S.currentSeq, live=!!(sq && !sq.dead && !sq.isBonus);
+  S.down[p.id]={rank:live ? sq.rank : -1, seq:live ? sq : null, k:(kind==='flat' ? 'flat' : 'knee')}; p.mom=0; p.speed=0; p.route=null; }
 function downId(id){ return !!(S && !S.tut && !S.so && S.down && S.down[id]); }
 function isDown(p){ return !!p && downId(p.id); }
 function downNow(p, seq){ var e=p && S.down && S.down[p.id]; if(!e || S.tut || S.so) return false; if(!seq || seq.isBonus) return true; return e.seq===seq && seq.rank===e.rank+1; }
@@ -7083,7 +7083,7 @@ function passByTrip(seq, p, m){
   matchEv('hit', {id:d.id, on:p.id, body:false, ok:false, run:0, pen:true});   // ok:false : le geste, sans vol de rondelle au credit ; pen : la victime ne perd pas de moral
   matchEv('fall', {id:p.id, by:d.id});   // v647 : on le voit tomber
   p.mom=0; p.speed=0; p.route=null; p._skatedThisAction=false; p._skatedDist=0; p._inA=null; p._inKeep=0; p._detourLoss=0;
-  downSet(p);   // v679 : par terre une action (plus sonne)
+  downSet(p, 'knee');   // v679 : par terre une action (plus sonne) ; v680 : a genou
   S._looseLoser=p.id; placeLooseNear(cc, cr); looseOffside(d.team, cc);
   penTry(d, 1, 'trip');
   render(); checkFx('trip', cc, cr);
@@ -7204,14 +7204,14 @@ function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
   var mine=function(){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; S._hitRecover=null; S._looseLoser=C.id; };
   if(res==='hold'){ S._hitRecover=null; S._looseLoser=null; return {res:res, knock:0, fall:false, recoil:0, keep:true}; }
   if(res==='onto'){ S._hitRecover=null; S._looseLoser=null; placeLooseNear(cc, cr); S._bothDown=[C.id, checker.id];
-    matchEv('fall', {id:C.id, by:checker.id}); matchEv('fall', {id:checker.id, by:C.id, onto:true}); downSet(C); downSet(checker);
+    matchEv('fall', {id:C.id, by:checker.id}); matchEv('fall', {id:checker.id, by:C.id, onto:true}); downSet(C, 'knee'); downSet(checker, 'knee');
     return {res:res, knock:0, fall:true, recoil:0}; }
   if(res==='blast'){ var bx=cc+pushC, by=cr+pushR, bk=0;   // v670 : projete d'une case dans le sens du coup (si elle est libre), a terre, rondelle libre
     if((pushC||pushR) && onIce(bx,by) && !pieceAt(bx,by)){ C.c=bx; C.r=by; addSlide(C.id, cc-bx, cr-by); bk=1; }
-    matchEv('fall', {id:C.id, by:checker.id, blast:true, knock:bk}); downSet(C);
+    matchEv('fall', {id:C.id, by:checker.id, blast:true, knock:bk}); downSet(C, 'flat');   /* v680 : la percutante = couche sur la glace */
     S._hitRecover=null; S._looseLoser=C.id; S.puckOwner=null; placeLooseNear(cc, cr); S._bothDown=[C.id];
     return {res:res, knock:bk, fall:true, recoil:0}; }
-  if(res==='fall'){ matchEv('fall', {id:C.id, by:checker.id}); downSet(C); mine(); return {res:res, knock:0, fall:true, recoil:0, gain:true}; }
+  if(res==='fall'){ matchEv('fall', {id:C.id, by:checker.id}); downSet(C, 'knee'); mine(); return {res:res, knock:0, fall:true, recoil:0, gain:true}; }
   if(res==='back'){ var tx=cc+pushC, ty=cr+pushR;
     if((pushC||pushR) && onIce(tx,ty) && !pieceAt(tx,ty)){ C.c=tx; C.r=ty; addSlide(C.id, cc-tx, cr-ty); steps=1; }
     mine(); return {res:res, knock:steps, fall:false, recoil:0, gain:true}; }
@@ -10048,6 +10048,7 @@ function hj3dSnapshot(slides){
   var players=[];
   for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
     var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:(isDown(q)?'down':'')||stState(q)||(brakeOn(q.id)?'brake':'')||((q.type==='sk' && protNetOf(q.team)===q)?'protect':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
+    if(isDown(q)) pl.dn=(S.down[q.id].k==='flat' ? 'flat' : 'knee');   /* v680 : couche (percutante) ou a genou (toute autre chute), seulement quand st = down */
     if(q.vel && (q.vel.dc||q.vel.dr)) pl.mv=[q.vel.dc||0, q.vel.dr||0];   /* v661 : sa direction de glisse -> les chevrons de vitesse derriere elle (pas derriere son regard) */
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
@@ -13292,7 +13293,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":630604,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":635996,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
