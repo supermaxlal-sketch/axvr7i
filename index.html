@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v692</title>
+<title>Deck 3D v693</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -899,8 +899,8 @@ body:not(.vrink) .thumbx{display:none !important;}
 @keyframes ibOut{to{opacity:0;}}
 @media (prefers-reduced-motion: reduce){ .icebubble{animation:none;} }
 /* v494 : BULLES DE CHOIX de l'embuscade (and then?) sur la glace, pres de la case ; aussi sur la 3D */
-.choicebub{position:absolute;z-index:46;transform:translate(-50%,-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:230px;}
-.choicebub .cbo{font-family:var(--pxu);font-size:12px;font-weight:800;letter-spacing:.02em;color:#10233a;background:#f4f8fc;border:2px solid #2fb3a8;border-radius:14px;padding:5px 9px;min-height:32px;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;}
+.choicebub{position:absolute;z-index:46;transform:translate(-50%,-50%);display:inline-flex;flex-direction:column;align-items:stretch;gap:4px;}
+.choicebub .cbo{width:100%;box-sizing:border-box;white-space:nowrap;text-align:center;font-family:var(--pxu);font-size:12px;font-weight:800;letter-spacing:.02em;color:#10233a;background:#f4f8fc;border:2px solid #2fb3a8;border-radius:14px;padding:5px 9px;min-height:32px;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;}
 .choicebub .cbo.ordC{border-color:#cf2d2d;} .choicebub .cbo.ordP{border-color:#e0a12a;} .choicebub .cbo.ordB{border-color:#3b7fd0;}
 .choicebub .cbo:focus-visible{outline:3px solid #ffd34d;outline-offset:1px;}
 .tbsteps{display:flex;gap:6px;}
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v692';
+var GAME_VERSION='v693';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6122,12 +6122,14 @@ function renderDefChoice(){
   var bw=document.querySelector('.boardwrap'); if(!bw) return; var el=bw.querySelector('.choicebub'), dc=S.defCommit;
   if(!(dc && dc.selDef && dc.pendingMove && !S.paused)){ if(el) el.parentNode.removeChild(el); return; }
   if(!el){ el=document.createElement('div'); el.className='choicebub'; bw.appendChild(el);
-    el.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation(); var o=b.getAttribute('data-o'); if(o==='done') defSlideDone(); else finalizeDefPick(o); }); }
-  var key=dc.selDef+'|'+dc.pendingMove.toC+','+dc.pendingMove.toR+'|'+(dc.extend?1:0);
+    el.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation(); var o=b.getAttribute('data-o'); if(o==='done') defSlideDone(); else if(o==='more') finalizeDefPick(null); else if(o==='mark') startMark(); else finalizeDefPick(o); }); }
+  var _mk=markTargets(byId(dc.selDef)).length?1:0;
+  var key=dc.selDef+'|'+dc.pendingMove.toC+','+dc.pendingMove.toR+'|'+(dc.extend?1:0)+'|'+(dc.pendingMove.path?1:0)+'|'+_mk;
   if(el.getAttribute('data-k')!==key){ el.setAttribute('data-k', key); var op=defOrderPcts()||{}; var pc=function(v){ return v!=null ? ' '+v+'%' : ''; };
-    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : '<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+((op.lift>0&&op.liftPen)?' · pen '+op.liftPen+'%':'')+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'); }
+    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : (dc.pendingMove.path?'':'<button class="cbo" data-o="more">+1 more square</button>')+'<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'+(_mk?'<button class="cbo" data-o="mark">🎯 Mark</button>':'')); }
   placeDefChoice(el);
 }
+function defBubblesOn(){ return !!(document.querySelector('.boardwrap') && !S.paused); }   /* v693 : la barre ne double plus les bulles */
 function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pas la place), dans la zone de glace
   var dc=S.defCommit, bw=document.querySelector('.boardwrap'); if(!dc || !dc.pendingMove || !bw) return;
   var B=bw.getBoundingClientRect(), W=B.width||bw.clientWidth||390, H=B.height||bw.clientHeight||560;
@@ -6139,7 +6141,9 @@ function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pa
 }
 function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); renderDefChoice(); var dc=S.defCommit; if(!dc){ db.style.display='none'; db.innerHTML=''; return; } var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
   var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%'+((_op.lift>0&&_op.liftPen)?' · pen '+_op.liftPen+'%':''):'', _sbS=_op?' '+_op.sblock+'%':'';
-  var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
+  var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend && defBubblesOn()){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or pick on the ice</span>'; }
+  else if(dc.selDef && dc.pendingMove && defBubblesOn() && !dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — pick on the ice</span>'; }
+  else if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(108,105,102,116))">+ Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
   else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(protOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(112,114,111,116,110,101,116))">Protect net</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
 // v474 : telephone -- si un ordre de l'embuscade reste sous la barre GO, le panneau defile pour le montrer
@@ -13313,6 +13317,7 @@ function tutBtnKey(b){
   var IDS={btnDeke:'deke', btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnFlip:'flip', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
   if(b.id && IDS[b.id]) return IDS[b.id];
   if(b.classList.contains('taim')) return 'corner:'+b.getAttribute('data-t');
+  if(b.classList.contains('cbo') && b.getAttribute('data-o')) return b.getAttribute('data-o');   // v693 : les bulles « and then? » (done, more, check, poke, lift, block, sblock, mark) -- les lecons les surlignent et les filtrent
   var oc=b.getAttribute('onclick')||'', mf=/armFeint\('(\w+)'\)/.exec(oc);
   if(mf) return 'feint:'+mf[1];
   var MAP=[[/resolvePlan/,'go'],[/planUndo|undoDefPick/,'undo'],[/toggleMirror/,'mirror'],[/confirmDefCommit/,'confirm'],[/defSlideDone/,'done'],
