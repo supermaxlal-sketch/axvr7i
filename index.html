@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v686</title>
+<title>Deck 3D v687</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1026,6 +1026,7 @@ body:not(.vrink) .thumbx{display:none !important;}
     <button class="act dump" id="btnDump" style="display:none">⤒ Dump in</button>
     <button class="act dump" id="btnSaucer" style="display:none">⤴ Saucer pass</button>
     <button class="act dump" id="btnDrop" style="display:none">⤵ Drop pass</button>
+    <button class="act dump" id="btnFlip" style="display:none">⤴ Flip</button>
     <button class="act poke" id="btnPoke" style="display:none">🥍 Poke check</button>
     <button class="act poke" id="btnLift" style="display:none">🥍 Stick lift</button>
     <button class="act prot" id="btnBrake" style="display:none">⏹ Brake</button>
@@ -1377,7 +1378,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v686';
+var GAME_VERSION='v687';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1932,6 +1933,21 @@ function resolveSeq(seq){
     S.planResume={v2seq:seq};
     S.animating=true; render();
     setTimeout(function(){ S.animating=false; doDump(p, a.toC, a.toR); lateDefStep(seq); }, TEMPO.settle);
+    return;
+  }
+  if(a.kind==='flip'){   // v687 : le flip (le lob par-dessus les joueurs), 1 action, une case visee
+    if(S.puckOwner!==p.id){
+      pushLog(p.name+' no longer has the puck.');
+      resolveSeqDefStep(seq);
+      S.animating=true; render();
+      setTimeout(function(){ S.animating=false; render();
+        if(seq!==S.currentSeq) return; seq.rank++; resolveSeq(seq); }, TEMPO.slide);
+      return;
+    }
+    defStepOrLate(seq);
+    S.planResume={v2seq:seq};
+    S.animating=true; render();
+    setTimeout(function(){ S.animating=false; doFlip(p, a.toC, a.toR); lateDefStep(seq); }, TEMPO.settle);
     return;
   }
   if(a.kind==='pivot'){
@@ -2987,7 +3003,7 @@ function armDump(){
   var p=S.sel?byId(S.sel):null;
   if(!p||S.puckOwner!==p.id||p.type!=='sk'||S.gestes<=0||inOffZone(p.team,p.c)) return;
   if(S.dumpAim){ S.dumpAim=false; S.dumpT=[]; render(); return; }
-  S.bankMode=false; S.dumpAim=true; S.dumpT=dumpTargets(p.team);
+  S.bankMode=false; S.flipAim=false; S.dumpAim=true; S.dumpT=dumpTargets(p.team);
   setHint(teammateInOffZone(p.team,p.id)
     ? 'Tap anywhere on the ice. Careful — a teammate is already in the zone, offside if your team touches it.'
     : (icingCan(p.team, p.c) ? 'Tap anywhere on the ice. Careful — from your side of the red line, it is icing if they touch it first.'   /* v514 */
@@ -3050,7 +3066,7 @@ function armSaucer(){
   var p=S.sel?byId(S.sel):null;
   if(!p||p.type!=='sk'||!ownsPuck(p.id)||S.gestes<=0) return;
   if(S.saucerAim){ S.saucerAim=false; render(); return; }
-  S.bankMode=false; S.dumpAim=false; S.cycleAim=null; S.dangle=false; S.dekeT=[]; S.saucerAim=true;
+  S.bankMode=false; S.dumpAim=false; S.flipAim=false; S.cycleAim=null; S.dangle=false; S.dekeT=[]; S.saucerAim=true;
   setHint('Saucer pass: tap a square. The puck flies over the sticks and lands in a circle around it — smaller for a better passer. A teammate who is there has to catch it; if nobody is, it stays loose.');
   render();
 }
@@ -3173,6 +3189,155 @@ function doDump(p,tc,tr){
     looseBall(team, team==='A'?'B':'A');
   });
 }
+// v687 (his FLIP, 2026-11-15 : a high lob clear over the players ; « ca devient juste une passe manquee ou une passe molle, l'adversaire peut la
+// reprendre » ; « un joueur qui a de la pression, qui se depeche, peut la flipper dans les estrades » ; « dependamment de l'angle du joueur, comment
+// il est place »). Bouton Flip : 1 action, de n'importe ou, puis n'importe quelle case. Precision = l'echelle du Dump (70 + 0,5 x (passe - 60) - 5 par
+// case au-dela de 6 ; 15-95 %), moins la PRESSION (-15 x k) et l'ANGLE (cote -10, dos -20). Elle vole PAR-DESSUS tous les joueurs : seul un adversaire a
+// 1 case de la ligne, dans les 2 premieres ou 2 dernieres cases du trajet, peut la rabattre a la main (1 a 3 %, selon sa defense). Reussi : elle tombe
+// sur la case puis glisse 1-2 cases. Rate : une passe molle, courte (50-75 % du chemin), glisse 0-1 case, rondelle libre. Dans les ESTRADES (jet d'abord) :
+// 15 % (passe faible) a 5 % (passe 100) x (1 + k) x angle (1 / 1,3 / 1,6) x 1,3 (bande devant lui, il lui fait face), plafond 60 % : sifflet ; depuis sa zone
+// = retard de jeu (PEN_SECS au banc, mise au jeu dans sa zone) ; ailleurs : mise au jeu au point le plus proche.
+var FLIP_GLASS=0.15, FLIP_GLASS_MIN=0.05, FLIP_GLASS_CAP=0.60, FLIP_PEAK=3.0, FLIP_GLASS_PEAK=4.0, AI_FLIP_P=0.5;
+function flipAngle(p,tc,tr){   // degres (0-180) entre son regard et la direction de la cible
+  var f=facingOf(p), dx=tc-p.c, dy=tr-p.r, n=Math.hypot(dx,dy), fn=Math.hypot(f.dc, f.dr||0);
+  if(!n || !fn) return 0;
+  return Math.acos(Math.max(-1, Math.min(1, (f.dc*dx+(f.dr||0)*dy)/(n*fn))))*180/Math.PI; }
+function flipBoardsAhead(p){   // une case voisine hors glace (la bande) DANS la direction ou il regarde
+  var f=facingOf(p), sc=f.dc?(f.dc>0?1:-1):0, sr=f.dr?(f.dr>0?1:-1):0, cs=[];
+  if(sc||sr) cs.push([sc,sr]); if(sc&&sr){ cs.push([sc,0]); cs.push([0,sr]); }
+  for(var i=0;i<cs.length;i++){ if(!onIce(p.c+cs[i][0], p.r+cs[i][1])) return true; }
+  return false; }
+function flipOdds(p,tc,tr,Pin){   // Pin : la pression deja calculee (l'affichage des cases)
+  var d=cheb(p,{c:tc,r:tr}), P=(Pin!=null) ? Pin : (S.tut ? 0 : passPressure(p).P), k=Math.max(0, Math.min(1, P/100)),
+    ang=flipAngle(p,tc,tr), behind=(ang>135+1e-6), side=(!behind && ang>45+1e-6), boards=flipBoardsAhead(p),
+    base=Math.max(0.15, Math.min(0.95, 0.70+0.005*(n100(p.passe)-60)-0.05*Math.max(0,d-6))),
+    acc=Math.max(0.05, base-0.15*k-(behind?0.20:(side?0.10:0))),
+    g0=0.15-0.10*Math.max(0, Math.min(1, (n100(p.passe)-50)/50)),
+    gm=(1+k)*(behind?1.6:(side?1.3:1))*(boards?1.3:1);
+  return {d:d, k:k, P:P, ang:ang, base:base, acc:acc, g0:g0, glass:Math.max(0, Math.min(FLIP_GLASS_CAP, g0*gm)), boards:boards}; }
+function flipKnockP(q){ return Math.max(0.01, Math.min(0.03, 0.01+0.0005*(n100(q.defense)-60))); }
+function flipPath(fc,fr,lc,lr){   // les cases du trajet apres la sienne, jusqu'a l'atterrissage inclus
+  var n=Math.max(1, Math.ceil(Math.hypot(lc-fc, lr-fr)*3)), out=[], last=fc+','+fr;
+  for(var i=1;i<=n;i++){ var c=Math.round(fc+(lc-fc)*i/n), r=Math.round(fr+(lr-fr)*i/n), k=c+','+r; if(k!==last){ out.push({c:c, r:r}); last=k; } }
+  return out; }
+function flipKnockers(p,fc,fr,lc,lr){   // adversaires a 1 case de la ligne, dans les 2 premieres / 2 dernieres cases (la rondelle y est basse) ; dans l'ordre du trajet
+  var path=flipPath(fc,fr,lc,lr), zone=path.slice(0,2).concat(path.slice(-2)), res=[];
+  S.pieces.forEach(function(q){ if(!q.onIce || q.type!=='sk' || q.team===p.team || isDown(q)) return;
+    var near=false; for(var i=0;i<zone.length;i++){ if(cheb(q, zone[i])<=1){ near=true; break; } }
+    if(near) res.push({q:q, t:distToSeg(q.c,q.r,fc,fr,lc,lr).t}); });
+  res.sort(function(a,b){ return a.t-b.t; });
+  return res.map(function(x){ return x.q; }); }
+function flipShortLand(fc,fr,tc,tr,f){   // la passe molle : a f (50-75 %) du chemin, sur la glace
+  for(var k=0;k<20;k++){ var ff=Math.max(0, f-0.05*k), c=Math.round(fc+(tc-fc)*ff), r=Math.round(fr+(tr-fr)*ff); if(onIce(c,r)) return {c:c, r:r}; }
+  return {c:fc, r:fr}; }
+function flipSlide(lc,lr,ux,uy,n){   // la glisse : n cases dans le sens du vol (8 directions), arret a la bande / au filet / devant un joueur
+  var sx=Math.abs(ux)>0.383?(ux>0?1:-1):0, sy=Math.abs(uy)>0.383?(uy>0?1:-1):0, out=[], cur={c:lc, r:lr};
+  if(!sx && !sy) return out;
+  for(var i=0;i<n;i++){ var nx=cur.c+sx, ny=cur.r+sy;
+    if(!onIce(nx,ny) || pieceAt(nx,ny) || segHitsNet(cur.c, cur.r, nx, ny)) break;
+    out.push({c:nx, r:ny}); cur={c:nx, r:ny}; }
+  return out; }
+function flipGlassEnd(fc,fr,tc,tr){   // ou la rondelle quitte la glace : la ligne vers la cible, prolongee jusqu'a la bande, puis un peu au-dessus
+  var dx=tc-fc, dy=tr-fr, n=Math.hypot(dx,dy)||1, ux=dx/n, uy=dy/n, x=fc, y=fr;
+  for(var i=0;i<200;i++){ var nx=x+ux*0.25, ny=y+uy*0.25; if(!onIce(Math.round(nx), Math.round(ny))) break; x=nx; y=ny; }
+  return {c:Math.max(-0.5, Math.min(COLS-0.5, x+ux*0.75)), r:Math.max(-0.5, Math.min(ROWS-0.5, y+uy*0.75))}; }
+function flipPts(fc,fr,ac,ar,slide){   // un point toutes les 1/2 case (pas de temps egaux) ; hl : la part du trajet en l'air (pour la 3D)
+  var d=Math.hypot(ac-fc, ar-fr), n=Math.max(2, Math.ceil(d*2)), pts=[], tot=d, i;
+  for(i=0;i<=n;i++) pts.push({c:fc+(ac-fc)*i/n, r:fr+(ar-fr)*i/n, b:false});
+  for(i=0;i<slide.length;i++){ var a=pts[pts.length-1], s=slide[i]; tot+=Math.hypot(s.c-a.c, s.r-a.r);
+    pts.push({c:(a.c+s.c)/2, r:(a.r+s.r)/2, b:false}); pts.push({c:s.c, r:s.r, b:false}); }
+  return {pts:pts, hl:tot>0 ? Math.max(0.05, d/tot) : 1}; }
+function armFlip(){
+  if(S.animating||S.gameEnded) return;
+  var p=S.sel?byId(S.sel):null;
+  if(!p||p.type!=='sk'||!ownsPuck(p.id)||S.gestes<=0) return;
+  if(S.flipAim){ S.flipAim=false; render(); return; }
+  S.bankMode=false; S.dumpAim=false; S.saucerAim=false; S.cycleAim=null; S.dangle=false; S.dekeT=[]; S.flipAim=true;
+  var f=facingOf(p), fo=flipOdds(p, p.c+(f.dc||0)*6, p.r+(f.dr||0)*6);
+  setHint('Flip: tap any square. The puck flies over the players; 6 squares ahead it lands '+Math.round(fo.acc*100)+'%. Over the glass: '+Math.round(fo.glass*100)+'% facing forward — more under pressure or when turned away'+(ownZone(p.team,p.c)?' (a delay-of-game penalty from your own zone).':'.'));
+  render();
+}
+function doFlip(p,tc,tr){
+  if(!p || !onIce(tc,tr)) return;
+  if(S.planning){ if(!ownsPuck(p.id)) return; S.flipAim=false; planPush({kind:'flip', id:p.id, toC:tc, toR:tr}); return; }
+  if(S.animating||S.puckOwner!==p.id||(tc===p.c && tr===p.r)) return;
+  var team=p.team, fc=p.c, fr=p.r, nm=p.name, o=flipOdds(p,tc,tr), own=ownZone(team,fc), opp=(team==='A')?'B':'A';
+  S.flipAim=false; S.animating=true; clearSel(); sfx('shot');
+  var rec={glass:false, ok:false, from:{c:fc,r:fr}, to:{c:tc,r:tr}, land:null, rest:null, knock:null, slide:0, acc:o.acc, glassP:o.glass, k:o.k, ang:o.ang};
+  S._flip=rec;
+  if(Math.random()<o.glass){   // les ESTRADES (jet d'abord)
+    rec.glass=true;
+    var E=flipGlassEnd(fc,fr,tc,tr), gp=flipPts(fc,fr,E.c,E.r,[]);
+    S.puckOwner=null; render();
+    flyPuckPath(gp.pts, function(){
+      S.puckLoose=null; S.puckOwner=null;
+      var pen=own && !S.tut && !S.so && penCount(team)<PEN_MAX;
+      rec.pen=pen;
+      document.getElementById('outcome').innerHTML='Over the glass!'+(pen?' <b>Delay of game.</b>':'');
+      pushLog('<b>'+nm+'</b> flips it over the glass!'+(pen?' Delay of game — a penalty on the '+TEAM_NAME[team]+'.':''));
+      if(pen) penState().delayed.push({team:team, id:p.id, foul:'delay'});
+      flipStoppage(own ? penZoneDot(team, fr) : careerNearDot(fc,fr), pen?'DELAY OF GAME':'OVER THE GLASS', pen?(TEAM_NAME[team]+' penalty — faceoff in their zone'):'Faceoff', pen);
+    }, false, {hi:FLIP_GLASS_PEAK, hl:2.0, msMin:1500});
+    return; }
+  var ok=(Math.random()<o.acc), L={c:tc, r:tr};
+  if(!ok) L=flipShortLand(fc,fr,tc,tr,0.5+0.25*Math.random());
+  rec.ok=ok; rec.land={c:L.c, r:L.r};
+  var knock=null, kn=flipKnockers(p,fc,fr,L.c,L.r);
+  for(var ki=0;ki<kn.length;ki++){ if(Math.random()<flipKnockP(kn[ki])){ knock=kn[ki]; break; } }
+  var slide=[], ac=L.c, ar=L.r, dn=Math.hypot(tc-fc, tr-fr)||1;
+  if(knock){ ac=knock.c; ar=knock.r; rec.knock=knock.id; }
+  else { var sn=ok ? 1+Math.floor(Math.random()*2) : Math.floor(Math.random()*2); slide=flipSlide(L.c, L.r, (tc-fc)/dn, (tr-fr)/dn, sn); }
+  rec.slide=slide.length;
+  var fp=flipPts(fc,fr,ac,ar,slide), restC=slide.length?slide[slide.length-1].c:ac, restR=slide.length?slide[slide.length-1].r:ar;
+  var icing=icingCan(team, fc) && crossesGoalLine(team, fp.pts), cells=Math.hypot(ac-fc, ar-fr), kname=knock?knock.name:null;
+  S.puckOwner=null; render();
+  flyPuckPath(fp.pts, function(){
+    placeLooseNear(restC, restR);
+    var lc=S.puckLoose?S.puckLoose.c:restC, lr=S.puckLoose?S.puckLoose.r:restR; rec.rest={c:lc, r:lr};
+    var enters=!inOffZone(team,fc) && inOffZone(team,lc), offTeam=(enters && teammateInOffZone(team,p.id)) ? team : null;
+    if(offTeam && S.puckLoose) S.puckLoose.offside=offTeam;
+    if(icing && S.puckLoose){ S.puckLoose.icing=team; S.puckLoose.icingRow=fr; }
+    sfx('drop'); checkFx((ok && !knock)?'dumpin':'dumpoff', lc, lr);
+    pushLog(knock ? ('<b>'+kname+'</b> knocks the flip down.')
+      : (ok ? ('<b>'+nm+'</b> flips it '+Math.round(cells)+' squares — over the sticks, it lands and slides.')
+            : ('<b>'+nm+'</b>\'s flip is short — a soft puck.')));
+    document.getElementById('outcome').innerHTML=(knock?'Knocked down — loose puck.':(ok?'Flipped out — the play keeps going.':'Short flip — a soft puck, loose.'))+(offTeam?' <b>Offside pending.</b>':'')+(icing?' <b>Icing if they touch it first.</b>':'')+' <span style="color:#9fb6cd">Both teams finish their actions, then the race for the puck — defence first.</span>';
+    if(S.planResume && S.planResume.v2seq){ var _sd=S.planResume.v2seq; S.planResume=null;
+      if(_sd===S.currentSeq){ _sd.rank++; resolveSeq(_sd); } return; }
+    looseBall(team, opp);
+  }, false, {hi:Math.max(0.5, Math.min(FLIP_PEAK, 0.6*cells)), hl:fp.hl, msMin:Math.min(1800, 300+250*cells)});
+}
+// v687 : l'arret de jeu d'un flip dans les estrades (le meme travail que penStop : on tue la sequence, sifflet, mise au jeu) ; pen = le retard de jeu part au banc
+function flipStoppage(dot, big, sub, pen){
+  if(pen) penWhistle();
+  if(S._injBusy){ S._injDot=dot; S.animating=false; return; }
+  if(S.currentSeq) killSeq(S.currentSeq); S.currentSeq=null; S.planResume=null; S.planNext=null; S.aiPlan=null; S.defCommit=null; renderDefBar();
+  S.planning=false; S.atkPlan=[]; S.ghost={}; S.bonus=null; S.planClock=null; renderPlanBar();
+  S.puckOwner=null; S.puckLoose=null; S.lunge=null; S.slide=null; S.animating=true; clearSel(); render();
+  S._penBusy=true;
+  showWhistle(function(){ S._penBusy=false; S.animating=false;
+    if(S.injQ && S.injQ.length && !S.gameEnded){ S._injDot=dot; careerInjuryWhistle(); return; }
+    startFaceoffRPS(dot.c, dot.r, false); }, '⛔', big, sub); }
+// v687 : l'IA flippe pour sortir de sa zone quand elle est pressee et qu'aucune passe sure n'existe (50 %) ; cible : une case libre de la zone neutre, loin des adversaires, vers la bande
+function aiFlipAct(car, at, posOf, oddsFn){
+  if(!car || car.type!=='sk' || S.tut || S.so) return null;
+  var pos=at||{c:car.c, r:car.r}, po=posOf||function(q){ return {c:q.c, r:q.r}; }, team=car.team;
+  if(!ownZone(team, pos.c) || pos.c!==car.c || pos.r!==car.r) return null;
+  if(passPressure(car).P<40) return null;   // k >= 0,4
+  var mates=onIceSkaters(team), opps=onIceSkaters(team==='A'?'B':'A'), i;
+  for(i=0;i<mates.length;i++){ var m=mates[i]; if(m.id===car.id || isDown(m)) continue; var mg=po(m);
+    if(cheb(pos, mg)>6 || aiPassOffside(pos, mg, team)) continue;
+    var od=oddsFn ? oddsFn(m) : passOdds(car, m); if(od!=null && od>=AI_PASS_MIN) return null; }   // une passe sure existe
+  var best=null, bs=-1e9, lo=BLUE_B+1, hi=BLUE_A-1;   // la zone neutre (cases entre les bleues)
+  for(var c=lo;c<=hi;c++) for(var r=0;r<ROWS;r++){
+    if(!onIce(c,r) || pieceAt(c,r) || ownZone(team,c) || inOffZone(team,c)) continue;
+    if(team==='A' ? c>BLUE_A-3 : c<BLUE_B+3) continue;   // loin de la bleue : la glisse ne la franchit pas (hors-jeu)
+    if(cheb(pos,{c:c,r:r})>9) continue;
+    var dm=99; for(i=0;i<opps.length;i++){ dm=Math.min(dm, cheb(opps[i],{c:c,r:r})); }
+    var sc=dm*3+Math.abs(r-CTR_R)-0.2*cheb(pos,{c:c,r:r});
+    if(sc>bs){ bs=sc; best={c:c, r:r}; } }
+  if(!best || Math.random()>=AI_FLIP_P) return null;
+  return {kind:'flip', id:car.id, toC:best.c, toR:best.r}; }
 function canShootFrom(p){
   var c = (S.planning ? ghostOf(p).c : p.c);
   if(p.type!=='sk' || !p.onIce) return false;
@@ -3636,8 +3801,8 @@ function planWaitsForPlay(){ var L=null; if(S.atkPlan) for(var i=S.atkPlan.lengt
 function setSel(id){ if(S.animating)return;
   if(id && S.planning && downId(id) && planCount()===0){ setHint('He is down — he can act from the 2nd action.'); render(); return; }   // v679
   if(id && S.planning && brakeOn(id)){ delete S.brakes[id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
-  if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.saucerAim=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
-function clearSel(){ S.sel=null; S.saucerAim=false; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
+  if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.saucerAim=false; S.flipAim=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
+function clearSel(){ S.sel=null; S.saucerAim=false; S.flipAim=false; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
 function endTurn(){
     S.turn=S.turn==='A'?'B':'A'; S.gestes=5; S.coachPush=null; S.passBonus=null; S.aiming=null; clearSel(); render();
 }
@@ -4005,10 +4170,12 @@ function puckRetime(pts, nOut){   // -> {pts, ms, same}
       var f=(tt-tau[j-1])/Math.max(1e-9, tau[j]-tau[j-1]); out.push({c:pts[j-1].c+(pts[j].c-pts[j-1].c)*f, r:pts[j-1].r+(pts[j].r-pts[j-1].r)*f, b:false}); } }
   return {pts:out, ms:Math.min(3500, T), same:false};
 }
-function flyPuckPath(pts, onDone, noEv){   // v441 : la rondelle suit la simulation image par image (vitesse reelle), clang a chaque contact ; v495 : noEv (le poteau envoie le sien)
+function flyPuckPath(pts, onDone, noEv, extra){   // v441 : la rondelle suit la simulation image par image (vitesse reelle), clang a chaque contact ; v495 : noEv (le poteau envoie le sien) ; v687 : extra = des champs de plus pour la 3D (le flip : hi, hl)
   var _rt=(pts && pts.length>=2) ? puckRetime(pts) : null;   // v583 : jamais plus de PUCK_VMAX a l'ecran
+  if(_rt && extra && extra.msMin){ _rt.ms=Math.max(_rt.ms, extra.msMin); delete extra.msMin; }   // v687 : le flip reste en l'air (une cloche de 3 m : ~1,5 s)
   if(pts && pts.length>=2 && !noEv){ var _r3=_rt.same ? null : puckRetime(pts, 40);
-    matchEv('puck', {pts:_r3 ? matchPtsU(_r3.pts, 100) : matchPtsU(pts), ms:_rt.ms, tu:1}); }   // v447 ; v521 : pas de temps egaux (tu), la 3D ajoute la meme fin en douceur
+    var _pe={pts:_r3 ? matchPtsU(_r3.pts, 100) : matchPtsU(pts), ms:_rt.ms, tu:1}; if(extra){ for(var _xk in extra) _pe[_xk]=extra[_xk]; }
+    matchEv('puck', _pe); }   // v447 ; v521 : pas de temps egaux (tu), la 3D ajoute la meme fin en douceur
   if(_rt) pts=_rt.pts;
   var fp=document.getElementById('flypuck'); if(!fp || !pts || pts.length<2){ if(onDone) onDone(); return; }
   var N=pts.length-1, T=_rt.ms/ANIM_RATE*(1+PUCK_TAIL), t0=Date.now(), k=0;   // v463 : ANIM_RATE ; v521 : + la fin en douceur ; v583 : la duree re-calculee
@@ -5050,7 +5217,7 @@ function ghostOwner(){
   if(!S.planning||!S.atkPlan) return own;
   for(var i=0;i<S.atkPlan.length;i++){ var a=S.atkPlan[i];
     if(a.kind==='pass' || a.kind==='cycle' || a.kind==='bank') own=a.target;   // v457
-    else if(a.kind==='shoot' || a.kind==='wrap' || a.kind==='saucer' || a.kind==='drop') own=null; }
+    else if(a.kind==='shoot' || a.kind==='wrap' || a.kind==='saucer' || a.kind==='drop' || a.kind==='flip') own=null; }
   return own;
 }
 function ownsPuck(id){ return S.planning ? (ghostOwner()===id) : (S.puckOwner===id); }
@@ -5075,6 +5242,7 @@ function planLabel(a){
   if(a.kind==='dump')    return nm+' dumps it in ('+a.toC+','+a.toR+')';
   if(a.kind==='saucer')  return nm+' saucers it to ('+a.toC+','+a.toR+')';   // v677
   if(a.kind==='drop')    return nm+' drops the puck back';   // v684
+  if(a.kind==='flip')    return nm+' flips it to ('+a.toC+','+a.toR+')';   // v687
   if(a.kind==='dangle')  return nm+(a.feint?(' — '+({toedrag:'toe drag',spin:'spin-o-rama',fakeshot:'fake shot',betweenlegs:'between the legs',cutmiddle:'cut inside'})[a.feint]||(SO_FEINTS[a.feint]?SO_FEINTS[a.feint].n:'feint')):' dekes '+(byId(a.target)?byId(a.target).name:'?'));
   if(a.kind==='dump')  return nm+' dumps it in';
   return nm;
@@ -6161,6 +6329,9 @@ function aiBuildPlan(){
     // v684 : bloque devant, un coequipier 1-2 cases derriere : il laisse la rondelle (passe en retrait, le trailer) ; compte 1 action
     var _dpa=aiDropAct(car, cg, gp);
     if(_dpa){ plan.push(_dpa); owner=_dpa.target; continue; }
+    // v687 : sa zone, pressee, aucune passe sure : il flippe la rondelle vers la zone neutre (1 action, la rondelle est libre apres)
+    var _fla=aiFlipAct(car, cg, gp, function(m){ return oddsAt(car, cg, m, gp(m)); });
+    if(_fla){ plan.push(_fla); break; }
     // 2. servir un coequipier mieux place
     var bestT=null, bestP=-1;
     for(var i=0;i<mates.length;i++){ var m=mates[i]; if(m.id===car.id) continue;
@@ -7320,7 +7491,7 @@ function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
 var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_P_ROUGH=0.10, PEN_MAX=2;   /* v581 : rudesse (fache, mise en echec propre) */   // v497 : accrochage (choix du concepteur, 30 %)
 // v563 (le concepteur : « penalites plus longues, fini trop rapide » ; choix : 36 s, environ 6 jeux) : PEN_SECS 18 -> 36
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping', xcheck:'cross-checking'};   // v631 : goalie
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping', xcheck:'cross-checking', delay:'delay of game'};   // v631 : goalie ; v687 : le flip dans les estrades
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
@@ -7562,7 +7733,7 @@ function blowbyTargets(){
   var sp=car.speed||0, cur={c:car.c, r:car.r};
   for(var i=0;i<(S.atkPlan||[]).length;i++){ var a=S.atkPlan[i]; if(a.id!==car.id) continue;
     if(a.kind==='move' || a.kind==='bankgo'){ sp+=(a.path && a.path.length) ? a.path.length : cheb(cur, {c:a.toC, r:a.toR}); cur={c:a.toC, r:a.toR}; }
-    else if(a.kind==='pass' || a.kind==='bank' || a.kind==='dump' || a.kind==='saucer' || a.kind==='shoot' || a.kind==='cycle') return {}; }
+    else if(a.kind==='pass' || a.kind==='bank' || a.kind==='dump' || a.kind==='saucer' || a.kind==='flip' || a.kind==='shoot' || a.kind==='cycle') return {}; }
   var g=ghostOf(car), proj={id:car.id, team:car.team, type:'sk', c:g.c, r:g.r, speed:Math.min(spdCap(car), sp)}, out={};
   for(var j=0;j<S.pieces.length;j++){ var d=S.pieces[j]; if(!d.onIce || d.type!=='sk' || d.team===car.team) continue; if(blowsBy(proj, d)) out[d.id]=true; }
   return out; }
@@ -9735,6 +9906,8 @@ function render(){
   var sbn=document.getElementById('btnSaucer'); sbn.style.display=canSaucer?'inline-block':'none'; sbn.className='act dump'+(S.saucerAim?' on':''); sbn.textContent=S.saucerAim?'⤴ Saucer pass ✓':'⤴ Saucer pass';
   var canDrop = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v684
   var dpb=document.getElementById('btnDrop'); dpb.style.display=canDrop?'inline-block':'none'; dpb.className='act dump'; dpb.textContent='⤵ Drop pass';
+  var canFlip = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v687 : de n'importe ou (aussi en zone offensive)
+  var flb=document.getElementById('btnFlip'); flb.style.display=canFlip?'inline-block':'none'; flb.className='act dump'+(S.flipAim?' on':''); flb.textContent=S.flipAim?'⤴ Flip ✓':'⤴ Flip';
   var canWrap = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&canWraparound(sp);
   var wbn=document.getElementById('btnWrap');
   if(canWrap && sp.team===HUMAN_TEAM) tipTrigger('wrap');   // v456
@@ -9759,6 +9932,7 @@ function render(){
   var mset={}, _msel=byId(S.sel); for(var m=0;m<S.moves.length;m++) mset[S.moves[m].c+','+S.moves[m].r]=(S.moves[m].curve&&!S.moves[m].walk)?'curve':(moveFar(_msel, S.moves[m])?'far':(S.moves[m].cost?'cost':(S.moves[m].kind||'fwd')));   // v408 : case de courbe   // v603 : case du porteur a 2 actions
   var _crash={}; for(var _cm=0;_cm<S.moves.length;_cm++) if(S.moves[_cm].crash) _crash[S.moves[_cm].c+','+S.moves[_cm].r]=1;   // v669 : la pastille rouge
   var _hunt=huntShown();   // v629
+  var _flp=(S.flipAim && S.sel) ? byId(S.sel) : null, _flP=(_flp && !S.tut) ? passPressure(_flp).P : 0;   // v687 : les % du flip sur les cases
   for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
     var cell=document.createElement('button'); cell.className='cell'; cell.setAttribute('aria-label','square '+(c+1)+','+(r+1));
     var p=pieceAt(c,r), key=c+','+r, clickable=false;
@@ -9766,6 +9940,7 @@ function render(){
     if(isDekeApproach(c,r)){ cell.className+=' dka'; clickable=true; }   // guide mauve : va la pour deker
     if(S.dumpAim){ cell.className+=' dmpaim'; clickable=true; if(isDumpTarget(c,r)) cell.className+=' dmpt'; }
     if(S.saucerAim){ cell.className+=' dmpaim'; clickable=true; }   // v677
+    if(S.flipAim){ cell.className+=' dmpaim'; clickable=true; if(_flp && !(c===_flp.c && r===_flp.r)){ var _fo=flipOdds(_flp,c,r,_flP); cell.title='Flip '+Math.round(_fo.acc*100)+'% · over the glass '+Math.round(_fo.glass*100)+'%'; } }   // v687
     if(S.cycleAim){ var _cap=byId(S.cycleAim); if(_cap && p && cycleTargets(_cap).indexOf(p.id)>=0){ cell.className+=' cyct'; clickable=true; } }
     if(S.dangle && isDekeTarget(c,r)){ cell.className+=' dkt'; clickable=true; }
     if(S.planning||S.defCommit){ for(var _gk in S.ghost){ var _g=S.ghost[_gk]; if(_g&&_g.c===c&&_g.r===r) cell.className+=' ghostc'; if(_g&&_g.viaC!=null&&_g.viaC===c&&_g.viaR===r) cell.className+=' ghostvia'; if(_g&&_g.path){ for(var _gp=0;_gp<_g.path.length-1;_gp++){ if(_g.path[_gp].c===c&&_g.path[_gp].r===r){ cell.className+=' ghostvia'; break; } } } if(_g&&_g.rest){ for(var _gq=0;_gq<_g.rest.length;_gq++){ if(_g.rest[_gq].c===c&&_g.rest[_gq].r===r){ cell.className+=' ghostrest'; break; } } } } }   /* v408 : l'arc d'une courbe planifiee */
@@ -9922,6 +10097,9 @@ function onCellCore(c,r,_tp){
   if(S.saucerAim){ var _ssp=S.sel?byId(S.sel):null;   // v677 : la case de la passe soulevee (une case ou un joueur : il y va selon le plan)
     if(_ssp && onIce(c,r) && !(c===_ssp.c && r===_ssp.r)){ doSaucer(_ssp, c, r); return; }
     S.saucerAim=false; render(); renderPlanBar(); }
+  if(S.flipAim){ var _fsp=S.sel?byId(S.sel):null;   // v687 : la case du flip (n'importe quelle case de glace)
+    if(_fsp && onIce(c,r) && !(c===_fsp.c && r===_fsp.r)){ doFlip(_fsp, c, r); return; }
+    S.flipAim=false; render(); renderPlanBar(); }
   if(S.cycleAim){ var _cyp=byId(S.cycleAim), _cyt=pieceAt(c,r)||ghostAt(c,r);
     if(_cyp && _cyt && cycleTargets(_cyp).indexOf(_cyt.id)>=0){ doCycle(_cyp, _cyt.id); return; }
     S.cycleAim=null; render(); renderPlanBar(); }   // tap ailleurs = annule le cycle, on continue vers la selection normale
@@ -10383,6 +10561,7 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape'||e.key==='
 document.getElementById('btnDump').onclick=armDump;
 document.getElementById('btnSaucer').onclick=armSaucer;   // v677
 document.getElementById('btnDrop').onclick=armDrop;   // v684
+document.getElementById('btnFlip').onclick=armFlip;   // v687
 document.getElementById('btnProtect').onclick=doProtect;
 document.getElementById('btnBrake').onclick=function(){ if(S.sel) toggleBrake(S.sel); };   // v672
 document.getElementById('btnWrap').onclick=function(){ var p=S.sel?byId(S.sel):null; if(p&&canWraparound(p)) doWraparound(p); };
@@ -13038,7 +13217,7 @@ function tutTap(c,r){   // true = tap consomme par la lecon (geste non permis, o
 }
 function tutBtnKey(b){
   if(!b || b.getAttribute('data-tut') || b.classList.contains('cell')) return null;
-  var IDS={btnDeke:'deke', btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
+  var IDS={btnDeke:'deke', btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnFlip:'flip', btnPoke:'poke', btnLift:'lift', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call', saimCancel:'aimcancel', vMap:'vmap'};
   if(b.id && IDS[b.id]) return IDS[b.id];
   if(b.classList.contains('taim')) return 'corner:'+b.getAttribute('data-t');
   var oc=b.getAttribute('onclick')||'', mf=/armFeint\('(\w+)'\)/.exec(oc);
@@ -13391,7 +13570,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":686228,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":686276,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
