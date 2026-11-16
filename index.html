@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v694</title>
+<title>Deck 3D v695</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v694';
+var GAME_VERSION='v695';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -8936,14 +8936,20 @@ function proceedFaceoff(dotC,dotR){ if(S.so) return; S.gkWin=false; S.gkChgWait=
 // v561 (spec 2026-10-21-arbitre-3d-design, le concepteur : « mise au jeu et un arbitre visuel en 3D ») : en 3D, la rondelle tombe
 // au signal de l'arbitre (hj3d.fodrop : tous les joueurs places) -- jamais avant 1,6 s, au plus 3,5 s (la 3D ne repond pas : elle
 // part quand meme) ; le repere fo:<c>:<r> lui dit ou aller. Sans la 3D : 1,6 s, comme avant.
-var FO_MIN_MS=1600, FO_MAX_MS=realMs(5500);   // temps du jeu (x ANIM_RATE 1,5) : 1,07 s et 5,5 s reelles (v567 : 3,5 -> 5,5 s, le temps de les voir patiner jusqu'a la mise au jeu)
+// v695 (le concepteur, son telephone : « attendre que tous les joueurs soient a leur place avant de laisser tomber la rondelle » ; choix :
+// « Attendre toujours ») : plus de plafond de 5,5 s. La rondelle tombe au signal de l'arbitre, point. Seul filet : la 3D ne repond
+// plus du tout (aucun rapport hj3d.perf depuis 6 s reelles) -> elle tombe a FO_SAFETY_MS (15 s reelles) ; tant que la 3D donne signe
+// de vie, on attend, jusqu'a FO_HARD_MS (60 s reelles : un arbitre coince ne doit pas figer le match pour toujours).
+var FO_MIN_MS=1600, FO_SAFETY_MS=realMs(15000), FO_ALIVE_MS=6000, FO_HARD_MS=60000;   // MIN / SAFETY : temps du jeu (x ANIM_RATE 1,5) ; ALIVE / HARD : ms reelles
+function hj3dAlive(){ return !!(HJ3D.perfAt && Date.now()-HJ3D.perfAt < FO_ALIVE_MS); }   // le rapport de la 3D arrive toutes les 2 s
 function foDropWait(fo, go){
   if(!hj3dActive()){ setTimeout(go, FO_MIN_MS); return; }
-  var w={fo:fo, min:false, drop:false, done:false}; S.foWait=w;
+  var w={fo:fo, min:false, drop:false, done:false, t0:Date.now()}; S.foWait=w;
   w.go=function(){ if(w.done) return; w.done=true; if(S.foWait===w) S.foWait=null; if(S.faceoff===fo) go(); };
   hj3dSend('cue', 'fo:'+fo.dotC+':'+fo.dotR);
   setTimeout(function(){ w.min=true; if(w.drop) w.go(); }, FO_MIN_MS);
-  setTimeout(w.go, FO_MAX_MS);
+  var chk=function(){ if(w.done) return; if(hj3dAlive() && Date.now()-w.t0 < FO_HARD_MS){ setTimeout(chk, realMs(1000)); return; } w.go(); };
+  setTimeout(chk, FO_SAFETY_MS);
 }
 var DRAFT_FSLOTS=['C','AG','AD'], DRAFT_DSLOTS=['DG','DD'], DRAFT_SLOTLBL={C:'Center',AG:'Left W',AD:'Right W',DG:'Left D',DD:'Right D'};
 function draftSlotsForType(pos){ return pos==='D' ? DRAFT_DSLOTS : DRAFT_FSLOTS; }
@@ -10549,7 +10555,7 @@ var hj3d={
     var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
     var t=magnetPick(c, r, fc, fr, px/(HJ3D.k||1)); onCell(t.c, t.r); return true; },
   drag:function(phase, c, r){ if(PERF_TEST) return false; return hj3dDrag(phase, c, r); },
-  perf:function(js){ try{ var d=JSON.parse(js); if(!d || typeof d!=='object') return false; HJ3D.perf=d; return true; }catch(e){ return false; } },   // v663 : le rapport de performance de la 3D (toutes les 2 s)
+  perf:function(js){ try{ var d=JSON.parse(js); if(!d || typeof d!=='object') return false; HJ3D.perf=d; HJ3D.perfAt=Date.now(); return true; }catch(e){ return false; } },   // v663 : le rapport de performance de la 3D (toutes les 2 s)
   office:function(o){ return offMsg(o); },   // v608 : le bureau -- arrivee a un objet (ses 4 coins a l'ecran) ou glissement (obj null)
   ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
