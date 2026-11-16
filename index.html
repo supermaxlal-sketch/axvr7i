@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v688</title>
+<title>Deck 3D v689</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1378,7 +1378,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v688';
+var GAME_VERSION='v689';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -5733,6 +5733,7 @@ function startExchange(){
   if(S.puckOwner) matchSave('x');   // v499 : moment calme -- la reprise rejoue ce debut d'echange
   var _pow=S.puckOwner?byId(S.puckOwner):null; if(_pow && penStop(_pow.team)) return;   // v445 : l equipe fautive a la rondelle -> sifflet
   penRelease();   // v445 : les punis dont le temps est fini reviennent
+  penExtraEnter();   // v689 : le 6e attaquant arrive au tour qui suit le retrait du gardien
   flushPlanMomentum();   // v393 : une sequence coupee (passe, tir, contact) compte quand meme l'elan de ses gestes
   resetAlert();   // v380 : l'Alerte-passe ne dure qu'un tour
   S.gestes=3; S.carrierMoved=false; S.hiddenDef=[]; S.defRevealIdx=0; S.defOrders=[]; S._protSeen={};
@@ -7578,13 +7579,28 @@ function penExtraPick(team){ var best=null, bs=-1; for(var i=0;i<S.pieces.length
 function penCanPull(team){ var P=S.pen; if(!P || P.pulled[team] || !penDelayedOn(team==='A'?'B':'A')) return false;
   var ow=S.puckOwner?byId(S.puckOwner):null; if(!ow || ow.team!==team || ow.type==='g') return false;
   var g=goalieOf(team); return !!(g && g.onIce!==false && penExtraPick(team)); }
+function goalieBenchCell(team){ return {c:endsCol(CTR_C_CELL-2), r:benchRow()}; }   // v689 : ou le gardien attend (deux colonnes a cote de la place du 6e attaquant)
+function goalieSkate(g, from, to){   // v689 : le gardien PATINE d'une case a l'autre (evenement skate + glissement 3D) ; ses regles ne bougent pas (onIce decide)
+  var L=Math.hypot(to.c-from.c, to.r-from.r), ms=Math.max(SKATE_MS_MIN, SKATE_MS_CELL*L)/ANIM_RATE;
+  if(!S.slides) S.slides={}; S.slides[g.id]={dx:from.c-to.c, dy:from.r-to.r, ms:ms};
+  matchEv('skate', {id:g.id, pts:[[from.c, from.r],[to.c, to.r]]}); g._gtrav=Date.now()+ms; }
+function goalieTrav(q){ return (q && q.type==='g' && (!!q._gpark || (q._gtrav||0)>Date.now())) ? 1 : 0; }   // la 3D le garde en scene (il patine ou attend au banc) meme hors jeu
 function pullGoalie(team){ if(!penCanPull(team)) return false; var g=goalieOf(team), x=penExtraPick(team);
-  g.onIce=false; var sp=clearDot(endsCol(CTR_C_CELL), benchRow(), x.id); x.c=sp.c; x.r=sp.r; x.onIce=true; x.mom=0; x.speed=0; x.vel=null; x.route=null; x.facing={dc:dir(team), dr:0};
-  S.pen.pulled[team]={g:g.id, x:x.id};
-  pushLog('<b>'+TEAM_NAME[team]+'</b> pull the goalie — <b>'+x.name+'</b> jumps on as the extra attacker.'); matchRec('pen', {ev:'pull', team:team, id:x.id});
+  if(S.tut){ g.onIce=false; penExtraGo(team, g, x); S.pen.pulled[team]={g:g.id, x:x.id}; if(S.planning) renderPlanBar(); render(); renderPen(); return true; }   // les lecons guidees : l ancien comportement (6e tout de suite, gardien disparu)
+  var bc=goalieBenchCell(team), from={c:g.c, r:g.r}; g.onIce=false; g._gpark=bc; goalieSkate(g, from, bc);   // le filet est vide des maintenant ; il patine vers son banc
+  S.pen.pulled[team]={g:g.id, x:x.id, wait:true};
+  pushLog('<b>'+TEAM_NAME[team]+'</b> pull the goalie — he skates to the bench, <b>'+x.name+'</b> jumps on next turn.'); matchRec('pen', {ev:'pull', team:team, id:x.id});
   if(S.planning) renderPlanBar(); render(); renderPen(); return true; }
-function penRestoreGoalies(){ var P=S.pen; if(!P) return; for(var t in P.pulled){ var pl=P.pulled[t]; if(!pl) continue; var g=byId(pl.g), x=byId(pl.x);
-    if(x){ x.onIce=false; if(S.puckOwner===x.id) S.puckOwner=null; } if(g){ g.onIce=true; g.c=ownGoalCol(t); g.r=CTR_R; }
+function penExtraGo(team, g, x){ var sp=clearDot(endsCol(CTR_C_CELL), benchRow(), x.id); x.c=sp.c; x.r=sp.r; x.onIce=true; x.mom=0; x.speed=0; x.vel=null; x.route=null; x.facing={dc:dir(team), dr:0};
+  if(S.tut){ pushLog('<b>'+TEAM_NAME[team]+'</b> pull the goalie — <b>'+x.name+'</b> jumps on as the extra attacker.'); matchRec('pen', {ev:'pull', team:team, id:x.id}); } }
+function penExtraEnter(){ var P=S.pen; if(!P) return; var did=false; for(var t in P.pulled){ var pl=P.pulled[t]; if(!pl || !pl.wait) continue;   // v689 : le 6e saute sur la glace au tour suivant
+    var x=byId(pl.x); if(!x || x.onIce || penInBox(x.id) || penWaiting(x.id)) x=penExtraPick(t);
+    delete pl.wait; if(!x){ pl.x=null; continue; } pl.x=x.id; penExtraGo(t, byId(pl.g), x); did=true;
+    pushLog('<b>'+TEAM_NAME[t]+'</b>: <b>'+x.name+'</b> jumps on as the extra attacker.'); matchRec('pen', {ev:'extra', team:t, id:x.id}); }
+  if(did){ render(); renderPen(); } }
+function penRestoreGoalies(){ var P=S.pen; if(!P) return; for(var t in P.pulled){ var pl=P.pulled[t]; if(!pl) continue; var g=byId(pl.g), x=pl.x?byId(pl.x):null;
+    if(x){ x.onIce=false; if(S.puckOwner===x.id) S.puckOwner=null; }
+    if(g){ var from=g._gpark ? {c:g._gpark.c, r:g._gpark.r} : null; g.onIce=true; g.c=ownGoalCol(t); g.r=CTR_R; g._gpark=null; if(from) goalieSkate(g, from, {c:g.c, r:g.r}); }   // v689 : il revient EN PATINANT du banc a son filet
     pushLog(TEAM_NAME[t]+': the goalie is back in the net.'); } P.pulled={}; }
 function renderPen(){ var P=S.pen; ['A','B'].forEach(function(t){ var el=document.getElementById('pen'+t); if(!el) return; var out=[];
     if(P){ var mine=penBoxedIds(t), th=penBoxedIds(t==='A'?'B':'A').length;
@@ -8829,6 +8845,8 @@ function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; S.down={};   /* v679
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
   matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
+  var _gw=0; S.pieces.forEach(function(q){ if(q.type==='g' && (q._gtrav||0)>Date.now()) _gw=Math.max(_gw, skateLeftMs(q.id)); });   // v689 : le gardien finit de patiner jusqu'a son filet AVANT la mise au jeu
+  if(_gw>0 && !reset){ S.animating=true; setTimeout(function(){ S.animating=false; startFaceoffRPS(dotC,dotR,reset); }, _gw+30); return; }   // (animating : rien ne reprend pendant qu'il patine)
   cineExit();   // CINE : mise au jeu = phase de CHOIX -> la camera remonte
   if(reset){ S.pieces=applyPerks(startPieces());
     computeAllDekes();
@@ -10291,10 +10309,10 @@ function brakeOf(sl3){ var best=null;
   return best; }
 function hj3dSlides(sl){   // glissements de ce render (S.slides : decalage depart - arrivee, en cases) -> points absolus + duree 2D
   var out={}; if(!sl) return out;
-  for(var id in sl){ var s=sl[id], p=byId(id); if(!s || !p) continue;
-    if(s.pts){ var pts=[]; for(var i=0;i<s.pts.length;i++) pts.push([p.c+s.pts[i].dx, p.r+s.pts[i].dy]); pts.push([p.c, p.r]);
+  for(var id in sl){ var s=sl[id], p=byId(id); if(!s || !p) continue; var gp=p._gpark;   /* v689 : le gardien au banc : ses glissements se lisent depuis la case du banc (ses regles gardent le filet) */
+    if(s.pts){ var pts=[]; for(var i=0;i<s.pts.length;i++) pts.push([(gp?gp.c:p.c)+s.pts[i].dx, (gp?gp.r:p.r)+s.pts[i].dy]); pts.push([gp?gp.c:p.c, gp?gp.r:p.r]);
       out[id]={pts:pts, ms:s.ms || Math.max(450, 190*(s.cells||s.pts.length))/ANIM_RATE}; if(s.cells){ var _pc=inProfFor(p, s.cells); if(_pc) out[id].prof=_pc; } }   // v537 : une duree imposee (l'approche de la fusillade)   // courbe : duree du pion 2D (v411, v463)
-    else if(s.dx || s.dy){ out[id]={pts:[[p.c+s.dx, p.r+s.dy],[p.c, p.r]], ms:s.ms || 1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE}; var _ps=inProfFor(p, Math.max(Math.abs(s.dx),Math.abs(s.dy))); if(_ps) out[id].prof=_ps; }   // --slidedur de la 2D ; v633 : le retardataire (s.ms)
+    else if(s.dx || s.dy){ out[id]={pts:[[(gp?gp.c:p.c)+s.dx, (gp?gp.r:p.r)+s.dy],[gp?gp.c:p.c, gp?gp.r:p.r]], ms:s.ms || 1000*Math.max(0.3, 0.28*Math.max(Math.abs(s.dx),Math.abs(s.dy)))/ANIM_RATE}; var _ps=inProfFor(p, Math.max(Math.abs(s.dx),Math.abs(s.dy))); if(_ps) out[id].prof=_ps; }   // --slidedur de la 2D ; v633 : le retardataire (s.ms)
   }
   return out;
 }
@@ -10320,11 +10338,13 @@ function hj3dSnapshot(slides){
       var o={c:c, r:r, k:el.className}, b=el.querySelector('.oddsbadge'), dn=el.getAttribute('data-dn'), tg=el.getAttribute('data-tag');
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
-  for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(!q.onIce || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
+  for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if((!q.onIce && !goalieTrav(q)) || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
     var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:(isDown(q)?'down':'')||stState(q)||(brakeOn(q.id)?'brake':'')||((q.type==='sk' && protNetOf(q.team)===q)?'protect':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
     var ms=stState(q); if(ms) pl.ms=ms;   /* v681 : l'etat mental seul (stun, angry, conf, panic) -> l'icone 3D ; ni par terre, ni frein, ni Protect net */
     if(isDown(q)) pl.dn=(S.down[q.id].k==='flat' ? 'flat' : 'knee');   /* v680 : couche (percutante) ou a genou (toute autre chute), seulement quand st = down */
     if(q.vel && (q.vel.dc||q.vel.dr)) pl.mv=[q.vel.dc||0, q.vel.dr||0];   /* v661 : sa direction de glisse -> les chevrons de vitesse derriere elle (pas derriere son regard) */
+    if(q._gpark){ pl.c=q._gpark.c; pl.r=q._gpark.r; }   /* v689 : au banc */
+    if(goalieTrav(q)) pl.trav=1;   /* v689 : le gardien patine vers son banc / son filet : la 3D le laisse glisser */
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
@@ -13578,7 +13598,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":685812,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":685588,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
