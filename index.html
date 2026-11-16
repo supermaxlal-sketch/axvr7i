@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v697</title>
+<title>Deck 3D v698</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v697';
+var GAME_VERSION='v698';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2589,7 +2589,7 @@ function newGame(firstTeam){
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   if(typeof S!=='undefined' && S) S.gkChg=null;   // v691 : l'ancien match ne dicte plus le gardien (careerSkin lit S.gkChg)
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, down:{}, err:{}, stSeen:{}, period:1, clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, down:{}, err:{}, stSeen:{}, period:1, ends:!!(CAREER_MATCH && CAREER_MATCH.home!==CAREER_MATCH.my), clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
