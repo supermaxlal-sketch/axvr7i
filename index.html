@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v685</title>
+<title>Deck 3D v686</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1377,7 +1377,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v685';
+var GAME_VERSION='v686';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1400,7 +1400,9 @@ function killSeq(seq){ if(seq) seq.dead=true; S._acting=null; if(seq && !seq.isB
 // bonus complete (memes regles qu un plan), jouee tout de suite entre les actions planifiees, sans que la defense bouge ;
 // puis le plan reprend ou il etait. Une par plan. L IA joue la sienne seule.
 var BONUS_SECS=8;
-function bonusTrigger(p, why){ var sq=S.currentSeq; if(!sq || sq.isBonus || sq.bonusUsed || !p || !p.onIce || p.team!==sq.team) return; S._bonusFor={id:p.id, why:why}; }
+// v686 : sa demande, plus d'action bonus pour l'instant ; true les remet
+var BONUS_ON=false;
+function bonusTrigger(p, why){ if(!BONUS_ON && !S.tut) return;   /* les lecons guidees (lecon 11, deborder) gardent l'echappee */ var sq=S.currentSeq; if(!sq || sq.isBonus || sq.bonusUsed || !p || !p.onIce || p.team!==sq.team) return; S._bonusFor={id:p.id, why:why}; }
 // v523 (le concepteur : « le poke part trop tot, d'ou le joueur etait » ; choix : le POKE CHARGE, comme la mise en echec) :
 //  - la figurine 3D d'un joueur finit son patin a SKATE_MS_CELL ms (moteur) par case, au moins SKATE_MS_MIN (replay.gd) ;
 //  - un defenseur dont le mouvement + Poke / Body check de l'embuscade n'est pas encore joue ne fait pas de contact depuis
@@ -1656,7 +1658,7 @@ function resolveSeq(seq){
       if(p.c===a.toC && p.r===a.toR){ p._skatedInPlan=true; var dfS=resolveSeqDefStep(seq); if(dfS==='takeover') return;   // deja a destination : il reste la (son patinage est fait : pas de glisse en fin de plan)
         S.animating=true; render(); setTimeout(function(){ S.animating=false; render(); if(seq!==S.currentSeq) return; seqAdvance(seq); }, TEMPO.slide); return; }
       a=Object.assign({}, a, {path:null, viaC:null, viaR:null}); }   // sinon : tout droit vers la destination
-    var _preMateInZone = teammateInOffZone(p.team, p.id);   // HORS-JEU PORTE : on retient qui etait DEJA en zone AVANT ce mouvement. Un partenaire MIROIR qui franchit la ligne EN MEME TEMPS (mirrorMoveNow, plus bas) ne doit pas compter -> plus de faux hors-jeu simultane.
+    var _preMateInZone = teammateInOffZone(p.team, p.id);   // HORS-JEU PORTE : on retient qui etait DEJA en zone AVANT ce mouvement. v686 : le miroir compte s'il finit devant la rondelle (plus profond que le porteur, _mirMate) ; au meme niveau ou derriere : en jeu.
     resolveCutIfAny(seq, a);   // duel de coupe AVANT que le marqueur poursuive (seme le marqueur ce temps si gagne)
     var _bend=(a.viaC!=null && a.viaR!=null && planCanBendMove(p, a.viaC, a.viaR, a.toC, a.toR));   // trace coude valide : on passe par le point de virage
     var _crv=!!(a.path && a.path.length);   // v408 : COURBE planifiee (virage serre, elan garde)
@@ -1718,7 +1720,7 @@ function resolveSeq(seq){
       applyMoveKinematics(p, _bend?a.viaC:oc, _bend?a.viaR:orr, sp.c, sp.r);
     }
     raceShowLate(p);   // v633 : le retardataire arrive apres lui (affichage)
-    if(!a.cont) mirrorMoveNow(seq, p, oc, orr, sp.c, sp.r);   // le partenaire miroir suit gratuitement ; v410 : jamais sur une suite de trace
+    var _mirMate=null; if(!a.cont){ mirrorMoveNow(seq, p, oc, orr, sp.c, sp.r); _mirMate=S._mirMoved?byId(S._mirMoved):null; }   // le partenaire miroir suit gratuitement ; v410 : jamais sur une suite de trace
     var _mv=[]; for(var _mid in (S._rankMoves||{})){ var _mq=byId(_mid); if(_mq && _mq.team===p.team) _mv.push(_mid); } resolveCrossDuels(_mv);   // v432 : contact au croisement (sans rondelle)
     if(S.diag) pushLog(p.name+' : '+oc+','+orr+(_bend?(' \u2192 '+a.viaC+','+a.viaR):'')+(_crv?' (curve)':'')+' \u2192 '+p.c+','+p.r);
     if(!_det && !_bend && !_crv && (sp.c!==atc||sp.r!==atr) && !(_om && _om.passBy==='trip')) pushLog(p.name+' is cut off and stops short.');
@@ -1762,7 +1764,7 @@ function resolveSeq(seq){
       }
       // HORS-JEU PORTE : le porteur amene lui-meme la rondelle en zone offensive alors qu'un coequipier
       // y est deja -> sifflet. (Manquait dans la resolution planifiee : c'etait seulement dans doMoveExec.)
-      if(S.puckOwner===p.id && inOffZone(p.team, p.c) && !inOffZone(p.team, oc) && _preMateInZone){
+      if(S.puckOwner===p.id && inOffZone(p.team, p.c) && !inOffZone(p.team, oc) && (_preMateInZone || (_mirMate && _mirMate.onIce && inOffZone(p.team,_mirMate.c) && (p.team==='A' ? _mirMate.c>p.c : _mirMate.c<p.c)))){
         killSeq(seq); S.currentSeq=null; render(); triggerOffside(p.team, p.r); return;
       }
       if(boardsCheck(p)==='fall' && !S.puckOwner && S.puckLoose){ S.animating=true; render(); setTimeout(function(){ S.animating=false; looseBall(p.team==='A'?'B':'A'); }, 700); return; }   // v669 : il s'ecrase avec la rondelle
@@ -5295,6 +5297,7 @@ function mirrorRelease(id){
   return true;
 }
 function mirrorMoveNow(seq, p, oc, orr, nc, nr){
+  S._mirMoved=null;   // v686 : le partenaire qui a bouge avec le porteur dans ce pas (lu pour le hors-jeu)
   if(!S.mirror || !p || p.type!=='sk') return;
   var mp=mirrorPartnerOf(p); if(!mp || isDown(mp)) return;
   if(seq && seq.noMirror && seq.noMirror[mp.id]) return;   // v493 : libere du miroir pendant le plan
@@ -5304,7 +5307,7 @@ function mirrorMoveNow(seq, p, oc, orr, nc, nr){
   var tc=_mt.c, tr=_mt.r;
   var sp=landSpot(mp, tc, tr, {});
   if(sp.c===mp.c && sp.r===mp.r) return;
-  var moc=mp.c, mor=mp.r; mp.c=sp.c; mp.r=sp.r; addSlide(mp.id, moc-sp.c, mor-sp.r); applyMoveKinematics(mp, moc, mor, sp.c, sp.r);
+  var moc=mp.c, mor=mp.r; mp.c=sp.c; mp.r=sp.r; addSlide(mp.id, moc-sp.c, mor-sp.r); applyMoveKinematics(mp, moc, mor, sp.c, sp.r); S._mirMoved=mp.id;
   pushLog('<span style="color:#9fd1c0">Mirror</span>: '+mp.name+' follows '+p.name+'.');
 }
 function mirrorGhostTarget(p, toC, toR){
