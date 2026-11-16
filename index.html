@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v696</title>
+<title>Deck 3D v697</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v696';
+var GAME_VERSION='v697';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7631,16 +7631,23 @@ function gkChgRefresh(){ if(typeof S==='undefined' || !S) return; var inf=gkChgI
     b.title=inf.ok ? 'Change goalie (once per match)' : (inf.why || 'No change now');
     b.textContent=(id==='lsGkChg') ? '🥅 Goalie' : '🥅 '+((inf.ok || !inf.why || inf.why==='No change now') ? 'Change goalie' : inf.why); }); }   // v691 : la bande du telephone est etroite : mot court (le titre dit le reste)
 function gkChgGo(){ if(gkChange(HUMAN_TEAM)) render(); else gkChgRefresh(); }
+var GK_EQUIP_MS=1800, GK_TAP_MS=1100;   // v697 (« on voit le gardien remplacant mettre ses gants et bloqueur ; ils se tapent dans le gant ») : durees en ms REELLES (comme les glissements ; setTimeout(x ANIM_RATE) car l'enveloppe les divise)
 function gkSkateMs(a, b){ return Math.max(SKATE_MS_MIN, SKATE_MS_CELL*Math.hypot(b.c-a.c, b.r-a.r))/ANIM_RATE; }
 function gkChange(team){ var inf=gkChgInfo(team); if(!inf.ok) return false;
   var g=goalieOf(team), T=gkTeamObj(team), G=gkOther(team), old=careerPlayerByUid(T, g.uid), oldName=g.name;
   if(CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[g.id] && old){ careerInjure(old, CAREER_LOG.inj[g.id]); delete CAREER_LOG.inj[g.id]; }   // sa blessure (finit le match) reste a lui, pas au remplacant
-  var bc=goalieBenchCell(team), from={c:g.c, r:g.r}, net={c:ownGoalCol(team), r:CTR_R}, ms1=gkSkateMs(from, bc), ms2=gkSkateMs(bc, net);
+  var bc=goalieBenchCell(team), from={c:g.c, r:g.r}, net={c:ownGoalCol(team), r:CTR_R}, ms1=gkSkateMs(from, bc), ms2=gkSkateMs(bc, net), t1=Math.max(ms1, GK_EQUIP_MS);   // v697 : t1 = le sortant arrive (ms1) ; il attend la fin de l'habillage du remplacant (GK_EQUIP_MS), puis la tape (GK_TAP_MS)
   S.gkChg=S.gkChg||{A:null, B:null}; S.gkChg[team]={from:g.uid, to:G.uid}; S.gkSwap={team:team, uid:G.uid}; S.gkChgWait=true;   // le credit du match va a celui qui est au filet a la fin (g.uid) ; le sortant est compte comme ayant joue
-  g.onIce=false; g._gpark=bc; goalieSkate(g, from, bc); g._gtrav=Date.now()+ms1+ms2+60;   // la mise au jeu attend les DEUX patinages
+  var go=function(){ g.onIce=false; g._gpark=bc; goalieSkate(g, from, bc); g._gtrav=Date.now()+t1+GK_TAP_MS+ms2+60;   // la mise au jeu attend les DEUX patinages (v697 : et les gestes)
+  S.gkSw3d={id:g.id, team:team, net:[net.c, net.r], bc:[bc.c, bc.r], ms1:Math.round(ms1), t1:Math.round(t1), tap:GK_TAP_MS, ms2:Math.round(ms2),
+    sub:{hand:G.hand||null, size:G.size||'M', cm:G.cm||0, lb:playerLb(G), look:G.look||'', name:G.name||''}};   // v697 : la 3D (presentation seulement) habille le remplacant, les deux se tapent dans le gant, l'ancien entre au banc, le nouveau patine au filet
+  var _sw3=S.gkSw3d; setTimeout(function(){ if(S.gkSw3d===_sw3){ S.gkSw3d=null; HJ3D.last=''; hj3dPush(); } }, (t1+GK_TAP_MS+ms2)*ANIM_RATE+120);
+  setTimeout(function(){ gkSwapFinish(team); }, (t1+GK_TAP_MS)*ANIM_RATE); };
+  // v697 : en 3D, pendant la celebration et la reprise du but (la 3D les montre, le direct attend) on ne commence PAS : les gestes seraient perdus ; le jeu les lance a la fin de la reprise (ou a la mise au jeu)
+  if(hj3dActive() && (S.celebrating || S._replay3d)) S.gkStart=go; else go();
   pushLog('<b>'+TEAM_NAME[team]+'</b>: '+G.name+' replaces '+oldName+' in net.'); matchRec('gkchg', {team:team, from:oldName, to:G.name});
-  setTimeout(function(){ gkSwapFinish(team); }, ms1*ANIM_RATE);
   gkChgRefresh(); return true; }
+function gkStartRun(){ var f=S.gkStart; S.gkStart=null; if(f){ f(); render(); } }   // render : la 3D recoit tout de suite l'instantane avec gsw et le glissement   // v697 : les gestes attendaient la fin de la celebration / de la reprise du but
 function gkSwapFinish(team){ var sw=S.gkSwap; if(!sw || sw.team!==team) return; S.gkSwap=null;
   var g=goalieOf(team), T=gkTeamObj(team), G=T ? careerPlayerByUid(T, sw.uid) : null; if(!g) return;
   var from=g._gpark ? {c:g._gpark.c, r:g._gpark.r} : null; if(G) applyGoalie(g, G);   // au banc le pion devient le nouveau gardien
@@ -8905,7 +8912,7 @@ function deployLineup(){
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
 }
-function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; S.down={};   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
+function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; gkStartRun(); S.down={};   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
   matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
@@ -10424,7 +10431,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    gsw:(S.gkSw3d||null), cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -10493,6 +10500,7 @@ function replayFeed(team){
   return {feed:out, slow:shotT, end:endT, realMs:(shotT>=0 ? shotT+(endT-shotT)/RP_SLOW : endT), who:who, ast:ast};
 }
 function goalReplay(team, who, done){
+  var _done0=done; done=function(){ gkStartRun(); _done0(); };   // v697 : la reprise finie, le changement de gardien commence (les gestes se voient)
   if(!hj3dActive() || S.tut){ done(); return; }
   var r=null; try{ r=replayFeed(team); }catch(e){ r=null; }
   var bar=document.getElementById('replayBar');
@@ -13612,6 +13620,7 @@ function matchResume(){
     if(!byIdIn(s, 'A_TH') && !s.pieces.some(function(q){ return q && q.type==='g' && q.team==='A'; })) throw new Error('no goalie');
     for(var k in MSAVE_FRESH){ var v=MSAVE_FRESH[k]; s[k]=(v && typeof v==='object') ? JSON.parse(JSON.stringify(v)) : v; }
     s.tunnelIn=s.period;   // v510 : un match repris n'a pas d'entree par le tunnel
+    s.gkSw3d=null; s.gkStart=null;   // v697
     if(s.gkSwap){ var _sw=s.gkSwap; s.gkSwap=null; s.gkChgWait=false; var _sg=byIdIn(s, _sw.team==='A' ? 'A_TH' : 'B_DM'); if(_sg){ var _sT=(CAREER && CAREER_MATCH) ? CAREER.teams[_sw.team==='A' ? CAREER_MATCH.my : CAREER_MATCH.opp] : null, _sG=_sT && careerPlayerByUid(_sT, _sw.uid); if(_sG) applyGoalie(_sg, _sG); _sg.onIce=true; _sg._gpark=null; _sg._gtrav=0; } }   // v691 : sauvegarde en plein changement de gardien : le nouveau est deja au filet
     s.diag=DIAG_ON; S=s; MSAVE_ON=true; perfReset(); PERF.resumed=true;   // v663 : un match repris : les mesures repartent de zero
     _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';
@@ -13675,7 +13684,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":765744,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":774464,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
