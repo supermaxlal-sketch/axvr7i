@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v684</title>
+<title>Deck 3D v685</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1377,7 +1377,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v684';
+var GAME_VERSION='v685';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6851,21 +6851,38 @@ function bankBounce(from, to){
   while(!onIce(col,r) && r!==CTR_R) r+=(row===0?1:-1);
   return {c:col, r:r};
 }
+// v685 (sa demande : « Bank pass trop forte » ; bareme selon la longueur et le cote de la glace) : accuracy de base 90 %, -7 points par case
+// au-dela de 4 ; de l'autre cote de la glace -15 points de plus et un adversaire pres du retour peut l'attraper (bankNear)
+var BANK_ACC0=0.90, BANK_PER_CELL=0.07, BANK_SHORT=4, BANK_OTHER_SIDE=0.15;
+function bankSameSide(from, to, b){   // v685 : passeur et receveur sur la moitie de glace de la bande touchee (la rangee centrale compte pour les deux)
+  var top=((from.r+to.r)/2<=CTR_R);
+  return top ? (from.r<=CTR_R && to.r<=CTR_R) : (from.r>=CTR_R && to.r>=CTR_R);
+}
+function bankNear(p, b, to, t2def){   // v685 : adversaire debout a 2 cases du retour (bande -> receveur), a +-1 de son etendue, pas deja le defenseur du couloir
+  var dx=to.c-b.c, dy=to.r-b.r, L=Math.sqrt(dx*dx+dy*dy), best=null; if(L<0.01) return null;
+  for(var i=0;i<S.pieces.length;i++){ var o=S.pieces[i]; if(!o.onIce || o.type!=='sk' || o.team===p.team || isDown(o) || (t2def && o.id===t2def.id)) continue;
+    var s=((o.c-b.c)*dx+(o.r-b.r)*dy)/L, perp=Math.abs((o.c-b.c)*dy-(o.r-b.r)*dx)/L;
+    if(perp<=2 && s>=-1 && s<=L+1){ var pr=Math.max(0.10, Math.min(0.50, 0.25+0.004*(n100(o.defense)-60))); if(!best || pr>best.prob) best={def:o, prob:pr}; } }
+  return best;
+}
 function bankLegs(p, from, to, contest){
   var b=bankBounce(from, to), me={c:from.c, r:from.r, team:p.team, passe:p.passe, perk:p.perk}, bp={c:b.c, r:b.r, team:p.team, passe:p.passe, perk:p.perk};
   var t1=laneThreat(me, b), t2=laneThreat(bp, to), d=cheb(from,b)+cheb(b,to);
-  var acc=Math.max(0.15, Math.min(0.95, 0.70 + 0.005*(n100(p.passe)-60) - 0.05*Math.max(0, d-6)));
+  var same=bankSameSide(from, to, b);   // v685 : meme cote de la glace que la bande ?
+  var acc=Math.max(0.10, Math.min(0.95, (S.tut ? (0.70 + 0.005*(n100(p.passe)-60) - 0.05*Math.max(0, d-6)) : (BANK_ACC0 + 0.005*(n100(p.passe)-60) - BANK_PER_CELL*Math.max(0, d-BANK_SHORT) - (same?0:BANK_OTHER_SIDE)))));
+  var near=same ? null : bankNear(p, b, to, t2.def);   // v685 : de l'autre cote, un adversaire pres du retour peut l'attraper
   var arr=null;   // bank and go : un adversaire colle a la case d'arrivee la dispute
   if(contest){ for(var i=0;i<S.pieces.length;i++){ var o=S.pieces[i]; if(!o.onIce || o.type!=='sk' || o.team===p.team) continue;
     if(cheb(o,to)<=1){ var pr=Math.max(0.10, Math.min(0.80, 0.45 + 0.006*(n100(o.defense)-n100(p.maniement)))); if(!arr || pr>arr.prob) arr={def:o, prob:pr}; } } }
-  var pct=(1-(t1.def?t1.prob:0))*(1-(t2.def?t2.prob:0))*(1-(arr?arr.prob:0))*acc;
-  return {bounce:b, t1:t1, t2:t2, arr:arr, acc:acc, d:d, pct:Math.max(0.05, Math.min(0.95, pct))};
+  var pct=(1-(t1.def?t1.prob:0))*(1-(t2.def?t2.prob:0))*(1-(near?near.prob:0))*(1-(arr?arr.prob:0))*acc;
+  return {bounce:b, t1:t1, t2:t2, near:near, same:same, arr:arr, acc:acc, d:d, pct:Math.max(0.05, Math.min(0.95, pct))};
 }
 // le tirage, dans l'ordre du trajet : 1er trajet, 2e trajet, arrivee disputee, precision
 function bankRoll(p, L){
   var fav=(p.team!==HUMAN_TEAM);
   if(L.t1.def && tutLuck(L.t1.prob, fav)) return {cut:L.t1.def, leg:1, ok:false};
   if(L.t2.def && tutLuck(L.t2.prob, fav)) return {cut:L.t2.def, leg:2, ok:false};
+  if(L.near && tutLuck(L.near.prob, fav)) return {cut:L.near.def, leg:2, ok:false};   // v685 : attrape sur le retour
   if(L.arr && tutLuck(L.arr.prob, fav)) return {cut:L.arr.def, leg:3, ok:false};
   return {cut:null, leg:0, ok:tutLuck(L.acc, p.team===HUMAN_TEAM)};
 }
