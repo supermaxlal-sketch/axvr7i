@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v689</title>
+<title>Deck 3D v690</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1378,7 +1378,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v689';
+var GAME_VERSION='v690';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2989,6 +2989,7 @@ function shotOddsDetail(sh, slap){   // ventilation du % de tir (esperance reali
   var wideP=wideOf(sh, !!slap);     // rater le filet (visible : angle+distance) ; v649 : +12 au slap shot
   prob=Math.max(0, Math.min(1, prob*(1-wideP)));
   var _prot=!!protHinder(sh); if(_prot) prob*=PROT_SHOT;   // v678 : Protect net
+  if(emptyNet(sh.team==='A'?'B':'A')) prob=Math.max(0, Math.min(1, 1-wideP));   // v690 : filet vide : pas de jet d'arret, reste le tir a cote
   return {prot:_prot, prob:prob, corner:t, base:base, exp:exp, boost:SHOT_BOOST, afterBoost:afterBoost,
           cleanFar:cleanFar, cdist:cdist, cap:cap, wideP:wideP,
           screen:(line.screen?line.screen.name:null), blocker:(line.blocker?line.blocker.name:null),
@@ -3371,6 +3372,8 @@ function shotDist(p){ var colD=p.team==='A'?(NET_A-p.c):(p.c-NET_B); return colD
 function shotPenalty(d){ return d<=3?0 : d<=7?1 : d<=10?2 : d<=13?4 : 5; }   // echelle 32x13 (x1.68), etait 2/4/6/8
 function effOff(p){ return Math.max(0, p.off - shotPenalty(shotDist(p))); }
 function goalieFor(sh){ return byId(sh.team==='A'?'B_DM':'A_TH'); }
+// v690 (son choix « But automatique ») : filet vide = le gardien de l'equipe qui DEFEND n'est pas sur la glace (retire, il patine vers le banc ou en revient) ; un tir cadre et non bloque y est un but, sans jet d'arret. Pas en fusillade ni en lecon guidee.
+function emptyNet(team){ if(S.so || S.tut) return false; var g=goalieOf(team); return !!g && !g.onIce; }
 function goalieColorFor(sh){ return sh.team==='A'?'#7a2233':'#27496e'; }
 function gloveSceneSide(g){ return g.hand==='G'?'L':'R'; }
 function shooterWing(sh){ if(sh.r===CTR_R) return 'C'; var topSide=sh.r<CTR_R; return sh.team==='A'?(topSide?'L':'R'):(topSide?'R':'L'); }
@@ -3517,6 +3520,7 @@ function canWraparound(p){
 }
 function wraparoundOdds(p){
   if(!p) return 0;
+  if(emptyNet(p.team==='A'?'B':'A')) return 1;   // v690 : filet vide -> but automatique
   var gk=goalieFor(p);
   var skill=((p.vitesse||50)+(p.maniement||50))/2;                 // mains rapides + vitesse -> bat la glisse
   var react=(((gk&&gk.arret100)||70)+((gk&&gk.couverture100)||68))/2;   // reaction/couverture du gardien
@@ -8168,9 +8172,10 @@ function onShotTarget(t){
   if(protHinder(sh)) prob*=PROT_SHOT;   // v678 : Protect net (meme facteur que shotOddsDetail)
   S._shotProb = prob;   // expose pour tests/diagnostic
   var rl=Math.random();
-  var res;
+  var res; var _en=emptyNet(gteam);   // v690 : filet vide -> but automatique (le bloc, le tir a cote, la deviation restent AVANT)
   var _rebP=Math.max(0.14, Math.min(0.46, 0.34-((g.arret||3)-3)*0.06 + (shotDist(sh)<=2?0.08:0))); if(_slap) _rebP=slapRebound(_rebP);   // v649 : plus de rebonds
-  if(tutGuided() ? (team===HUMAN_TEAM) : (rl<prob)) res='goal';   // v453 : etape guidee -> le tir du joueur marque
+  if(_en) res='goal';
+  else if(tutGuided() ? (team===HUMAN_TEAM) : (rl<prob)) res='goal';   // v453 : etape guidee -> le tir du joueur marque
   else if(relEff==='exact') res='catch';
   else res = (Math.random()<_rebP) ? 'rebound' : 'save';
   var _pin=(res==='goal' && !_defl && Math.random()<IRON_IN) ? ironPick(sh, t, 'in') : null;   // v495 : poteau (barre) et dedans
@@ -8181,10 +8186,13 @@ function onShotTarget(t){
   var relTxt = _defl ? ('Tipped by '+_defl.name+' — the goalie has no chance') : (rel==='exact' ? ('Goalie READ your shot ('+gShort+')') : (rel==='adjacent' ? ('Goalie right there ('+gShort+')') : ('Goalie went the wrong way ('+gShort+')')));
   var spec={noScene:_noScene, gc:gc, gr:gr, sid:sh.id, sc:sh.c, sr:sh.r, nc:goalCol(team), target:t, guess:guess, rel:rel, pct:pct, rollPct:Math.round(rl*100), res:res, quick:_ot, ctx:_scrTag+(_ot?((_otd?'ONE-TIMER tipped — ':'ONE-TIMER — ')+targetLabel(t)):'Aim '+targetLabel(t))+' — '+pct+'% · '+shName};
   countShotOnGoal(team);   // v438 : tir cadre (but, arret, rebond)
-  matchEv('shot', {id:sh.id, g:gid, target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null, near:_near, slap:_slap3});   /* v584 : near ; v649 : slap */   // v447 ; v495 : iron (poteau et dedans)
+  matchEv('shot', {id:sh.id, g:(_en?'':gid), en:(_en?1:0), target:t, guess:guess, res:res, ot:!!_ot, defl:_defl?_defl.id:null, iron:_pin?_pin.target:null, ip:_pin?[Math.round(_pin.pts[0].c*100)/100, Math.round(_pin.pts[0].r*100)/100, Math.round(_pin.pts[0].z*1000)/1000]:null, near:_near, slap:_slap3});   /* v584 : near ; v649 : slap */   // v447 ; v495 : iron (poteau et dedans)
   S._shotFly=true;   // v595 : le chrono attend le tir (son issue compte au lancer)
   animateShot2(spec, function(){ S._shotFly=false;
     if(res!=='goal' && prob>=MOM_SAVE_P) momAdd(gteam, MOM_SAVE);   // v554 : un gros arret fait basculer le momentum
+    if(res==='goal' && _en){ S.score[team]++; document.getElementById('outcome').innerHTML='EMPTY NET — GOAL by '+shName+' !';
+      pushLog('<b>Empty net!</b> '+shName+' scores — '+S.score.A+'-'+S.score.B+'.');
+      S.animating=false; render(); celebrate(team,shName); return; }
     if(res==='goal'){ S.score[team]++; document.getElementById('outcome').innerHTML='GOAL by '+shName+' !';
       // v404 : un but peut entrer meme si le gardien avait bien lu le tir -> le texte le dit (plus « Goalie READ your shot »)
       var goalTxt = _defl ? ('Tipped by '+_defl.name+' — the goalie had no chance') : (rel==='exact' ? ('the goalie read it ('+gShort+') but it beat him anyway') : (rel==='adjacent' ? ('the goalie was close ('+gShort+') but a step late') : ('the goalie went the wrong way ('+gShort+')')));
