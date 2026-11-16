@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v687</title>
+<title>Deck 3D v688</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1378,7 +1378,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v687';
+var GAME_VERSION='v688';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10432,16 +10432,24 @@ function hj3dFail(err){   // Godot n'a pas pu demarrer (pas de WebGL 2...) : la 
   if(window.console) console.error('3D view failed', err);
   try{ setHint('3D view is not available on this device. The 2D rink is used.'); }catch(e){}
 }
+var DRAG_RENDER_MS=60, _dragTimer=null, _dragLast=0;   // v688 : son glisser au doigt saccadait (render a chaque case, jusqu'a 150 ms) : au plus un render par 60 ms + un dernier differe
+function dragTimerClear(){ if(_dragTimer!==null){ clearTimeout(_dragTimer); _dragTimer=null; } }
 function hj3dDrag(phase, c, r){   // meme logique que wireRouteDrag (glisser au doigt sur la 2D)
   if(soDrawing() || (S.so && S.so.run && S.so.run.drawing)) return soDrag(phase, c, r);   // v541 : le trajet du tireur de la fusillade
+  if(phase==='start' || phase==='end') dragTimerClear();
   if(phase==='start'){
+    _dragLast=0;
     if(!isHumanAttackPlan() && !isHumanAmbush() && !isHumanLoose()) return false;
     var pc=pieceAt(c,r); if(!(pc && pc.onIce && pc.type==='sk' && pc.team===HUMAN_TEAM)) return false;
     S._pdown={ x:0, y:0, cell:{c:c, r:r}, id:pc.id, dragging:true, pid:null };   // la vue ne suit pas pendant un glisser (v472)
     routeBegin(pc.id); if(!S.route){ S._pdown=null; return false; }
     return true;
   }
-  if(phase==='move'){ if(!S.route) return false; var t=routeTip(); if(!(t.c===c && t.r===r)){ routeAddCell(c,r); render(); } return true; }
+  if(phase==='move'){ if(!S.route) return false; var t=routeTip(); if(!(t.c===c && t.r===r)){ routeAddCell(c,r);
+      var now=Date.now(), wait=DRAG_RENDER_MS-(now-_dragLast);
+      if(wait<=0){ dragTimerClear(); _dragLast=now; render(); }
+      else if(_dragTimer===null){ _dragTimer=setTimeout(function(){ _dragTimer=null; if(!S.route) return; _dragLast=Date.now(); render(); }, wait); } }
+    return true; }
   if(phase==='end'){ var pd=S._pdown; S._pdown=null;
     if(pd && S.route){ routeCommit(); S._routeJustDragged=Date.now(); render(); if(S.defCommit) renderDefBar(); else renderPlanBar(); }
     return true; }
@@ -13570,7 +13578,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":686276,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":685812,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
