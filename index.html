@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v691</title>
+<title>Deck 3D v692</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v691';
+var GAME_VERSION='v692';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6112,7 +6112,7 @@ function defOrderPctsRaw(){   // % des ordres defensifs du defenseur selectionne
   var cell=dc.pendingMove?{c:dc.pendingMove.toC, r:dc.pendingMove.toR}:{c:d.c, r:d.r};
   var dPos=Object.assign({}, d, {c:cell.c, r:cell.r});
   return { pen: car ? Math.round(100*penRiskShown(dPos, car, cheb(d, cell))) : 0,   // v445 : risque de penalite (dans le dos / elan >= 3)
-           check: car?pctFromThr(checkOdds(dPos,car)):null, poke: car?pctFromThr(pokeOdds(dPos,car)):null, lift: car?Math.round(100*liftProb(dPos,car)):null,   // v648
+           check: car?pctFromThr(checkOdds(dPos,car)):null, poke: car?pctFromThr(pokeOdds(dPos,car)):null, lift: car?Math.round(100*liftProb(dPos,car)):null, liftPen: car?Math.round(100*liftPenProb(liftProb(dPos,car))):0,   // v648 ; v692 : risque de baton eleve
            sblock: Math.round(sblockOdds(dPos)*100), block: car?pctFromThr(blockPassThr(dPos,car)):null,
            _fo: !!(car && S.foPress && S.foPress.id===car.id && S.foPress.oppId===d.id) };
 }
@@ -6125,7 +6125,7 @@ function renderDefChoice(){
     el.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation(); var o=b.getAttribute('data-o'); if(o==='done') defSlideDone(); else finalizeDefPick(o); }); }
   var key=dc.selDef+'|'+dc.pendingMove.toC+','+dc.pendingMove.toR+'|'+(dc.extend?1:0);
   if(el.getAttribute('data-k')!==key){ el.setAttribute('data-k', key); var op=defOrderPcts()||{}; var pc=function(v){ return v!=null ? ' '+v+'%' : ''; };
-    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : '<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'); }
+    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : '<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+((op.lift>0&&op.liftPen)?' · pen '+op.liftPen+'%':'')+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'); }
   placeDefChoice(el);
 }
 function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pas la place), dans la zone de glace
@@ -6138,7 +6138,7 @@ function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pa
   el.style.left=x.toFixed(1)+'px'; el.style.top=y.toFixed(1)+'px';
 }
 function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); renderDefChoice(); var dc=S.defCommit; if(!dc){ db.style.display='none'; db.innerHTML=''; return; } var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
-  var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%':'', _sbS=_op?' '+_op.sblock+'%':'';
+  var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%'+((_op.lift>0&&_op.liftPen)?' · pen '+_op.liftPen+'%':''):'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(108,105,102,116))">+ Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
   else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(protOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(112,114,111,116,110,101,116))">Protect net</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')); }   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
@@ -7500,7 +7500,7 @@ function bodyCheckOutcome(checker, C, cc, cr, run, spd, res){
 // en avantage numerique = retour. Pendant la differee, l equipe qui a la rondelle peut retirer son gardien (6e attaquant).
 var PEN_SECS=36, PEN_P_BEHIND=0.50, PEN_P_CHARGE=0.30, PEN_P_INTERF=0.30, PEN_P_HOOK=0.30, PEN_P_ROUGH=0.10, PEN_MAX=2;   /* v581 : rudesse (fache, mise en echec propre) */   // v497 : accrochage (choix du concepteur, 30 %)
 // v563 (le concepteur : « penalites plus longues, fini trop rapide » ; choix : 36 s, environ 6 jeux) : PEN_SECS 18 -> 36
-var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping', xcheck:'cross-checking', delay:'delay of game'};   // v631 : goalie ; v687 : le flip dans les estrades
+var PEN_NAME={behind:'checking from behind', charge:'charging', interf:'interference', hook:'hooking', rough:'roughing', goalie:'goaltender interference', trip:'tripping', xcheck:'cross-checking', delay:'delay of game', high:'high-sticking'};   // v631 : goalie ; v687 : le flip dans les estrades
 function penState(){ if(!S.pen) S.pen={delayed:[], box:[], pulled:{}}; return S.pen; }
 function penCount(team){ var P=penState(), n=0; for(var i=0;i<P.delayed.length;i++) if(P.delayed[i].team===team) n++; for(var j=0;j<P.box.length;j++) if(P.box[j].team===team) n++; return n; }
 function penInBox(id){ var P=S.pen; if(!P) return false; for(var i=0;i<P.box.length;i++) if(P.box[i].id===id) return true; return false; }
@@ -7739,6 +7739,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift, res:_hr, big:!!_big});   // v447   // v581 : pen   // v648 : lift
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
+  if(isLift && !success && !_blowby && !_feintBeat && !(_dir && _dir.autoFail)) penTry(checker, liftPenProb(pr), 'high');   // v692 : lift rate -> risque de baton eleve (apres le tirage, avant le resultat)
   if(success){ if(checker){ checker.speed=0; checker.mom=0; } if(C){ C.speed=0; C.mom=0; } killContactRoutes(checker, C);   /* un contact qui CONNECTE tue l'elan des deux ; un contact rate laisse filer le porteur avec sa vitesse */ S._looseLoser=C.id;   /* le porteur depossede ne re-attrape pas sa propre rondelle par simple adjacence */ if(isBody){ var _out=bodyCheckOutcome(checker, C, cc, cr, _run, _hs, _hr); if(S.puckLoose) looseOffside(checker.team, cc);   /* Body Check Lab : rondelle par angle, recul plafonne (porteur + checkeur) */ document.getElementById('outcome').innerHTML=hitHead(_out.res, cName, carName); pushLog('<b>Body check</b>: '+cName+dpos(checker)+' hits '+carName+dpos(C)+'. '+hitLog(_out.res, cName, carName)); }
     else if(isLift){ S.puckOwner=checker.id; S.puckLoose=null; S.rcvPop=checker.id; careerTrack('steal', {id:checker.id}); document.getElementById('outcome').innerHTML='Stick lift! '+cName+' takes the puck from '+carName+'.'; pushLog('<b>Stick lift</b>: '+cName+dpos(checker)+' lifts the stick of '+carName+dpos(C)+' and takes the puck.'); }   // v648
     else { if(hasPerk(checker,'voleur')){ S.puckOwner=checker.id; document.getElementById('outcome').innerHTML='Steal! '+cName+' rips the puck away from '+carName+'.'; pushLog('<b>Steal</b>: '+cName+' steals the puck from '+carName+'.'); } else { placeLooseToward(cc,cr,checker.c,checker.r); looseOffside(checker.team, cc); document.getElementById('outcome').innerHTML='Poke check ! '+cName+' knocks the puck loose.'; pushLog('<b>Poke check</b> : '+cName+dpos(checker)+' knocks the puck off '+carName+dpos(C)+'.'+dcell(S.puckLoose.c,S.puckLoose.r)); } } }
@@ -7865,8 +7866,18 @@ function liftAngle(p, car){ if(!p || !car) return 'none'; var cdir=dir(car.team)
   if(sep===cdir) return 'front';
   if(sep===-cdir) return facingOf(p).dc===cdir ? 'behind' : 'wrong';
   return 'side'; }
+// v692 (ses choix) : le stick lift a sa propre chance -- base 25 % + 0,6 x (defense - maniement) ; meme allure +25 ; arretes cote a cote, paralleles +35 ; batons croises +15 ; 5..85 %
 function liftProb(p, car){ var a=liftAngle(p, car); if(a!=='behind' && a!=='side') return 0;
-  return Math.max(0.05, Math.min(0.65, pokeProb(p, car)-0.20)); }
+  var def=(typeof p.defense==='number')?p.defense:50, han=(typeof car.maniement==='number')?car.maniement:50;
+  var ps=p.speed||0, cs=car.speed||0, pr=0.25+0.006*(def-han);
+  if(cs>=1 && Math.abs(ps-cs)<=1) pr+=0.25;                                                   // meme allure
+  if(ps===0 && cs===0 && a==='side' && facingOf(p).dc===facingOf(car).dc) pr+=0.35;           // arretes, cote a cote, paralleles
+  var dr=Math.sign(p.r-car.r); if(dr!==0 && dr===stickSide(car)) pr+=0.15;                    // les batons se croisent
+  pr += MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'poke') + stHand(car);
+  return Math.max(0.05, Math.min(0.85, pr)); }
+// v692 : risque de baton eleve quand le lift RATE -- plus la chance etait haute, moins il est risque (75 % -> 2 %, 5 % -> 14 %)
+function liftPenProb(ch){ var P=[[0.05,0.14],[0.25,0.09],[0.50,0.04],[0.75,0.02]]; if(ch<=P[0][0]) return P[0][1]; if(ch>=P[3][0]) return P[3][1];
+  for(var i=1;i<4;i++){ if(ch<=P[i][0]){ var a=P[i-1], b=P[i]; return a[1]+(b[1]-a[1])*(ch-a[0])/(b[0]-a[0]); } } return 0.02; }
 function liftRecvProb(d, t){ var def=(typeof d.defense==='number')?d.defense:50, han=(typeof t.maniement==='number')?t.maniement:50;
   return Math.max(0.10, Math.min(0.70, 0.35+0.006*(def-han))); }
 // l'IA (sans ordre Poke) : le stick lift quand c'est mieux qu'un poke -- un bon poke (40 % ou plus) et le vol garde 60 % de sa chance
@@ -7918,6 +7929,7 @@ function doLift(p, carId){   // v648 : le bouton a ton tour (comme doPoke) -- re
       render(); gainPuck(pteam); return; }
     document.getElementById('outcome').innerHTML=cn+' keeps his stick on the puck.';
     pushLog('<b>Stick lift</b> missed: '+cn+' keeps the puck away from '+pn+'.');
+    penTry(p, liftPenProb(thr/100), 'high');   // v692 : le lift rate peut lever le baton trop haut
     S.animating=false; spend(); render();
   });
 }
@@ -9964,7 +9976,7 @@ function render(){
   pkb.style.display=canPoke?'inline-block':'none';
   if(canPoke){ var _pc=byId(S.pokeT[0]); pkb.textContent='🥍 Poke check ('+actionOdds(sp,'poke',_pc)+'%)'; }   // source unique : actionOdds
   var _lfb=document.getElementById('btnLift'), _lfc=canPoke ? byId(S.pokeT[0]) : null, canLift=!!(_lfc && liftProb(sp, _lfc)>0);   // v648 : de cote ou de derriere
-  if(_lfb){ _lfb.style.display=canLift?'inline-block':'none'; if(canLift) _lfb.textContent='🥍 Stick lift ('+actionOdds(sp,'lift',_lfc)+'%)'; }
+  if(_lfb){ _lfb.style.display=canLift?'inline-block':'none'; if(canLift) _lfb.textContent='🥍 Stick lift ('+actionOdds(sp,'lift',_lfc)+'%) · pen '+Math.round(100*liftPenProb(liftProb(sp,_lfc)))+'%'; }   // v692
   var canDump = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!inOffZone(sp.team,sp.c);
   var dbn=document.getElementById('btnDump');
   dbn.style.display=canDump?'inline-block':'none';
