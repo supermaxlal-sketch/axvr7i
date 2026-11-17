@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v700</title>
+<title>Deck 3D v701</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v700';
+var GAME_VERSION='v701';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7829,7 +7829,8 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   if(isBody && !_blowby && !_feintBeat && (_postedHit || penHunter(checker.id))){ var _pf=penFoul(checker, C, _run);   // v445 : penalite (mise en echec VOULUE seulement)
     _pen=_pf ? penTry(checker, penRisk(checker, C, _run), _pf) : (stState(checker)==='angry' && penTry(checker, PEN_P_ROUGH, 'rough')); }   // v581 : fache, meme propre -> rudesse 10 %
   var _hr=(success && isBody) ? hitResult(checker, C, _run, _big) : null, _hs=contactSpd(C);   // v657 : le resultat, avant l'evenement (le sonne en depend) ; sa vitesse, avant que le contact la tue
-  matchEv('hit', {id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift, res:_hr, big:!!_big});   // v447   // v581 : pen   // v648 : lift
+  var _hev={id:checker.id, on:C.id, body:!!isBody, ok:!!success, blowby:!!_blowby, run:_run, pen:!!_pen, lift:!!isLift, big:!!_big}; if(_hr) _hev.res=_hr;   // v701 : jamais res:null (la 3D plantait sur String(null))
+  matchEv('hit', _hev);   // v447   // v581 : pen   // v648 : lift
   if(isBody && success) momAdd(checker.team, MOM_HIT);   // v554 : une grosse mise en echec fait basculer le momentum
   if(success && isBody) S._hitRecover={id:checker.id, team:checker.team};   // v468 : le plaque est desequilibre -> le plaqueur reprend la rondelle le plus souvent
   if(isLift && !success && !_blowby && !_feintBeat && !(_dir && _dir.autoFail)) penTry(checker, liftPenProb(pr), 'high');   // v692 : lift rate -> risque de baton eleve (apres le tirage, avant le resultat)
@@ -10531,14 +10532,14 @@ function hj3dSend(kind, payload){   // v478 : evenement ('ev') ou repere de came
 // le but ; les actions enchainees a vitesse reelle (les pauses de plan raccourcies a RP_GAP) ; camera d'action, RALENTI des le
 // tir ; apres la celebration ; bandeau tele REPLAY + marqueur et passeurs ; bouton Skip. Le jeu garde les derniers messages
 // envoyes a la 3D (HJ3D_REC) et lui renvoie la sequence (message 'replay') ; la 3D la rejoue (live3d.gd).
-var RP_GAP=420, RP_MAX=12000, RP_TAIL=1600, RP_SLOW=0.35, RP_BEAT=80, RP_END=700, HJ3D_REC=[];
+var RP_PUCK_BUSY=1+0.25*0.2, RP_GAP=420, RP_MAX=12000, RP_TAIL=1600, RP_SLOW=0.35, RP_BEAT=80, RP_END=700, HJ3D_REC=[];
 // v582 (le concepteur : « les actions doivent s'enchainer rapidement, pas de pause. Bang bang bang. ») -- choix : « sans pause,
 // ralenti au tir » : chaque action part des que la precedente finit (la duree de son animation 3D, en ms reelles) ; les photos
 // qui ne changent rien (le plan) sont retirees ; la fin, RP_END apres le but. RP_GAP ne sert plus.
 function rpBusy(k, d){ var R=ANIM_RATE||1;   // combien de temps la 3D anime ce message (ms reelles) -- les durees de replay.gd / live3d.gd
   if(k==='snap'){ var m=0, sl=d.slides||{}; for(var id in sl) if(sl[id] && sl[id].ms>m) m=sl[id].ms; return m; }   // glissement : ms reelles
   if(k!=='ev') return 0;
-  if(d.e==='puck') return d.pz ? Math.max(400, d.ms||1200)/R : (d.ms||600)*(d.tu ? 1.25 : 1)/R;   // PUCK_TAIL : la fin de glisse
+  if(d.e==='puck') return d.pz ? Math.max(400, d.ms||1200)/R : (d.ms||600)*(d.tu ? RP_PUCK_BUSY : 1)/R;   // PUCK_TAIL : la fin de glisse (v701 : la suite part a 80 % de la queue, la rondelle va encore ~5 m/s ; les derniers 20 % rampent)
   if(d.e==='pass') return 420/R;   // PASS_DUR
   if(d.e==='shot') return (700+380)/R;   // SHOT_DUR + SHOT_MS
   if(d.e==='deke') return d.ms || 560/R;
@@ -13766,7 +13767,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":774464,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":778736,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
