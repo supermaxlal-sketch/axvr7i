@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v698</title>
+<title>Deck 3D v699</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v698';
+var GAME_VERSION='v699';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -11756,7 +11756,7 @@ function speechChoose(tone){ var o=S.speechOpen; if(!o || o.say) return;
   var _in=(o.moment==='inter'), co=coachOf(HUMAN_TEAM), k=speechRoll(co, tone); if(_in && k>0) k*=sitFactor(HUMAN_TEAM, tone);   // v557 : le ton qui colle a la situation
   speechApply(HUMAN_TEAM, o.moment, tone, k, co);
   var lines=[{team:HUMAN_TEAM, co:co, tone:tone, k:k, text:_in ? sitText(HUMAN_TEAM, tone) : null}], ai=HUMAN_TEAM==='A' ? 'B' : 'A', ac=coachOf(ai);
-  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai), ak=speechRoll(ac, at); if(_in && ak>0) ak*=sitFactor(ai, at); speechApply(ai, o.moment, at, ak, ac); lines.push({team:ai, co:ac, tone:at, k:ak, text:_in ? sitText(ai, at) : null}); }
+  if(o.moment!=='post' && ac){ var at=aiSpeechTone(ai), ak=speechRoll(ac, at); if(_in && ak>0) ak*=sitFactor(ai, at); speechApply(ai, o.moment, at, ak, ac); }   // v699 : « On ne le montre plus » -- l'effet du coach adverse reste, mais ni coupure vers sa chambre ni carte
   render(); speechSay(o, lines, 0);
 }
 function speechSay(o, lines, i){   // v505 : le coach dit sa phrase (la camera 3D est sur son banc), puis l'adversaire ; un toucher passe
