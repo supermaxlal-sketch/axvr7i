@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v701</title>
+<title>Deck 3D v702</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1381,7 +1381,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v701';
+var GAME_VERSION='v702';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12187,7 +12187,7 @@ function offPaintLaptop(c){   // v610 : l'ecran du portable (0,46 x 0,30 m -> 10
   offSend('laptop', sig, o.cv); }
 // v611 (etape 3) : LE TABLEAU MAGNETIQUE DE L'EQUIPE (1,2 x 1,5 m -> 800 x 1000) : un aimant par joueur, aux couleurs de l'equipe
 // (nom, overall, energie) ; Forwards (2 colonnes) / Defense / Goalies, et Stands sous les gardiens ; un blesse a une croix rouge ;
-// un aimant dore = des points a placer ; le gardien partant est encercle. Le meme calcul place les aimants pour peindre et pour toucher.
+// un aimant dore = des points a placer ; le gardien partant porte l'etiquette STARTER. Le meme calcul place les aimants pour peindre et pour toucher.
 var OFF_MAG={w:176, h:100, sx:190, sy:112, x0:20, y0:150, sy0:414, bot:990};
 function offRating(T, p){ return (p===T.goalie || p===T.goalie2) ? Math.round((p.arret100+p.couverture100)/2) : overall(p); }
 function offSurname(n){ var s=String(n).split(' '); return s.length>1 ? s.slice(1).join(' ') : String(n); }
@@ -12233,7 +12233,9 @@ function offPaintLines(c){
     else { x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(m.x+70, m.y+64, 46, 20);
       x.fillStyle=e>=60 ? '#3fbf5a' : (e>=40 ? '#f0a020' : '#e04040'); x.fillRect(m.x+70, m.y+64, Math.round(46*e/100), 20);
       x.fillStyle=ink; x.textAlign='right'; x.font='bold 26px '+OFF_SANS; x.fillText(String(e), m.x+M.w-8, m.y+84); }
-    if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+M.w/2, m.y+M.h/2, M.w/2+8, M.h/2+8, 0, 0, Math.PI*2); x.stroke(); }   // le partant, encercle
+    if(p===cur){ var sh=p.inj ? 46 : 0;   // v702 : le partant porte l'etiquette STARTER au coin haut droit (a gauche de la croix s'il est blesse)
+      x.fillStyle=OFF_INK.red; offRRect(x, m.x+M.w-92-sh, m.y-14, 100, 32, 7); x.fill();
+      x.fillStyle='#ffffff'; x.textAlign='center'; x.font='bold 22px '+OFF_SANS; x.fillText('STARTER', m.x+M.w-42-sh, m.y+10); }
     var sl=offStampOf(c, p);
     if(sl){ x.save(); x.translate(m.x+M.w/2, m.y+M.h/2+6); x.rotate(-0.18);   // v618 : la rencontre est faite -- le tampon « ✓ LVL n » (jusqu'au prochain match)
       x.strokeStyle=OFF_INK.green; x.lineWidth=5; offRRect(x, -74, -26, 148, 52, 8); x.stroke();
@@ -12272,7 +12274,9 @@ function offLuMag(x, T, p, m, cur){ var U=OFF_LU, gold=careerWaits(T, p), body=g
     x.fillStyle='#ffffff'; offRRect(x, m.x+U.w-32, m.y-10, 38, 38, 7); x.fill(); x.fillStyle='#d42a2a'; offRRect(x, m.x+U.w-29, m.y-7, 32, 32, 5); x.fill();
     x.fillStyle='#ffffff'; x.fillRect(m.x+U.w-17, m.y-2, 8, 22); x.fillRect(m.x+U.w-24, m.y+5, 22, 8); }
   // v644 (ses notes : « pas besoin des stats de mises au jeu, juste les positions ») : plus de « FO » sur l'aimant
-  if(p===cur){ x.strokeStyle=OFF_INK.red; x.lineWidth=5; x.beginPath(); x.ellipse(m.x+U.w/2, m.y+U.h/2, U.w/2+7, U.h/2+7, 0, 0, Math.PI*2); x.stroke(); } }
+  if(p===cur){ var sh=p.inj ? 46 : 0;   // v702 : le partant porte l'etiquette STARTER (comme sur le tableau de l'equipe)
+    x.fillStyle=OFF_INK.red; offRRect(x, m.x+U.w-92-sh, m.y-14, 100, 32, 7); x.fill();
+    x.fillStyle='#ffffff'; x.textAlign='center'; x.font='bold 22px '+OFF_SANS; x.fillText('STARTER', m.x+U.w-42-sh, m.y+10); } }
 function offPaintLineup(c){
   var T=c.teams[c.my], Lo=offLineupLayout(c), U=OFF_LU, cur=careerGoalieOf(T), g=careerMyGame(c), sr=(c.phase==='playoffs') ? careerMySeries(c) : null;
   var opp=g ? (g.home===c.my ? g.away : g.home) : (sr ? (sr.a===c.my ? sr.b : sr.a) : null), at=g ? (g.home===c.my ? 'vs ' : 'at ') : 'vs ';
