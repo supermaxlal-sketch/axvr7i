@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v705</title>
+<title>Deck 3D v706</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1392,7 +1392,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v705';
+var GAME_VERSION='v706';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -5751,6 +5751,7 @@ function startExchange(){
   if(practiceGkFreeze()) return;   // v481 : pratique -- le gardien adverse ne joue jamais la rondelle
   if(S.defCommit) return;   // tu poses ton embuscade : on ne recommence pas
   if(S.currentSeq && !S.currentSeq.dead) return;   // une sequence joue encore : on nen empile pas une autre
+  if(S.faceoff && !S.tut) return;   // v706 : une mise au jeu est en cours (entracte compris) : c'est elle qui relance l'echange, pas un gainPuck en retard
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> plus de nouvelle possession
   if(S.puckOwner) matchSave('x');   // v499 : moment calme -- la reprise rejoue ce debut d'echange
   var _pow=S.puckOwner?byId(S.puckOwner):null; if(_pow && penStop(_pow.team)) return;   // v445 : l equipe fautive a la rondelle -> sifflet
@@ -8183,7 +8184,8 @@ function autoOneTimer(tid){
   // D : pression -> blocage, sinon tir presse
   var rushed=false;
   if(ot.pressure){
-    if(tutLuck(ot.pressure.blockP, sh.team!==HUMAN_TEAM)){   // v454 var bd=ot.pressure.d;
+    if(tutLuck(ot.pressure.blockP, sh.team!==HUMAN_TEAM)){   // v454
+      var bd=ot.pressure.d;   // v706 : cette ligne etait avalee par le commentaire ci-dessus (ReferenceError : tir en suspens, S.aiming reste pose)
       checkFx('blockshot', bd.c, bd.r);
       pushLog('<b>Shot blocked</b>: '+bd.name+' is right on '+sh.name+' and blocks the one-timer.');
       document.getElementById('outcome').innerHTML='ONE-TIMER BLOCKED by '+bd.name+' !';
@@ -9174,6 +9176,7 @@ function applyFaceoff(fo,winner){ if(S.so) return; S.stop=false;   /* v613 : la 
   S.currentSeq=null; S.planResume=null; S.planNext=null; S._endingExch=false;
   S.aiPlan=null; sfx('drop');
   S.foEdge=null; S.rebStreak=0; S.rebTeam=null; S.defCommit=null; renderDefBar();
+  if(S.planning){ S.planning=false; S.atkPlan=[]; S.ghost={}; S.bonus=null; S.planClock=null; renderPlanBar(); }   // v706 : un startExchange en retard (gainPuck de la derniere seconde) avait ouvert un plan PENDANT la mise au jeu : il restait ouvert apres (chrono fige, plan fantome)
   S.campStreak=0; S.carrierMoved=false; S.coachPush=null; S.passBonus=null; S.aiming=null; S.animating=false; S.faceoff=null; S.foPress=null; S.foDrawPending=null; S.puckOwner=null; S.puckLoose=null; S.feintBeaten=null; S.feintSpace=null; clearSel();   // la rondelle n'appartient a personne pendant le tirage (evite qu'un ancien porteur reste affiche durant l'anim)
   if(winner){
     var ws=nearestSkater(winner,fo.dotC,fo.dotR);
@@ -13747,7 +13750,7 @@ var AUTOSIM_NEXT=false, SIM_TICK_MS=220, SIM_TIMER=null, SIM_CHOICE=null, SIM_OR
 function simAs(team, fn){ var sv=AI_TEAM; AI_TEAM=team; try{ return fn(); } finally{ AI_TEAM=sv; } }
 function simShown(id){ var e=document.getElementById(id); return !!(e && e.classList.contains('show')); }
 function simBannerSync(){ var b=document.getElementById('simBanner'); if(!b) return;
-  var on=!!(S && S.autoSim && CAREER_MATCH && !S.gameEnded && !S.tut && !simShown('careerOverlay') && !simShown('mainMenu'));
+  var on=!!(S && S.autoSim && CAREER_MATCH && !S.gameEnded && !S.tut && !simShown('careerOverlay') && !simShown('mainMenu') && !simShown('speechOverlay') && !simShown('simChoice') && !S.speechOpen && !S.tunnelOn && !SIM_CHOICE);   // v706 : cachee au vestiaire, dans le tunnel et sur la carte d'entracte
   b.style.display=on ? 'flex' : 'none'; }
 function setAutoSim(v){ if(S) S.autoSim=!!v; simBannerSync(); if(S){ renderPlanBar(); renderDefBar(); } }
 function simChoiceOpen(title, what, go){   // l'entracte : « ▶ Play the 2nd » / « 📺 Sim the 2nd » (what : 'the 2nd', 'the 3rd', 'overtime')
@@ -13770,13 +13773,29 @@ function simShootout(){ var so=S.so, run=so.run;
   if(run.phase==='draw'){ soTapCell(goalCol(HUMAN_TEAM)-dir(HUMAN_TEAM)*4, CTR_R); return; }   // il patine droit vers le filet, jusqu'a 4 cases
   if(run.phase==='choose'){ var sh=byId(run.id), g=goalieFor(sh), best=SO_TARGETS[0], bp=-1;
     SO_TARGETS.forEach(function(t){ var p=soShotProb(sh, g, t, null); if(p>bp){ bp=p; best=t; } }); soPick(best); } }
+var SIM_SIG='', SIM_SINCE=0, SIM_STUCK_MS=3000;
+// v706 : filet du pilote -- rien ne bouge depuis ~3 s (meme tir en suspens, plan sans decision, sequence orpheline) : on prend la sortie la plus simple, sans jamais rester fige
+function simUnstick(){
+  var now=Date.now(), sig=progressSig()+'|'+S.planning+'|'+!!S.defCommit+'|'+S.aiming+'|'+S.animating+'|'+(S.currentSeq?S.currentSeq.id+':'+S.currentSeq.rank:'-')+'|'+S.period+'|'+!!S.faceoff+'|'+S.needDraft;
+  if(sig!==SIM_SIG || S.faceoff || S.needDraft || S.defCommit || S.celebrating || S._replay3d || S.foWait || S.stop){ SIM_SIG=sig; SIM_SINCE=now; return false; }   // la mise au jeu, l'alignement et l'embuscade ont leurs propres sorties
+  if(now-SIM_SINCE<SIM_STUCK_MS) return false;
+  SIM_SINCE=now;
+  if(S.aiming){ S.aiming=null; S.oneTimerActive=false; S.otNoScene=false; S.aimClock=null; S.animating=false; document.getElementById('shotOverlay').classList.remove('show'); document.getElementById('saim').style.display='none'; }   // un tir reste vise sans suite : on le retire
+  if(S.currentSeq && !S.currentSeq.dead && !S.animating){ killSeq(S.currentSeq); S.currentSeq=null; S.planResume=null; S.planNext=null; S._endingExch=false; }
+  if(S.planning){ S.atkPlan=[]; resolvePlan(); return true; }   // un plan sans decision : le plan vide, comme « GO » sans rien choisir
+  if(S.puckOwner && !S.defCommit && !S.planning && !S.animating) startExchange();
+  else if(S.puckLoose && !S.puckOwner) setHint('Loose puck — go get it!');
+  return true; }
 function autoSimTick(){
   simBannerSync();
   if(!S || !S.autoSim) return;
   if(!CAREER_MATCH || S.tut || S.gameEnded || S.paused || S.speechOpen || S.tunnelOn || SIM_CHOICE || S._injBusy) return;
   if(S.so){ simShootout(); return; }
-  if(S.animating || (S.currentSeq && !S.currentSeq.dead) || S.battle || S.aiming) return;   // le jeu joue (un tir de mon equipe part tout seul : doShoot)
   var H=HUMAN_TEAM;
+  if(S.planning && !S.bonus){ var _po=S.puckOwner ? byId(S.puckOwner) : null;   // v706 : un plan ouvert sans que mon equipe ait la rondelle est un reste (plan fantome) : il gelait le chrono et le pilote ne le voyait jamais
+    if(!_po || _po.team!==H){ S.planning=false; S.atkPlan=[]; S.ghost={}; S.planClock=null; renderPlanBar(); } }
+  if(simUnstick()) return;
+  if(S.animating || (S.currentSeq && !S.currentSeq.dead) || S.battle || S.aiming) return;   // le jeu joue (un tir de mon equipe part tout seul : doShoot)
   if(S.needDraft && S._draftOpen){ simDraft(); return; }
   if(S.faceoff) return;   // la mise au jeu se resout seule
   if(S.defCommit){
