@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v702</title>
+<title>Deck 3D v703</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -367,6 +367,9 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .offbar .mbtn{margin:0;padding:10px 4px;font-size:13px;}
 .offbar .mbtn.play{grid-column:1/-1;font-size:17px;color:#06121f;background:linear-gradient(180deg,#ffe46b,#ffb000);border-color:#06121f;box-shadow:0 4px 0 #06121f;}
 .offbar .mbtn.play.half{grid-column:span 3;font-size:15px;}
+.offbar .mbtn.play.half.w2{grid-column:span 2;}   /* v703 : ▶ Play, ⏩ Sim game, ‹ Back sur une ligne */
+.offbar .mbtn.sim{background:#c27a12;border-color:#06121f;color:#fff;font-size:12px;}   /* v703 : ⏩ Sim game / ⏩ Sim N games, en orange */
+.offbar .mbtn.sim.w3{grid-column:span 3;font-size:15px;}
 .offbar .offname{grid-column:span 2;min-width:0;padding:8px 10px;font-size:16px;border-radius:10px;border:2px solid #06121f;background:#fffdf4;color:#16181d;}   /* v625 : le nom d'une ligne (16px : le telephone ne zoome pas) */
 .offbar .mbtn.play.one{grid-column:auto;font-size:14px;}   /* v612 : Sign, entre ‹ et › (le Rolodex) */   /* v611 : l'alignement -- ▶ Play et ‹ Back sur une ligne (le tableau de l'equipe est grand) */
 .offbar .mbtn[data-n]{position:relative;}
@@ -1381,7 +1384,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v702';
+var GAME_VERSION='v703';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12051,7 +12054,7 @@ var OFF_SANS="'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";   // l'impri
 var OFF_INK={blue:'#1d3f8f', red:'#c22a2a', green:'#1e8a3c', hilite:'rgba(255,226,60,0.55)'};   // les feutres ; le surligneur
 var OFF_SCREEN={bg:'#10151c', bar:'#1f2a37', fg:'#e8eef6', dim:'#8fa3bb', me:'#ffd23e', meBg:'#2b2a1c'};   // l'ecran du portable
 function offActive(){ return hj3dActive() && !!CAREER && !!document.getElementById('offBar'); }
-function offEnter(){ if(OFF.on) return; OFF.on=true; OFF.at=''; OFF.want=''; OFF.sent=false; OFF.seen=false; OFF.quad=null; OFF.paint={};
+function offEnter(){ if(OFF.on) return; OFF_SIMSEL=null; OFF.on=true; OFF.at=''; OFF.want=''; OFF.sent=false; OFF.seen=false; OFF.quad=null; OFF.paint={};
   CAREER_DIVTAB=careerDivOf(CAREER, CAREER.my);   // a chaque entree, le tableau montre ma division, a jour
   CAREER_STATDIV=CAREER_DIVTAB; CAREER_STATK='pts'; CAREER_STATPO=(CAREER.phase==='playoffs');   // v610 : le portable aussi (comme careerGo('stats'))
   document.body.classList.add('office'); document.getElementById('careerOverlay').classList.add('office'); hj3dFit(); }
@@ -12117,14 +12120,49 @@ function offPaintBoard(c){   // le tableau blanc : le classement de CAREER_DIVTA
   offSend('board', sig, o.cv); }
 function offCalSchedule(c){   // v610 : devant le calendrier, la bulle dit la fiche et les matchs qui restent ; ‹ Back
   var d=careerDivOf(c, c.my), me=careerStandings(c, d).filter(function(r){ return r.key===c.my; })[0], left=c.schedule[d].length-c.day;
+  if(OFF_SIMSEL!=null && (c.phase!=='regular' || OFF_SIMSEL<=c.day || OFF_SIMSEL>=c.schedule[d].length)) OFF_SIMSEL=null;
   offPaintCalendar(c);
+  if(OFF_SIMSEL!=null){   // v703 : un jour choisi -> ⏩ Sim N games (orange) ; Cancel
+    var sg=offCalMine(c, d, OFF_SIMSEL), n=offSimCount(c, d, OFF_SIMSEL);
+    document.getElementById('offSay').innerHTML='<div class="who">COACH</div>Sim '+n+' game'+(n===1?'':'s')+', up to '+(sg.home?'vs':'at')+' '+careerEsc(c.teams[sg.opp].nick)+'?';
+    document.getElementById('offBar').innerHTML='<button class="mbtn sim w3" id="offSimN" style="background:#c27a12" onclick="careerSimMine('+n+')">⏩ Sim '+n+' game'+(n===1?'':'s')+'</button><button class="mbtn sm" id="offSimCancel" onclick="offSimCancel()">Cancel</button>';
+    return; }
   offNote('Record: '+me.w+'-'+me.l+'-'+me.otl+'. '+(c.phase==='regular' ? left+' game'+(left===1?'':'s')+' left.' : 'The regular season is over.')); }
+var OFF_SIMSEL=null;   // v703 : la ronde choisie sur le calendrier (index) pour simuler jusque-la
+function offCalMine(c, d, i){ var g=(c.schedule[d][i]||[]).filter(function(gm){ return gm[0]===c.my || gm[1]===c.my; })[0]; return g ? {home:g[0]===c.my, opp:g[0]===c.my ? g[1] : g[0]} : null; }
+function offSimCount(c, d, sel){ var n=0; for(var i=c.day;i<=sel;i++) if(offCalMine(c, d, i)) n++; return n; }
+function offSimCancel(){ OFF_SIMSEL=null; careerRender(); }
+function offCalLayout(c){ var R=c.schedule[careerDivOf(c, c.my)], NC=7, X0=24, Y0=150; return {NC:NC, X0:X0, Y0:Y0, CW:(1000-2*X0)/NC, CH:(775-Y0-24)/Math.ceil(R.length/NC)}; }
+function offTapCalendar(ix, iy){   // v703 : toucher la case d'une ronde a venir -> la choisir (jusque-la, on simule) ; aujourd'hui, le passe, la meme case : on efface
+  var c=CAREER, d=careerDivOf(c, c.my), R=c.schedule[d], L=offCalLayout(c);
+  if(CAREER_VIEW!=='schedule' || c.phase!=='regular' || ix<L.X0 || ix>=L.X0+L.NC*L.CW || iy<L.Y0) return;
+  var col=Math.floor((ix-L.X0)/L.CW), row=Math.floor((iy-L.Y0)/L.CH), i=row*L.NC+col;
+  if(i>=R.length || row<0) return;
+  if(i<=c.day || i===OFF_SIMSEL) OFF_SIMSEL=null;   // aujourd'hui, le passe, la meme case : on efface
+  else if(offCalMine(c, d, i)) OFF_SIMSEL=i;
+  else return;
+  careerRender(); }
+function careerSimMine(n){   // v703 : simuler MES prochains matchs (resultats seulement) : le meme calcul que les autres equipes ; careerAiPrep ne touche jamais mon equipe (lignes, gardien partant, reposes) ; mes lignes sont remises d'aplomb avant chaque jour (blesses) comme avant un match joue
+  var c=CAREER; if(!c) return; var T=c.teams[c.my], ph=c.phase, done=0, W=0, Lo=0, OTL=0, r=null, g=null;
+  OFF_SIMSEL=null;
+  while(done<n && c.phase===ph && (g=careerMyGame(c))){
+    careerLinesEnsure(T); careerLinesFix(T); careerLinesSync(T);
+    var n0=c.results.length; careerPlayDay(c, null); done++;
+    r=c.results.slice(n0).filter(function(x){ return x.mine; })[0]; if(!r) continue;
+    var home=r.home===c.my, gf=home?r.hs:r.as, ga=home?r.as:r.hs, opp=home?r.away:r.home;
+    if(gf>ga) W++; else if(r.ot || r.so) OTL++; else Lo++;
+    c.last={opp:opp, gf:gf, ga:ga, ot:!!r.ot, so:!!r.so, po:!!r.po}; }
+  if(r){ var h2=r.home===c.my, f=h2?r.hs:r.as, a=h2?r.as:r.hs, o2=c.teams[h2?r.away:r.home].nick;
+    CAREER_MSG=done===1 ? 'Simulated: '+(f>a?'W':'L')+' '+f+'-'+a+' '+(h2?'vs':'at')+' '+careerEsc(o2)+(r.ot?(r.so?' (SO)':' (OT)'):'')+'.'
+      : 'Simulated '+done+' games: '+W+'-'+Lo+'-'+OTL+'.'; }
+  careerSave(); careerGo(c.phase==='done' ? 'season' : 'hub', true); }
 function offPaintCalendar(c){   // v610 : le calendrier au mur (0,8 x 0,62 m -> 1000 x 775) : une case par ronde, ecrite au feutre
   var d=careerDivOf(c, c.my), R=c.schedule[d], T=c.teams[c.my], today=(c.phase==='regular') ? c.day : -1;
   var games=R.map(function(rd, i){ var g=rd.filter(function(gm){ return gm[0]===c.my || gm[1]===c.my; })[0]; if(!g) return null;
     var home=g[0]===c.my, r=c.results.filter(function(x){ return !x.po && x.day===i && x.div===d && (x.home===c.my || x.away===c.my); })[0];
     return {opp:home?g[1]:g[0], home:home, gf:r?(home?r.hs:r.as):null, ga:r?(home?r.as:r.hs):null, ot:!!(r && r.ot), so:!!(r && r.so)}; });
-  var sig=d+'|'+c.my+'|'+c.season+'|'+today+'|'+T.colors.join()+'|'+games.map(function(g){ return g ? g.opp+(g.gf==null ? '' : ':'+g.gf+'-'+g.ga+(g.ot?'o':'')+(g.so?'s':'')) : '-'; }).join(',');
+  var sel=(c.phase==='regular' && OFF_SIMSEL!=null && OFF_SIMSEL>c.day) ? OFF_SIMSEL : -1;   // v703 : la ronde choisie pour simuler
+  var sig=d+'|'+c.my+'|'+c.season+'|'+today+'|'+sel+'|'+T.colors.join()+'|'+games.map(function(g){ return g ? g.opp+(g.gf==null ? '' : ':'+g.gf+'-'+g.ga+(g.ot?'o':'')+(g.so?'s':'')) : '-'; }).join(',');
   if(OFF.paint.calendar===sig) return;
   var o=offCanvas(1000, 775); if(!o) return;
   var x=o.x, NC=7, X0=24, Y0=150, CW=(1000-2*X0)/NC, CH=(775-Y0-24)/Math.ceil(R.length/NC);
@@ -12134,7 +12172,10 @@ function offPaintCalendar(c){   // v610 : le calendrier au mur (0,8 x 0,62 m -> 
   x.textAlign='right'; x.font='bold 40px '+OFF_SANS; x.fillText('Season '+c.season, 964, 84);
   games.forEach(function(g, i){ var cx=X0+(i%NC)*CW, cy=Y0+Math.floor(i/NC)*CH, mx=cx+CW/2;
     if(i===today){ x.fillStyle=OFF_INK.hilite; x.fillRect(cx, cy, CW, CH); }   // la ronde du jour, surlignee
+    if(sel>=0 && i>today && i<sel){ x.fillStyle='#fdf0dc'; x.fillRect(cx, cy, CW, CH); }   // v703 : jusqu'a la ronde choisie, orange pale
+    if(i===sel){ x.fillStyle='#ffe3b8'; x.fillRect(cx, cy, CW, CH); }
     x.strokeStyle='#b9bcc2'; x.lineWidth=2; x.strokeRect(cx, cy, CW, CH);
+    if(i===sel){ x.strokeStyle='#c27a12'; x.lineWidth=6; x.strokeRect(cx+3, cy+3, CW-6, CH-6); }
     x.fillStyle='#8a8f98'; x.textAlign='left'; x.font='bold 30px '+OFF_SANS; x.fillText(String(i+1), cx+10, cy+36);   // imprime : le n° de la ronde
     if(!g) return;
     x.textAlign='center'; x.fillStyle=OFF_INK.blue;
@@ -12315,7 +12356,7 @@ function offLinesLineup(c){   // ▶ Next game : les lignes sur le tableau (v625
   var su=CAREER_LSEL!=null ? careerLuGet(T, CAREER_LSEL) : null, sp=su!=null ? careerPlayerByUid(T, su) : null;
   var say=CAREER_MSG || CAREER_LMSG || (CAREER_LSEL!=null ? (sp ? '<b>'+careerEsc(sp.name)+'</b>: tap a spot.' : 'Tap a player for this spot.') : 'Tap a magnet, then a spot. Tap a line name to rename it.');
   sayEl.innerHTML='<div class="who">COACH</div>'+say;   // court : la bulle ne cache pas le titre du tableau
-  bar.innerHTML='<button class="mbtn play half" id="offLineupPlay" onclick="careerLineupGo()">▶ Play</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }
+  bar.innerHTML='<button class="mbtn play half w2" id="offLineupPlay" onclick="careerLineupGo()">▶ Play</button><button class="mbtn sm sim" id="offSimGame" style="background:#c27a12" onclick="careerSimMine(1)">⏩ Sim game</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }   // v703 : Sim game = ce match simule, seulement le resultat
 function offTapLineup(ix, iy){ var c=CAREER, U=OFF_LU, Lo=offLineupLayout(c), hit=null;
   if(CAREER_LNAME!=null) return;   // on nomme une ligne : le tableau attend
   Lo.names.forEach(function(n){ if(ix>=n.x && ix<=n.x+n.w && iy>=n.y && iy<=n.y+n.h) hit=n; });
@@ -12380,6 +12421,7 @@ function offTap(ev){
   var uv=offUnquad(OFF.quad, (ev.clientX-r.left)*OFF.vw/r.width, (ev.clientY-r.top)*OFF.vh/r.height);
   if(!uv) return;
   if(OFF.at==='lines') offTapLines(uv[0]*800, uv[1]*1000);
+  else if(OFF.at==='calendar') offTapCalendar(uv[0]*1000, uv[1]*775);   // v703 : choisir un jour a simuler
   else if(OFF.at==='card' && CAREER_VIEW==='levelup') offTapMeet(uv[0]*OFF_LVL.w, uv[1]*OFF_LVL.h, ev);
   else if(OFF.at==='sheet') offTapSheet(uv[0]*OFF_SHEET.w, uv[1]*OFF_SHEET.h);
   else if(OFF.at==='trophies') offTapShelf(uv[0]);
