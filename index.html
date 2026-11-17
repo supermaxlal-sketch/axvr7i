@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v704</title>
+<title>Deck 3D v705</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -368,6 +368,12 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .offbar .mbtn.play{grid-column:1/-1;font-size:17px;color:#06121f;background:linear-gradient(180deg,#ffe46b,#ffb000);border-color:#06121f;box-shadow:0 4px 0 #06121f;}
 .offbar .mbtn.play.half{grid-column:span 3;font-size:15px;}
 .offbar .mbtn.play.half.w2{grid-column:span 2;}   /* v703 : ▶ Play, ⏩ Sim game, ‹ Back sur une ligne */
+.offbar .mbtn.play.half.w1{grid-column:span 1;font-size:14px;}   /* v705 : ▶ Play / 📺 Watch sim / ⏩ Sim game / ‹ Back : une colonne chacun */
+.offbar .mbtn.sim.watch{background:#1f8a8a;color:#fff;}
+#simBanner{display:none;position:fixed;left:0;right:0;top:0;z-index:70;pointer-events:none;padding:calc(6px + env(safe-area-inset-top,0px)) calc(8px + env(safe-area-inset-right,0px)) 0 calc(8px + env(safe-area-inset-left,0px));justify-content:space-between;align-items:flex-start;}   /* v705 : periode simulee -- la pastille SIM (haut gauche) et Take over (haut droite) */
+#simBanner .simtag{pointer-events:none;background:#b5342a;color:#fff;font:800 13px/1 system-ui,sans-serif;letter-spacing:.08em;padding:6px 10px;border-radius:7px;box-shadow:0 2px 6px rgba(0,0,0,.45);}
+#simBanner #simTakeOver{pointer-events:auto;margin-top:46px;min-height:44px;min-width:128px;padding:10px 16px;background:#b5342a;color:#fff;border:2px solid #ffd9d4;border-radius:12px;font:800 15px/1 system-ui,sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.5);cursor:pointer;}
+#simBanner #simTakeOver:active{transform:translateY(1px);}
 .offbar .mbtn.sim{background:#c27a12;border-color:#06121f;color:#fff;font-size:12px;}   /* v703 : ⏩ Sim game / ⏩ Sim N games, en orange */
 .offbar .mbtn.sim.w3{grid-column:span 3;font-size:15px;}
 .offbar .offname{grid-column:span 2;min-width:0;padding:8px 10px;font-size:16px;border-radius:10px;border:2px solid #06121f;background:#fffdf4;color:#16181d;}   /* v625 : le nom d'une ligne (16px : le telephone ne zoome pas) */
@@ -1116,6 +1122,8 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov" id="tunnelOverlay" style="z-index:266"></div>
 <div class="ov pause" id="resumeAsk" style="z-index:260"><div class="wcard"><div class="wicon">💾</div><div class="wbig">SAVED MATCH</div><div class="wsub" id="raText"></div><button class="dconfirm" id="raResume" style="margin-top:12px">▶ Resume it</button><button class="dconfirm" id="raNew" style="margin-top:8px">Start a new game</button><button class="dconfirm" id="raCancel" style="margin-top:8px">Cancel</button></div></div>
 <div id="perfBanner" hidden></div>
+<div id="simBanner"><span class="simtag">SIM</span><button type="button" id="simTakeOver">🎮 Take over</button></div>
+<div class="ov pause" id="simChoice" style="z-index:262"><div class="wcard"><div class="wicon">📺</div><div class="wbig" id="simChoiceT"></div><button class="dconfirm" id="simChoicePlay" style="margin-top:12px"></button><button class="dconfirm" id="simChoiceSim" style="margin-top:8px"></button></div></div>
 <div class="ov menu" id="settingsPanel"><div class="mcard"><div class="mtitle">⚙️ Settings</div>
 <div class="setrow"><label>🥅 Goal volume</label><input type="range" id="setGoal" min="0.6" max="2.4" step="0.1"><span class="setv" id="setGoalV"></span></div>
 <div class="setrow"><label>🎯 Missed shots (board rebounds)</label><input type="range" id="setWide" min="0" max="0.35" step="0.01"><span class="setv" id="setWideV"></span></div>
@@ -1384,7 +1392,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v704';
+var GAME_VERSION='v705';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2589,10 +2597,11 @@ function newGame(firstTeam){
   MSAVE_ON=false; mmMsg('');   // v499 : on sauvegarde seulement un match lance par le joueur (MSAVE_ON=true la-bas)
   if(CAREER_MATCH) careerTrackReset();   // v484 : un match de carriere (re)commence : compteur a zero
   soHideAll();   // v536 : les panneaux de la fusillade
+  SIM_CHOICE=null; _hide('simChoice');   // v705 : la carte « Play / Sim la periode » ne survit pas a une nouvelle partie
   _stuckSince=0; _stuckSig=''; _animSince=0; _animSig='';   // v455 : une nouvelle partie remet le chien de garde a zero
   if(typeof S!=='undefined' && S) S.gkChg=null;   // v691 : l'ancien match ne dicte plus le gardien (careerSkin lit S.gkChg)
   S={pieces:applyPerks(startPieces()), puckOwner:firstTeam==='A'?'A_BO':'B_TR', puckLoose:null,
-     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, down:{}, err:{}, stSeen:{}, period:1, ends:!!(CAREER_MATCH && CAREER_MATCH.home!==CAREER_MATCH.my), clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
+     turn:firstTeam, loosePrio:null, diag:DIAG_ON, gestes:3, sel:null, campStreak:0, carrierMoved:false, hiddenDef:[], defRevealIdx:0, score:{A:0,B:0}, goalLog:[], momentum:0, mor:{}, st:{}, down:{}, err:{}, stSeen:{}, period:1, ends:!!(CAREER_MATCH && CAREER_MATCH.home!==CAREER_MATCH.my), clock:PERIOD_SECS, aimClock:null, aimBeep:0, deflectShot:false, gkClock:null, gkBeep:0, gkSide:null, scram:null, rebStreak:0, rebTeam:null, pendingReveal:null, planResume:null, planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, planNext:null, planStop:null, redirect:null, seqDef:null, feintSeen:{}, checkRun:null, aiPlan:null, seqId:0, stepDone:null, paused:false, defReset:null, _fromLoose:false, overtime:false, so:null, _endSO:false, gameEnded:false, coachPush:null, animating:false, bankMode:false, passBonus:null, aiming:null, defCommit:null, defOrders:[], dangle:false, deflector:null, slides:{}, rcvPop:null, celebrating:false, cheer:null, dumpT:[], dumpAim:false, pokeT:[], protecting:null, wearId:null, wearN:0, oneTimer:null, oneTimerActive:false, oneTimerDeflect:null, otFrom:null, otSide:null, foEdge:null, needDraft:true, autoSim:(function(){ var _a=AUTOSIM_NEXT; AUTOSIM_NEXT=false; return !!_a; })(), draftUsed:{A:{},B:{}}, lineup:{A:[],B:[]}, lineupPeriod:0, draftRoles:null, draftActiveSlot:null, draftCtx:null, mirror:true, coachDeck:{A:[],B:[]}, stratUsed:{A:[],B:[]}, coachPeriodUsed:{A:false,B:false}, activeStrat:null,
      coachUsed:{A:{timeout:false,wind:false,push:false}, B:{timeout:false,wind:false,push:false}},
      moves:[], passT:[], duelT:[], bankT:[], log:[], match:matchNew(), shots:{A:0,B:0},
      speech:{A:{seg:null, carry:null}, B:{seg:null, carry:null}}, speechUse:{mot:0, dis:0, sys:0, con:0}, speechPreDone:false, speechPost:null, tunnelIn:0, tunnelOn:null};   // v510 : le couloir (tunnelIn = la periode deja entree)   // v504 : les discours du coach   // v434 : enregistrement du match
@@ -2602,6 +2611,7 @@ function newGame(firstTeam){
   document.getElementById('whistleOverlay').classList.remove('show');
   clearTrails();
   showStratDraft();   // draft des 3 strategies de coach au debut du match (par-dessus, avant le jeu)
+  simBannerSync(); renderPlanBar(); renderDefBar();   // v705 : « Watch sim » -- la banniere SIM des le debut ; les barres de l'ancienne partie s'effacent
   startFaceoffRPS(CTR_C_CELL,CTR_R,true);
 }
 
@@ -5604,6 +5614,7 @@ function renderResolveBar(top, go, seq){
 }
 function renderThumbBar(){
   var top=document.getElementById('tbTop'), go=document.getElementById('tbGo'); if(!top||!go) return;
+  if(S.autoSim){ top.style.display='none'; go.style.display='none'; top.innerHTML=''; go.innerHTML=''; return; }   // v705 : periode simulee -- aucune barre de choix
   var dc=S.defCommit, atk=!!S.planning&&!dc;
   var res=!atk && !dc && S.currentSeq && !S.currentSeq.dead;   // v399 : resolution en cours
   var loose=!atk && !dc && !res && S.puckLoose && !S.puckOwner && !S.faceoff && !S.gameEnded;   // v413 : phase de rondelle libre
@@ -5726,7 +5737,7 @@ function zoneOutRun(seq, p){
 function renderPlanBar(){
   var pb=document.getElementById('planbar'); if(!pb) return;
   renderThumbBar();
-  if(!S.planning){ pb.style.display='none'; pb.innerHTML=''; return; }
+  if(!S.planning || S.autoSim){ pb.style.display='none'; pb.innerHTML=''; return; }   // v705 : periode simulee -- la barre de plan ne s'affiche pas
   var h='<span class="perklbl">'+(S.bonus?'BREAKAWAY ':'PLAN ')+planCount()+'/'+planLimit()+'</span>';   // v438 : echappee = 1 action
   if(penCanPull(HUMAN_TEAM)) h+='<button class="perkbtn ordC" onclick="pullGoalie(HUMAN_TEAM)">Pull goalie — extra attacker</button>';
   if(zoneOutOK()) h+='<button class="perkbtn ordC" onclick="zoneOutGo()" title="All 5 players skate to the neutral zone. It uses the 3 actions.">Get out of the zone</button>';   // v578   // v445 : 6e attaquant pendant la differee
@@ -6200,7 +6211,7 @@ function defOrderPctsRaw(){   // % des ordres defensifs du defenseur selectionne
 // defenseur glisse (2D et 3D) ; memes effets que la barre (qui reste). Etape encore une case : Done seul.
 function renderDefChoice(){
   var bw=document.querySelector('.boardwrap'); if(!bw) return; var el=bw.querySelector('.choicebub'), dc=S.defCommit;
-  if(!(dc && dc.selDef && dc.pendingMove && !S.paused)){ if(el) el.parentNode.removeChild(el); return; }
+  if(!(dc && dc.selDef && dc.pendingMove && !S.paused && !S.autoSim)){ if(el) el.parentNode.removeChild(el); return; }
   if(!el){ el=document.createElement('div'); el.className='choicebub'; bw.appendChild(el);
     el.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation(); var o=b.getAttribute('data-o'); if(o==='done') defSlideDone(); else if(o==='more') finalizeDefPick(null); else if(o==='mark') startMark(); else finalizeDefPick(o); }); }
   var _mk=markTargets(byId(dc.selDef)).length?1:0;
@@ -6219,7 +6230,7 @@ function placeDefChoice(el){   // au-dessus de la case (en dessous s'il n'y a pa
   x=Math.max(w/2+4, Math.min(W-w/2-4, x)); y=Math.max(h/2+4, Math.min(H-h/2-4, y));
   el.style.left=x.toFixed(1)+'px'; el.style.top=y.toFixed(1)+'px';
 }
-function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); renderDefChoice(); var dc=S.defCommit; if(!dc){ db.style.display='none'; db.innerHTML=''; return; } var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
+function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) return; renderThumbBar(); renderDefChoice(); var dc=S.defCommit; if(!dc || S.autoSim){ db.style.display='none'; db.innerHTML=''; return; }   /* v705 : periode simulee -- pas de barre d'embuscade */ var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length);
   var _op=defOrderPcts(); var _ckS=((_op&&_op.check!=null)?' '+_op.check+'%':'')+((_op&&_op.pen)?' \u00B7 pen '+_op.pen+'%':''), _bkS=(_op&&_op.block!=null)?' '+_op.block+'%':'', _pkS=(_op&&_op.poke!=null)?' '+_op.poke+'%':'', _lfS=(_op&&_op.lift!=null)?' '+_op.lift+'%'+((_op.lift>0&&_op.liftPen)?' · pen '+_op.liftPen+'%':''):'', _sbS=_op?' '+_op.sblock+'%':'';
   var html='<span class="perklbl">Ambush</span><b style="color:#fff">'+dc.picks.length+'/'+maxn+'</b>'; if(dc.selDef && dc.pendingMove && dc.extend && defBubblesOn()){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or pick on the ice</span>'; }
   else if(dc.selDef && dc.pendingMove && defBubblesOn() && !dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — pick on the ice</span>'; }
@@ -8098,6 +8109,7 @@ function doShoot(skipReveal, slap){   // v649 : slap = le slap shot (sinon le wr
   if(S.animating || S.passBonus) return;
   var sh=byId(S.sel); if(!sh) return;
   if(sh.team===AI_TEAM){ aiShoot(sh, skipReveal); return; }   // jamais a toi de viser pour lIA
+  if(S.autoSim && sh.team===HUMAN_TEAM && !S.planning){ simAs(sh.team, function(){ aiShoot(sh, skipReveal); }); return; }   // v705 : periode simulee -- mon tireur vise comme celui de l'IA
   if(S.planning){ planPush(slap ? {kind:'shoot', id:sh.id, slap:true} : {kind:'shoot', id:sh.id}); return; }
   if(!canShootFrom(sh)) return;
   S.aiming=sh.id; S.slapShot=!!slap;
@@ -8601,7 +8613,7 @@ function repositionForFaceoff(dc,dr){
 }
 function deployLineForPeriod(){ var ln=S.period>3?3:S.period; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk') q.onIce=(q.line===ln); } }
 var HUMAN_TEAM='A';
-var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay','tunnelOverlay'];   // v510 : le couloir   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
+var OV_IDS=['diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','draftOverlay','tipOverlay','injOverlay','speechOverlay','tunnelOverlay','simChoice'];   // v705 : la carte Play / Sim la periode ; v510 : le couloir   // v504 : le discours met le jeu en pause   // v489 : le choix du remplacant met le jeu en pause   // v456 : la bulle de conseil met le jeu en pause
 function clockPaused(){
   if(S.paused) return true;
   if(S.stop) return true;   // v613 (son choix : « le temps s'arrete tout le temps aux arrets de jeu ») : but ou sifflet -> jusqu'a la rondelle qui tombe
@@ -9053,6 +9065,8 @@ function openDraft(dotC,dotR){
   document.getElementById('draftTitle').textContent=S.otDraft ? 'Overtime — your lineup' : 'Period '+S.period+' — your lineup';
   draftLinesInit(); if(S.lines) draftApplyLine(draftNextLine()); else renderDraftCards();   // v625 : sa prochaine ligne deja en place
   var _dc=document.querySelector('#draftOverlay .dcard'); if(_dc) _dc.scrollTop=0;   // v625 : l'ecran s'ouvre en haut (ses lignes), pas ou Confirm l'a laisse
+  S._draftOpen=true;   // v705 : l'alignement attend une decision (le pilote automatique la prend)
+  if(S.autoSim){ document.getElementById('draftOverlay').classList.remove('show'); return; }   // v705 : periode simulee -- l'ecran d'alignement ne s'ouvre pas ; ses lignes sont deja en place (draftApplyLine)
   document.getElementById('draftOverlay').classList.add('show'); tipTrigger('draft'); tipFlush();   // v456
 }
 // v625 : LES LIGNES DU BUREAU EN MATCH (ses choix : la prochaine ligne pas encore jouee est deja en place ; les boutons de ses lignes ;
@@ -9147,7 +9161,7 @@ function confirmDraft(){
   S.lineup[HUMAN_TEAM]=pick; for(var i=0;i<pick.length;i++){ if(pick[i]) S.draftUsed[HUMAN_TEAM][pick[i]]=true; }
   if(S.lines && !S.otDraft && S.draftLine!=null && S.draftLine<3) S.linesPlayed[S.draftLine]=true;   // v625 : cette ligne est jouee
   var other=HUMAN_TEAM==='A'?'B':'A'; S.lineup[other]=aiDraft(other);
-  S.lineupPeriod=S.period; S.needDraft=false; deployLineup();
+  S.lineupPeriod=S.period; S.needDraft=false; S._draftOpen=false; deployLineup();
   document.getElementById('draftOverlay').classList.remove('show');
   var ctx=S.draftCtx||{dotC:CTR_C_CELL,dotR:CTR_R}; proceedFaceoff(ctx.dotC,ctx.dotR);
 }
@@ -9228,14 +9242,16 @@ function endPeriod(){
     if(S.score.A!==S.score.B){ gameOver(S.score.A>S.score.B?'A':'B'); return; }
     if(S.overtime && !S.tut && !(CAREER_MATCH && CAREER_MATCH.po)){ shootoutStart(); return; }   // v536 : une seule prolongation, puis la fusillade (en series : jusqu'au but)
     var _wasOT=S.overtime; S.overtime=true; pushLog(_wasOT ? 'Overtime continues — still '+S.score.A+'–'+S.score.B+' !' : ('End of the 3rd — tied '+S.score.A+'–'+S.score.B+' ! OVERTIME: next goal wins.'));
-    endsSwap(); if(!S.tut){ S.otDraft=true; S.needDraft=true; }   // v625 (son choix) : l'ecran d'alignement avant la prolongation, tous les joueurs du match
-    faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); return;   // v606 : la prolongation aussi change de cote
+    var _goOT=function(){ endsSwap(); if(!S.tut){ S.otDraft=true; S.needDraft=true; }   // v625 (son choix) : l'ecran d'alignement avant la prolongation, tous les joueurs du match
+      faceoff(S.period%2===0?'B':'A'); setHint('Overtime — next goal wins!'); };   // v606 : la prolongation aussi change de cote
+    if(CAREER_MATCH && !S.tut){ simChoiceOpen('End of '+(_wasOT ? 'overtime' : 'the 3rd period')+' — '+S.score.A+'-'+S.score.B, 'overtime', _goOT); return; }   // v705 : jouer ou simuler la prolongation
+    _goOT(); return;
   }
   S.period++;
   S.coachPeriodUsed={A:false,B:false};   // le verrou "1 strategie/periode" se remet a zero
   pushLog('Start of period '+S.period+'.');
   if(CAREER_MATCH && !S.tut) gkWindowOpen();   // v691 : l'entracte -- changer de gardien (l'IA tire au sort ici)
-  if(CAREER_MATCH && !S.tut){ tunnelScene('out', function(){ speechOpen('inter', function(){ endsSwap(); S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); }); return; }   // v504 : le discours entre les periodes ; v510 : d'abord la sortie par le tunnel ; v606 : ils changent de cote pendant l'entracte (apres la sortie, avant l'entree)
+  if(CAREER_MATCH && !S.tut){ tunnelScene('out', function(){ speechOpen('inter', function(){ simChoiceOpen('End of the '+SIM_ORD[S.period-1]+' period — '+S.score.A+'-'+S.score.B, 'the '+SIM_ORD[S.period], function(){ endsSwap(); S.needDraft=true; faceoff(S.period%2===0?'B':'A'); }); }); }); return; }   // v705 : jouer ou simuler la periode suivante   // v504 : le discours entre les periodes ; v510 : d'abord la sortie par le tunnel ; v606 : ils changent de cote pendant l'entracte (apres la sortie, avant l'entree)
   endsSwap(); S.needDraft=true; faceoff(S.period%2===0?'B':'A');
 }
 function gameOver(winner){
@@ -9343,13 +9359,13 @@ function soPickable(){ var so=S.so, all=soEligible(HUMAN_TEAM);
   return left.sort(function(a, b){ return soSkill(b)-soSkill(a); }); }
 function soBar(lbl, v){ v=v||0; var t=v>=75?'hi':(v>=55?'mid':'lo'); return '<div class="dcard-bar"><i class="bl">'+lbl+'</i><i class="trk"><i class="fil t-'+t+'" style="width:'+Math.max(5,Math.min(100,v))+'%"></i></i><i class="bv">'+v+'</i></div>'; }
 function soPickOpen(){ var so=S.so, sd=so.marks[HUMAN_TEAM].length>=SO_ROUNDS;
-  so.pick=[]; so.pickN=sd ? 1 : SO_ROUNDS;
+  so.pick=[]; so.pickN=sd ? 1 : SO_ROUNDS; so.picking=true;   // v705 : picking = ton choix de tireurs attend (le pilote automatique le prend)
   document.getElementById('soPickSub').textContent = sd ? 'Sudden death — pick your next shooter.'
     : ('Pick your 3 shooters, in order. '+(so.first===HUMAN_TEAM ? 'You shoot first.' : 'The '+TEAM_NAME[so.first]+' shoot first.'));
   setHint(sd ? 'Sudden death — pick your next shooter.' : 'Shootout — pick your 3 shooters.');
   var hb=document.getElementById('soPickHelp'); if(hb) hb.onclick=function(){ soHelpOpen(null); };   // v537
   var go=document.getElementById('soPickGo'); if(go) go.onclick=soPickGo;   // v539 : le bouton Start (il n'etait relie a rien : le concepteur « je clique sur Start, ca marche pas »)
-  soPickRender(); document.getElementById('soPick').classList.add('show'); }
+  soPickRender(); if(!S.autoSim) document.getElementById('soPick').classList.add('show'); }
 function soPickRender(){ var so=S.so, base=so.marks[HUMAN_TEAM].length, list=document.getElementById('soPickList');
   list.innerHTML=soPickable().map(function(p){ var k=so.pick.indexOf(p.id);
     return '<div class="dcardp hcard '+p.team+(k>=0?' sel':'')+'" data-pid="'+p.id+'"><div class="dcard-hd"><span class="dcp-ovr">'+(k>=0?(base+k+1):'')+'</span>'
@@ -9360,9 +9376,9 @@ function soPickTap(id){ var so=S.so; if(!so) return; var k=so.pick.indexOf(id);
   if(k>=0) so.pick.splice(k, 1); else if(so.pick.length<so.pickN) so.pick.push(id);
   soPickRender(); }
 function soPickGo(){ var so=S.so; if(!so || so.pick.length!==so.pickN) return;
-  so.order[HUMAN_TEAM]=so.order[HUMAN_TEAM].concat(so.pick); so.pick=[];
+  so.order[HUMAN_TEAM]=so.order[HUMAN_TEAM].concat(so.pick); so.pick=[]; so.picking=false;
   document.getElementById('soPick').classList.remove('show');
-  if(!soHelpSeen()) soHelpOpen(soNextAfter); else soNextAfter(); }   // v537 : la carte-aide des gestes, la premiere fois
+  if(!soHelpSeen() && !S.autoSim) soHelpOpen(soNextAfter); else soNextAfter(); }   // v537 : la carte-aide des gestes, la premiere fois
 var _soHelpMem=false, _soHelpCb=null;
 function soHelpSeen(){ if(_soHelpMem) return true; try{ return localStorage.getItem('hj-so-help')==='1'; }catch(e){ return false; } }
 function soHelpOpen(cb){ _soHelpCb=cb||null; var ok=document.getElementById('soHelpOk'); if(ok) ok.onclick=soHelpClose; document.getElementById('soHelp').classList.add('show'); }
@@ -9419,14 +9435,14 @@ function soMovesOpen(run){ run.phase='choose'; var sh=byId(run.id), g=goalieFor(
     var p=pc*soFeintProb(sh, g, k, 1, tm, sp, seen)+(1-pc)*soFeintProb(sh, g, k, 0.6, tm, sp, seen);
     return '<button data-so="'+k+'">'+SO_FEINTS[k].n+'<b>'+Math.round(p*100)+'%</b></button>'; }).join('');
   var all=box.querySelectorAll('button'); for(var j=0;j<all.length;j++){ (function(b){ b.onclick=function(){ soPick(b.getAttribute('data-so')); }; })(all[j]); }
-  box.hidden=false; soPadMsg('Shoot or deke', tm==='good' ? 'Good spot' : (tm==='early' ? 'Far: the goalie has not moved' : 'Close: he may poke it'));
+  box.hidden=!!S.autoSim; soPadMsg('Shoot or deke', tm==='good' ? 'Good spot' : (tm==='early' ? 'Far: the goalie has not moved' : 'Close: he may poke it'));
   setHint('Shoot (tap a corner) or deke (tap a move).'); }
 function soPick(v){ var run=S.so && S.so.run; if(!run || run.phase!=='choose') return; document.getElementById('soMoves').hidden=true;
   if(SO_TARGETS.indexOf(v)>=0) soResolve({kind:'shot', target:v, q:1}); else if(SO_FEINTS[v]) soResolve(soHumanFeint(byId(run.id), v)); }
 function soHumanFeint(sh, k){ var fs=sh.hand==='D' ? 'R' : 'L', bs=fs==='L' ? 'R' : 'L', rs=Math.random()<0.5 ? 'L' : 'R', m=sh.maniement||50;
   var tg={fhbh:'B'+bs, bhfh:'B'+fs, fakeshot:'B'+rs, datsyuk:'B'+rs, forsberg:'B'+fs, nielsen:'T'+bs, kane:Math.random()<0.3 ? '5H' : 'T'+rs, legs:'5H'}[k];
   return {kind:k, target:tg, q:Math.random()<(0.2+m/250) ? 1 : 0.6}; }   // la proprete : ses mains (comme l'IA)
-function soPadShow(big, small){ var pad=document.getElementById('soPad'); if(pad) pad.hidden=false; if(S.so) S.so.padOpen=true; soPadMsg(big, small); }
+function soPadShow(big, small){ var pad=document.getElementById('soPad'); if(pad) pad.hidden=!!S.autoSim;   /* v705 : periode simulee -- pas de pave */ if(S.so) S.so.padOpen=true; soPadMsg(big, small); }
 function soTick(){ var so=S.so, run=so && so.run; if(!run || run.done) return;
   if(run.team===HUMAN_TEAM){ if(run.phase!=='skate') return;   // v541 : il patine ton trace, une case par pas
     if(run.k>=run.path.length){ soMovesOpen(run); return; }
@@ -11249,7 +11265,7 @@ function careerReplace(q, done){   // le coach choisit un joueur du banc (l'IA :
     else if(k>=0) lu[k]=null;   // personne : on joue a 4 (v589 : le poste reste vide -- un puni de retour le prend)
     S.lineup[team]=lu; careerOnIce(); render(); done(); }
   if(!c.length){ put(null); return; }
-  if(team!==HUMAN_TEAM){ c.sort(function(a, b){ return careerLiveEn(b)-careerLiveEn(a); }); put(c[0]); return; }
+  if(team!==HUMAN_TEAM || S.autoSim){ c.sort(function(a, b){ return careerLiveEn(b)-careerLiveEn(a); }); put(c[0]); return; }   // v705 : periode simulee -- le plus frais, comme l'IA
   // v604 (son choix B) : les cartes de la composition (overall, type, stats, energie ; « 2nd period — tired » = il a deja joue), le meilleur overall en haut ;
   // sans joueur du meme poste au banc, une section par poste
   var el=document.getElementById('injCard'), mix=c.some(function(p){ return p.pos!==q.pos; });
@@ -12383,7 +12399,8 @@ function offLinesLineup(c){   // ▶ Next game : les lignes sur le tableau (v625
   var su=CAREER_LSEL!=null ? careerLuGet(T, CAREER_LSEL) : null, sp=su!=null ? careerPlayerByUid(T, su) : null;
   var say=CAREER_MSG || CAREER_LMSG || (CAREER_LSEL!=null ? (sp ? '<b>'+careerEsc(sp.name)+'</b>: tap a spot.' : 'Tap a player for this spot.') : 'Tap a magnet, then a spot. Tap a line name to rename it.');
   sayEl.innerHTML='<div class="who">COACH</div>'+say;   // court : la bulle ne cache pas le titre du tableau
-  bar.innerHTML='<button class="mbtn play half w2" id="offLineupPlay" onclick="careerLineupGo()">▶ Play</button><button class="mbtn sm sim" id="offSimGame" style="background:#c27a12" onclick="careerSimMine(1)">⏩ Sim game</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }   // v703 : Sim game = ce match simule, seulement le resultat
+  bar.innerHTML='<button class="mbtn play half w1" id="offLineupPlay" onclick="careerLineupGo()">▶ Play</button><button class="mbtn sm sim watch" id="offWatchSim" onclick="careerWatchSim()">📺 Watch sim</button><button class="mbtn sm sim" id="offSimGame" style="background:#c27a12" onclick="careerSimMine(1)">⏩ Sim game</button><button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }   // v703 : Sim game = ce match simule, seulement le resultat ; v705 : Watch sim = l'IA joue mon equipe, je regarde en 3D
+function careerWatchSim(){ AUTOSIM_NEXT=true; try{ careerLineupGo(); } finally{ AUTOSIM_NEXT=false; } }   // v705 : comme ▶ Play (memes verifications), mais le pilote automatique joue mon equipe des la 1re mise au jeu
 function offTapLineup(ix, iy){ var c=CAREER, U=OFF_LU, Lo=offLineupLayout(c), hit=null;
   if(CAREER_LNAME!=null) return;   // on nomme une ligne : le tableau attend
   Lo.names.forEach(function(n){ if(ix>=n.x && ix<=n.x+n.w && iy>=n.y && iy<=n.y+n.h) hit=n; });
@@ -13679,12 +13696,12 @@ var _tipsMem=null;
 function tipsState(){ var o=_tipsMem; if(!o){ try{ o=JSON.parse(localStorage.getItem(TIPS_KEY)||'null'); }catch(e){ o=null; } } o=o||{}; var seen={}; for(var k in (o.seen||{})) seen[k]=o.seen[k]; return {off:o.on!==true, seen:seen}; }
 function tipsSave(st){ var seen={}; for(var k in (st.seen||{})) seen[k]=st.seen[k]; _tipsMem={on:!st.off, seen:seen}; try{ localStorage.setItem(TIPS_KEY, JSON.stringify(_tipsMem)); }catch(e){} }
 function tipTrigger(id){
-  if(!TIPS_ARMED || !TIPS[id] || (typeof S!=='undefined' && S && S.tut)) return;
+  if(!TIPS_ARMED || !TIPS[id] || (typeof S!=='undefined' && S && (S.tut || S.autoSim))) return;   // v705 : pas de conseil pendant une periode simulee
   var st=tipsState(); if(st.off || st.seen[id] || _tipQ.indexOf(id)>=0) return;
   _tipQ.push(id);
 }
 function tipCalm(){
-  if(typeof S==='undefined' || !S || S.tut || S.animating || S.gameEnded || S.paused || S.aiming || S.celebrating) return false;
+  if(typeof S==='undefined' || !S || S.tut || S.autoSim || S.animating || S.gameEnded || S.paused || S.aiming || S.celebrating) return false;
   var ov=['mainMenu','settingsPanel','tutMenu','camPanel','pauseOverlay','diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','tipOverlay'];
   for(var i=0;i<ov.length;i++){ var e=document.getElementById(ov[i]); if(e && e.classList.contains('show')) return false; }
   var dr=document.getElementById('draftOverlay'); if(dr && dr.classList.contains('show')) return true;   // le draft est un moment calme
@@ -13720,6 +13737,74 @@ var AI_TIMER=setInterval(function(){
   if(S.currentSeq && !S.currentSeq.dead) return;   // v664 (son match v663, fin du match) : une sequence se joue encore (un degagement : « both teams finish their actions, then the race — defence first ») -> pas de coup de rondelle libre en plus (avant : l'IA en jouait un toutes les 520 ms, il n'avait aucun tour)
   if(!S.puckOwner && S.puckLoose && S.gestes>0){  aiScrambleMove(); return; }
 }, 520);
+/* ===== v705 : « WATCH SIM » -- l'IA joue MON equipe, je regarde en 3D (sa demande : une periode simulee, en temps reel, sans pause de plan) =====
+   S.autoSim = vrai tant que mon equipe est pilotee par l'IA (carriere seulement). Le pilote prend, toutes les SIM_TICK_MS, la decision que le
+   jeu attend du joueur -- la MEME logique que l'IA (selfplay.mjs) : aiBuildPlan / aiBonusPlan, embuscade commitHiddenDefense, rondelle libre
+   aiScrambleMove, tir aiShoot (doShoot), fusillade : tireurs les plus forts + meilleur coin. Le trio de chaque periode = SES lignes de
+   carriere (openDraft -> draftApplyLine les met deja en place, le pilote confirme). Entracte : la carte Play / Sim choisit pour la periode
+   suivante ; « Take over » rend la main (la decision en attente s'ouvre comme si elle venait de s'ouvrir). */
+var AUTOSIM_NEXT=false, SIM_TICK_MS=220, SIM_TIMER=null, SIM_CHOICE=null, SIM_ORD=['', '1st', '2nd', '3rd'];
+function simAs(team, fn){ var sv=AI_TEAM; AI_TEAM=team; try{ return fn(); } finally{ AI_TEAM=sv; } }
+function simShown(id){ var e=document.getElementById(id); return !!(e && e.classList.contains('show')); }
+function simBannerSync(){ var b=document.getElementById('simBanner'); if(!b) return;
+  var on=!!(S && S.autoSim && CAREER_MATCH && !S.gameEnded && !S.tut && !simShown('careerOverlay') && !simShown('mainMenu'));
+  b.style.display=on ? 'flex' : 'none'; }
+function setAutoSim(v){ if(S) S.autoSim=!!v; simBannerSync(); if(S){ renderPlanBar(); renderDefBar(); } }
+function simChoiceOpen(title, what, go){   // l'entracte : « ▶ Play the 2nd » / « 📺 Sim the 2nd » (what : 'the 2nd', 'the 3rd', 'overtime')
+  SIM_CHOICE={go:go}; document.getElementById('simChoiceT').textContent=title;
+  var p=document.getElementById('simChoicePlay'), w=document.getElementById('simChoiceSim');
+  p.textContent='▶ Play '+what; w.textContent='📺 Sim '+what;
+  p.onclick=function(){ simChoiceDone(false); }; w.onclick=function(){ simChoiceDone(true); };
+  _show('simChoice'); simBannerSync(); }
+function simChoiceDone(sim){ var c=SIM_CHOICE; if(!c) return; SIM_CHOICE=null; _hide('simChoice'); setAutoSim(sim); c.go(); }
+function simDraft(){   // le trio de la periode : ses lignes (openDraft les a placees) ; un poste vide : le meilleur disponible du poste
+  var order=['C','AG','AD','DG','DD'], full=function(){ return !!S.draftRoles && order.every(function(r){ return !!S.draftRoles[r]; }); };
+  if(!full()) autoFillDraft();
+  if(!full() && S.draftRoles){ var av=availFor(HUMAN_TEAM), taken={}; order.forEach(function(r){ if(S.draftRoles[r]) taken[S.draftRoles[r]]=1; });
+    order.forEach(function(r){ if(S.draftRoles[r]) return; var pos=(r==='DG' || r==='DD') ? 'D' : 'F', q=av.filter(function(p){ return p.pos===pos && !taken[p.id]; })[0]; if(q){ S.draftRoles[r]=q.id; taken[q.id]=1; } }); }
+  if(!full()){ simTakeOver(); return; }   // personne a mettre : on rend la main plutot que de rester bloque
+  confirmDraft(); }
+function simShootout(){ var so=S.so, run=so.run;
+  if(so.picking){ so.pick=soPickable().slice(0, so.pickN).map(function(p){ return p.id; }); soPickGo(); return; }   // ses 3 meilleurs tireurs
+  if(!run || run.done || run.team!==HUMAN_TEAM) return;
+  if(run.phase==='draw'){ soTapCell(goalCol(HUMAN_TEAM)-dir(HUMAN_TEAM)*4, CTR_R); return; }   // il patine droit vers le filet, jusqu'a 4 cases
+  if(run.phase==='choose'){ var sh=byId(run.id), g=goalieFor(sh), best=SO_TARGETS[0], bp=-1;
+    SO_TARGETS.forEach(function(t){ var p=soShotProb(sh, g, t, null); if(p>bp){ bp=p; best=t; } }); soPick(best); } }
+function autoSimTick(){
+  simBannerSync();
+  if(!S || !S.autoSim) return;
+  if(!CAREER_MATCH || S.tut || S.gameEnded || S.paused || S.speechOpen || S.tunnelOn || SIM_CHOICE || S._injBusy) return;
+  if(S.so){ simShootout(); return; }
+  if(S.animating || (S.currentSeq && !S.currentSeq.dead) || S.battle || S.aiming) return;   // le jeu joue (un tir de mon equipe part tout seul : doShoot)
+  var H=HUMAN_TEAM;
+  if(S.needDraft && S._draftOpen){ simDraft(); return; }
+  if(S.faceoff) return;   // la mise au jeu se resout seule
+  if(S.defCommit){
+    commitHiddenDefense();
+    S.defCommit.picks=(S.hiddenDef||[]).map(function(m){ return {defId:m.defId, kind:'move', toC:m.toC, toR:m.toR, order:m.order||null}; });
+    S.hiddenDef=[]; confirmDefCommit(true); return; }
+  if(S.planning){
+    var bonus=S.bonus ? byId(S.bonus.id) : null;
+    S.atkPlan=simAs(H, function(){ return (bonus ? aiBonusPlan(bonus) : aiBuildPlan()) || []; });
+    resolvePlan(); return; }
+  if(S.puckLoose && !S.puckOwner && S.turn===H && S.gestes>0){ simAs(H, aiScrambleMove); return; }
+}
+function simTakeOver(){   // « 🎮 Take over » : mon equipe m'est rendue ; la decision en attente s'ouvre comme si elle venait de s'ouvrir
+  if(!S || !S.autoSim) return;
+  setAutoSim(false);
+  if(S.so){ var so=S.so, run=so.run;
+    if(so.picking){ soPickRender(); _show('soPick'); }
+    else if(run && !run.done && run.team===HUMAN_TEAM){
+      if(run.phase==='draw') soPadShow('Draw your path', 'Slide from '+byId(run.id).name+' on the ice — or tap where he stops');
+      else if(run.phase==='choose') soMovesOpen(run); }
+    return; }
+  if(S.needDraft && S._draftOpen){ renderDraftCards(); _show('draftOverlay'); return; }
+  if(S.defCommit){ S.planClock=goalieHolding() ? GK_SECS : PLAN_SECS; S.planBeep=0; setHint('AMBUSH: tap one of your players, then a square (slide) OR post him on Body check / Block the pass. The mirror partner follows (highlighted square).'); }
+  else if(S.planning){ S.planClock=goalieHolding() ? GK_SECS : PLAN_SECS; S.planBeep=0; setHint('PLAN: pick a player, then a square — or Shoot / Pass. Up to 3 actions.'); }
+  else if(S.puckLoose && !S.puckOwner && S.turn===HUMAN_TEAM) setHint('Loose puck — go get it!');
+  render(); renderPlanBar(); renderDefBar(); }
+SIM_TIMER=setInterval(function(){ autoSimTick(); }, SIM_TICK_MS);
+document.getElementById('simTakeOver').onclick=simTakeOver;
 document.getElementById('btnNewGame').onclick=function(){ newGame('A'); MSAVE_ON=true; };   // v499 : une nouvelle partie rapide se sauvegarde
 (function(){ var taims=document.querySelectorAll('#saim .taim'); for(var i=0;i<taims.length;i++){ (function(b){ b.onclick=function(){ onShotTarget(b.getAttribute('data-t')); }; })(taims[i]); } var cx=document.getElementById('saimCancel'); if(cx) cx.onclick=cancelAim; })();
 
@@ -13733,7 +13818,7 @@ var MSAVE_KEY='hjMatchSave', MSAVE_ON=false, RA_NEXT=null;
 var MSAVE_FRESH={animating:false, paused:false, stop:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
   planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, defCommit:null, aiming:null, aimClock:null, aimBeep:0, gkClock:null, gkBeep:0,
   sel:null, slides:{}, moves:[], passT:[], duelT:[], bankT:[], dumpT:[], pokeT:[], battle:null, battleOn:null, faceoff:null, lunge:null, slide:null,
-  celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null, tunnelOn:null};
+  autoSim:false, _draftOpen:false, celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null, tunnelOn:null};
 function mmMsg(t){ var e=document.getElementById('mmMsg'); if(e){ e.textContent=t||''; e.style.display=t?'':'none'; } }
 function matchSave(kind, args){
   if(!MSAVE_ON || !S || S.tut || tutPractice()) return;
@@ -13787,7 +13872,7 @@ function matchResume(){
     if(d.kind==='fo') startFaceoffRPS(d.args[0], d.args[1], d.args[2]);
     else if(d.kind==='over'){ S.overtime=!!S._endOT; S.gameEnded=false; gameOver(S.score.A>S.score.B ? 'A' : 'B'); }
     else startExchange();
-    render(); return true;
+    simBannerSync(); render(); return true;
   }catch(e){
     if(window.console) console.error('match resume', e);
     matchSaveClear(); try{ careerClearLook(); }catch(e2){}
