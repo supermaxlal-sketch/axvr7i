@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v703</title>
+<title>Deck 3D v704</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1384,7 +1384,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v703';
+var GAME_VERSION='v704';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -11306,7 +11306,7 @@ function careerProgress(){   // au Continue : l'experience de tes joueurs qui on
     if(q.team!=='A') return;
     var p=careerPlayerByUid(T, q.uid); if(!p) return;
     p.gp=(p.gp||0)+1;
-    var r=careerApplyXp(p, st, gk);
+    var r=careerApplyXp(p, st, gk); careerXlAdd(p, st);   // v704 : ses totaux de matchs JOUES (la ligne typique des matchs simules)
     rep.rows.push({uid:p.uid, name:p.name, pos:gk?'G':p.pos, st:st, gain:r.gain, up:r.up, lvl:r.lvl, lvlUp:r.lvl>r.lvlFrom, perkPick:r.perkPick}); });
   rep.stars=all.sort(function(a, b){ return b.score-a.score; }).slice(0, 3).map(function(x){ return {name:x.name, team:x.team}; });
   careerMatchEnergy(rep);   // v489 : energie et blessures du match
@@ -11520,7 +11520,14 @@ function careerSimStats(c, r, po){   // un match simule : buteurs et passeurs se
       out.goals.push({team:key, g:sc.uid, a:as.map(function(p){ return p.uid; })}); }
     var m=SIM_SHOTS*Math.exp(0.02*x[5]), n=0; for(var q=0;q<4;q++) n+=careerPoissonR(m/4);   // 4 tranches : careerPoisson plafonne a 19
     var shots=Math.max(gf+10, n); out.shots[x[6]]=shots;
+    if(key===c.my){   // v704 : MES vrais chiffres du match simule (pour l'experience) : buts, passes, tirs par joueur habille
+      var mn={ros:sk.map(function(p){ return p.uid; }), g:{}, a:{}, gk:null, sv:0};   // les tirs simules ne servent pas a l'experience (~4x un match joue)
+      out.goals.forEach(function(gl){ if(gl.team!==key) return; mn.g[gl.g]=(mn.g[gl.g]||0)+1; gl.a.forEach(function(u){ mn.a[u]=(mn.a[u]||0)+1; }); });
+      out.mine=mn; }
+    if(O.key===c.my){ out.mine2={gk:careerGoalieOf(O).uid, sv:Math.max(0, shots-gf)}; }   // v704 : ses arrets = les tirs recus moins les buts
     careerAddGk(careerGoalieOf(O), ga>gf, ga<gf && !!r.ot, shots, gf, po); });
+  if(out.mine){ out.mine.gk=out.mine2 ? out.mine2.gk : null; out.mine.sv=out.mine2 ? out.mine2.sv : 0; }
+  if(r.home===c.my || r.away===c.my) CAREER_SIMMINE=out.mine || null;   // v704 : pour careerSimMine
   return out;
 }
 function careerPoissonR(l){ var L=Math.exp(-l), k=0, p=1; do{ k++; p*=careerStatRand(); }while(p>L && k<60); return k-1; }
@@ -11619,7 +11626,7 @@ function careerPlayDay(c, my){   // le jour : ton resultat (my = {hs, as, ot} vu
     for(var d=1;d<=3;d++){ (c.schedule[d][c.day]||[]).forEach(function(g){
       var mine=(g[0]===c.my || g[1]===c.my), r;
       if(mine && my){ r={home:g[0], away:g[1], hs:my.hs, as:my.as, ot:!!my.ot, so:!!my.so}; if(my.dr){ r.dr=1; if(my.dz) r.dz=my.dz; } }   // v558
-      else { careerAiPrep(c.teams[g[0]]); careerAiPrep(c.teams[g[1]]); r=careerSimGame(c, g[0], g[1]); careerSimStats(c, r); careerSimEffects(c.teams[g[0]]); careerSimEffects(c.teams[g[1]]); }   // v489 ; v579 : les stats (avant les blessures du match)
+      else { careerAiPrep(c.teams[g[0]]); careerAiPrep(c.teams[g[1]]); r=careerSimGame(c, g[0], g[1]); careerSimStats(c, r); if(mine) careerSimXp(c); careerSimEffects(c.teams[g[0]]); careerSimEffects(c.teams[g[1]]); }   // v489 ; v579 : les stats (avant les blessures du match)
       r.div=d; r.day=c.day; r.mine=mine; c.results.push(r); }); }
     careerDayEnd(c);   // v489 : decompte et recuperation
     c.day++;
@@ -11640,7 +11647,7 @@ function careerPlayoffDay(c, my){
       var home=careerSeriesHome(s), away=home===s.a?s.b:s.a, mine=(s.a===c.my || s.b===c.my);
       var r;
       if(mine && my) r={home:home, away:away, hs:my.hs, as:my.as, ot:!!my.ot};
-      else { careerAiPrep(c.teams[home]); careerAiPrep(c.teams[away]); r=careerSimGame(c, home, away); careerSimStats(c, r, true); careerSimEffects(c.teams[home]); careerSimEffects(c.teams[away]); }   // v489 ; v580 : les stats des series
+      else { careerAiPrep(c.teams[home]); careerAiPrep(c.teams[away]); r=careerSimGame(c, home, away); careerSimStats(c, r, true); if(mine) careerSimXp(c); careerSimEffects(c.teams[home]); careerSimEffects(c.teams[away]); }   // v489 ; v580 : les stats des series
       r.div=d; r.po=true; r.mine=mine; s.games.push(r); c.results.push(r);
       if((r.hs>r.as?home:away)===s.a) s.wa++; else s.wb++;
       if(s.wa>=2) s.winner=s.a; else if(s.wb>=2) s.winner=s.b; });
@@ -11970,6 +11977,26 @@ function careerApplyXp(p, st, goalie){   // les actions d'un match -> experience
     if(p.lvl===5 && !goalie && !p.perk2 && !p.perkPick){ p.perkPick=careerPerkChoices(p); out.perkPick=true; } }
   out.lvl=p.lvl; return out;
 }
+// v704 (sa decision : « les joueurs progressent aussi quand tu simules » ; « comme un match moyen joue ») : un match simule donne a chacun de MES joueurs
+// habilles l'experience d'un match typique pour lui -- sa moyenne de matchs JOUES (p.xl : n matchs, t : totaux par cle, des 3 matchs joues), sinon
+// la ligne de base de son poste -- mais ses buts, passes et tirs (et les arrets du gardien) sont ceux, vrais, du match simule.
+// MESURE : files/selfplay-xpline.mjs (IA contre IA dans un match de carriere, jsdom)
+// Mesure 2026-11-17 : 8 matchs IA contre IA (files/selfplay-xpline.mjs, jsdom, 2 equipes de carriere), moyenne par joueur habille et par match :
+// 144 lignes d'avants, 96 de defenseurs, 16 de gardiens (arrondi a 0,1 ; 0 = jamais vu). sv/g/a/sog sont de toute facon remplaces par les vrais chiffres du match simule.
+var CAREER_SIM_XPLINE={F:{pup:0.1, sog:0.4, g:0.1, pc:0.1, a:0, dk:0, dkf:0, hit:0.2, bat:0.3, stl:0.4, cells:52.5, brk:0},
+  D:{pup:0.1, sog:0.4, g:0.1, pc:0.2, a:0.1, dk:0, dkf:0, hit:0.5, bat:0.3, stl:0.3, cells:59.2, brk:0}, G:{sv:3.8, svc:3.1}};
+var CAREER_SIMMINE=null;   // careerSimStats y depose MES chiffres du match simule du jour ; careerSimXp les consomme
+function careerXlAdd(p, st){ var xl=p.xl||(p.xl={n:0, t:{}}); xl.n++; for(var k in st) xl.t[k]=(xl.t[k]||0)+(st[k]||0); }
+function careerSimStatLine(p, real, goalie){   // la ligne d'actions d'un match simule pour p ; real : ses vrais chiffres {g, a, sog} ou {sv}
+  var xl=p.xl, role=goalie ? 'G' : (p.pos==='D' ? 'D' : 'F'), base=CAREER_SIM_XPLINE[role], st={};
+  Object.keys(base).forEach(function(k){ st[k]=(xl && xl.n>=3) ? (xl.t[k]||0)/xl.n : base[k]; });
+  for(var k in real) st[k]=real[k];
+  if(!goalie) st.sog=Math.max(real.g||0, (xl && xl.n>=3) ? (xl.t.sog||0)/xl.n : base.sog);   // v704 : pas les tirs simules (~4x un match joue) : sa moyenne / la base, au moins ses buts
+  return st; }
+function careerSimXp(c){   // l'experience de mes habilles pour le match simule du jour ; le niveau, le point et l'atout se placent au bureau comme apres un match joue
+  var m=CAREER_SIMMINE; CAREER_SIMMINE=null; if(!m) return; var T=c.teams[c.my];
+  m.ros.forEach(function(u){ var p=careerPlayerByUid(T, u); if(p) careerApplyXp(p, careerSimStatLine(p, {g:m.g[u]||0, a:m.a[u]||0}, false), false); });
+  var G=m.gk!=null ? careerPlayerByUid(T, m.gk) : null; if(G) careerApplyXp(G, careerSimStatLine(G, {sv:m.sv}, true), true); }
 function careerSpendPoint(p, k){ if(!(p.pts>0) || !p.cap || !(k in p.cap) || p[k]>=p.cap[k]) return false; p[k]++; p.pts--; return true; }
 // v620 (son bug « Callaway » ; son choix : « il n'est plus convoque ») : au plafond partout, un joueur gagne encore des niveaux et des
 // points, mais aucun ne peut se placer. Il n'attend (aimant dore, ▶ Call, « still waiting », convocation) que s'il peut monter une stat
