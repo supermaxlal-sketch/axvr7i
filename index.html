@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v711</title>
+<title>Deck 3D v712</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1424,7 +1424,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v711';
+var GAME_VERSION='v712';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -11125,10 +11125,20 @@ function careerLineupGo(){ var T=CAREER.teams[CAREER.my]; careerLinesEnsure(T); 
 // de saison (victoire +12, defaite en prolongation / fusillade -4, defaite -12 : -60..+60) ; un match de saison commence avec la jauge
 // de momentum penchee de la moitie de l'ecart ; chaque joueur repart avec la moitie de son moral du match d'avant (p.mor) ; en series,
 // tout repart a 0 et rien n'est garde ; une nouvelle saison remet tout a 0
-function careerTeamMorale(c, key){ var v=0, n=0, seq=[], R=(c && c.results)||[];
-  for(var i=R.length-1; i>=0 && n<5; i--){ var g=R[i]; if(g.po || (g.home!==key && g.away!==key)) continue; n++;
-    var me=g.home===key ? g.hs : g.as, op=g.home===key ? g.as : g.hs, w=me>op, otl=!w && (g.ot || g.so), dr=g.dr && g.dz!==key;   // v558 : dr = fin dramatique (dz : annulee par « Forget it »)
-    v+= w ? (dr ? 20 : 12) : (otl ? (dr ? -12 : -4) : (dr ? -20 : -12)); seq.unshift(w ? 'W' : (otl ? 'OTL' : 'L')); }
+// v712 (le concepteur : « une victoire en coupe est encore plus bonne pour le moral, c'est des matchs sans lendemain » ; la defaite : « plus forte aussi ») : les matchs
+// de la Coupe de la ligue et de la Coupe des champions (les miens et ceux des autres equipes) comptent comme les matchs de saison, fois CUP_MORALE_W. Leur trace est a part :
+// c.cm = [[home, away, hs, as, 0 | 1 prolongation | 2 fusillade, dr, dz, at]] (at = le nombre de resultats de saison deja la : l'ordre dans le temps) -- hors de c.results
+// pour que le classement, les stats et « n matchs » n'y touchent jamais. Un nul de groupe (Coupe des champions) : 0.
+var CUP_MORALE_W=1.5;
+function cupLog(c, h, a, hs, as, o, my){ if(!c.cm) c.cm=[]; c.cm.push([h, a, hs, as, o||0, (my && my.dr) ? 1 : 0, (my && my.dz) || 0, c.results.length]); }
+function careerTeamMorale(c, key){ var v=0, n=0, seq=[], R=(c && c.results)||[], M=(c && c.cm)||[], L=[], ci=0, i, e;
+  var cupG=function(e){ return {home:e[0], away:e[1], hs:e[2], as:e[3], ot:e[4]>0, so:e[4]===2, dr:e[5], dz:e[6], cup:1}; };
+  for(i=0;i<=R.length;i++){ while(ci<M.length && M[ci][7]<=i){ L.push(cupG(M[ci])); ci++; } if(i<R.length) L.push(R[i]); }
+  while(ci<M.length){ L.push(cupG(M[ci])); ci++; }
+  for(i=L.length-1; i>=0 && n<5; i--){ var g=L[i]; if(g.po || (g.home!==key && g.away!==key)) continue; n++;
+    var me=g.home===key ? g.hs : g.as, op=g.home===key ? g.as : g.hs, w=me>op, otl=!w && (g.ot || g.so), dr=g.dr && g.dz!==key, k=g.cup ? CUP_MORALE_W : 1;   // v558 : dr = fin dramatique (dz : annulee par « Forget it ») ; v712 : k = le poids d'un match de coupe
+    if(g.cup && me===op){ seq.unshift('T'); continue; }   // un nul de groupe : ni victoire ni defaite
+    v+= Math.round(k*(w ? (dr ? 20 : 12) : (otl ? (dr ? -12 : -4) : (dr ? -20 : -12)))); seq.unshift(w ? 'W' : (otl ? 'OTL' : 'L')); }
   return {v:v, seq:seq}; }
 function moraleLabel(v){ return v>=30 ? 'Hot' : (v>=10 ? 'Good' : (v>-10 ? 'Even' : (v>-30 ? 'Low' : 'Cold'))); }
 function careerMoraleSides(){ return [['A', CAREER.teams[CAREER_MATCH.my]], ['B', CAREER.teams[CAREER_MATCH.opp]]]; }
@@ -11136,14 +11146,15 @@ function careerMoraleStart(){   // au debut d'un match de carriere (apres newGam
   if(!CAREER || !CAREER_MATCH) return; S.momentum=0; S.mor={};
   if(CAREER_MATCH.po) return;   // les series : chaque match repart a zero
   var mA=careerTeamMorale(CAREER, CAREER_MATCH.my).v, mB=careerTeamMorale(CAREER, CAREER_MATCH.opp).v;
-  S.momentum=Math.max(-100, Math.min(100, Math.round((mA-mB)/2)+((CAREER.carry && CAREER.carry.post==='refocus') ? DRAMA_REFOCUS : 0)));   // v558 : « refocus »
+  S.momentum=Math.max(-100, Math.min(100, Math.round((mA-mB)/2)+((CAREER.carry && CAREER.carry.post==='refocus') ? Math.round(DRAMA_REFOCUS*(CAREER.carry.cup ? CUP_MORALE_W : 1)) : 0)));   // v558 : « refocus » ; v712 : x1.5 s'il vient d'un match de coupe
   careerMoraleSides().forEach(function(x){ S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl && pl.mor) S.mor[q.id]=Math.round(pl.mor/2); }); });
 }
 function careerMoraleEnd(){   // a la fin d'un match de saison : chacun garde son moral du match (pas en series)
   if(!CAREER || !CAREER_MATCH || CAREER_MATCH.po) return;
   var dr=dramaEnd('A'), fg=!!(S.speechPost && S.speechPost.post==='forget');   // v558 : une fin dramatique -- les gagnants +10, les perdants -10 (« Forget it » : pas pour les tiens)
+  var kc=CAREER_MATCH.cup ? CUP_MORALE_W : 1;   // v712 : un match de coupe compte x1.5 pour le moral des joueurs aussi
   careerMoraleSides().forEach(function(x){ var won=S.score[x[0]]>S.score[x[0]==='A' ? 'B' : 'A'], ex=!dr ? 0 : (won ? DRAMA_MOR : ((fg && x[0]===HUMAN_TEAM) ? 0 : -DRAMA_MOR));
-    S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl) pl.mor=Math.max(-100, Math.min(100, Math.round((S.mor && S.mor[q.id]) || 0)+ex)); }); });
+    S.pieces.forEach(function(q){ if(q.team!==x[0] || !q.uid) return; var pl=careerPlayerByUid(x[1], q.uid); if(pl) pl.mor=Math.max(-100, Math.min(100, Math.round((Math.round((S.mor && S.mor[q.id]) || 0)+ex)*kc))); }); });
 }
 function careerStartMatch(){   // ton match du jour : ton equipe = A, l'adversaire = B
   if(CAREER && !CAREER.teams[CAREER.my].coach){ careerGo('coach'); return false; }   // v503 : ton coach d'abord
@@ -11422,6 +11433,7 @@ function careerFinishMatch(){   // le resultat compte, le reste du jour est simu
   CAREER.last={opp:CAREER_MATCH.opp, gf:a, ga:b, ot:ot, so:!!S._endSO, po:!!CAREER_MATCH.po, cup:!!CAREER_MATCH.cup};   // v536 : so = en fusillade ; v710 : cup = un match de coupe
   CAREER.report=careerProgress();   // v484 : l'experience de tes joueurs, le bilan
   CAREER.carry=S.speechPost||null;   // v504 : le report du discours d'apres-match
+  if(CAREER.carry && CAREER_MATCH.cup) CAREER.carry=Object.assign({}, CAREER.carry, {cup:1});   // v712 : « refocus » d'un match de coupe : +10 x 1.5
   CAREER.report.coach=careerCoachProgress(a>b);   // v504 : ton coach progresse
   careerMoraleEnd();   // v556 : chacun garde son moral du match (saison seulement)
   var _my=(g && g.home===CAREER.my) ? {hs:a, as:b, ot:ot, so:!!S._endSO} : {hs:b, as:a, ot:ot, so:!!S._endSO};
@@ -11459,7 +11471,7 @@ function careerRoundRobin(keys, cycles){   // methode du cercle : n-1 rondes de 
   return rounds;
 }
 function careerCycles(n){ return n>8 ? 2 : 3; }   // v707 : 12 equipes = aller-retour (22 matchs) ; 8 equipes = 3 fois chacune (21 matchs)
-function careerNewSchedules(c){ c.schedule={}; CAREER_DIVS.forEach(function(d){ c.schedule[d]=careerRoundRobin(c.divs[d], careerCycles(c.divs[d].length)); }); c.day=0; c.phase='regular'; c.results=[]; delete c.playoffs;
+function careerNewSchedules(c){ c.schedule={}; CAREER_DIVS.forEach(function(d){ c.schedule[d]=careerRoundRobin(c.divs[d], careerCycles(c.divs[d].length)); }); c.day=0; c.phase='regular'; c.results=[]; c.cm=[]; delete c.playoffs;
   c.y0=2026+(c.season||1)-1; c.date=0; c.slots=careerMakeSlots(c); c.cup=null; cupInit(c); c.champ=null; champInit(c); }   // v711 : la ville hote de la Coupe des champions   // v710 : la Coupe de la ligue de la saison   // v708 : la saison commence le 1er samedi d'octobre ; les 22 dates de ronde
 // v708 (sa decision : « le calendrier en vrais jours ») : c.date = le nombre de jours depuis le 1er samedi d'octobre de l'annee c.y0 (0 = ce samedi) ;
 // c.slots[i] = la date de la ronde i (les memes pour les 4 divisions ; D3 / D4 n'ont que 21 rondes : le 22e jour de ronde est sans match pour elles)
@@ -11841,6 +11853,7 @@ function cupPlayDay(c, k, my, fx){   // le jour de coupe k : mon resultat (my = 
     else { if(fx!==false){ careerAiPrep(c.teams[h]); careerAiPrep(c.teams[a]); }
       var s=cupSimGame(c, r, t, leg, h, a); res=[s.hs, s.as, s.so ? 2 : (s.ot ? 1 : 0)];
       if(fx!==false){ if(mine){ careerSimStats(c, {home:h, away:a, hs:s.hs, as:s.as, ot:s.ot}, 'cup'); careerSimXp(c); } careerSimEffects(c.teams[h]); careerSimEffects(c.teams[a]); } }
+    if(fx!==false) cupLog(c, h, a, res[0], res[1], res[2], (mine && my) ? my : null);   // v712 : le match compte pour le moral des deux equipes
     t.g.push(res);
     if(t.g.length>=(r===4 ? 2 : 1)){ var tot=cupTotals(t); t.w=tot.x>tot.y ? t.x : (tot.y>tot.x ? t.y : (careerRand()<0.5 ? t.x : t.y)); } }); }
 function cupMigrate(c){   // v709 -> v710 : une carriere deja commencee -- la coupe de cette saison est simulee jusqu'a la date courante (saison finie : toute la coupe) ; rien d'autre ne change
@@ -11948,6 +11961,7 @@ function champPlayDay(c, d, my, fx){   // le jour d : mon resultat (my = {hs, as
       var s=careerSimGame(c, m.x, m.y); if(d<3 && s.ot){ var mn=Math.min(s.hs, s.as); s.hs=mn; s.as=mn; s.ot=false; }   // un match de groupe : l'egalite reste (pas de prolongation) ; apres : prolongation jusqu'a un but, jamais de fusillade
       r=[s.hs, s.as, s.ot ? 1 : 0];
       if(fx!==false){ if(mine){ careerSimStats(c, {home:m.x, away:m.y, hs:s.hs, as:s.as, ot:s.ot}, 'cup'); careerSimXp(c); } careerSimEffects(c.teams[m.x]); careerSimEffects(c.teams[m.y]); } }
+    if(fx!==false) cupLog(c, m.x, m.y, r[0], r[1], r[2], (mine && my) ? my : null);   // v712 : le match compte pour le moral des deux equipes
     return r; });
   C.R[d]=res; if(d===5) C.w=champWinner(champMatches(c, 5)[0]); }
 function champCity(c, k){ var T=c.teams[k]; return T ? T.full.replace(' '+T.nick, '') : String(k); }   // « Quebec » (la ville du nom complet)
