@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v720</title>
+<title>Deck 3D v721</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v720';
+var GAME_VERSION='v721';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10620,7 +10620,9 @@ function renderVMap(){
   var pk=S.puckOwner?byId(S.puckOwner):S.puckLoose;
   if(pk) s+='<circle cx="'+((pk.r+0.5)*k).toFixed(1)+'" cy="'+Y(pk.c+0.5)+'" r="1.3" fill="#111" stroke="#fff" stroke-width=".6"/>';
   var f=_vfit, fr=(HJ3D.free && hj3dActive()) ? HJ3D.free : null;
-  if(fr) s+='<rect class="vmapview vmapfree" x="'+(fr.r0*k).toFixed(1)+'" y="'+Y(fr.c1)+'" width="'+((fr.r1-fr.r0)*k).toFixed(1)+'" height="'+((fr.c1-fr.c0)*k).toFixed(1)+'" rx="2" fill="rgba(255,210,62,.16)" stroke="#ffd23e" stroke-width="1.3"/>';   // v620 : la vue libre de la 3D
+  if(fr){   // v620 : la vue libre de la 3D ; v721 : elle peut regarder les gradins -- le cadre ne montre que la GLACE visible (borne a la grille ; aucune glace visible : pas de cadre)
+    var fc0=Math.max(0, fr.c0), fc1=Math.min(COLS, fr.c1), fr0=Math.max(0, fr.r0), fr1=Math.min(ROWS, fr.r1);
+    if(fc1>fc0 && fr1>fr0) s+='<rect class="vmapview vmapfree" x="'+(fr0*k).toFixed(1)+'" y="'+Y(fc1)+'" width="'+((fr1-fr0)*k).toFixed(1)+'" height="'+((fc1-fc0)*k).toFixed(1)+'" rx="2" fill="rgba(255,210,62,.16)" stroke="#ffd23e" stroke-width="1.3"/>'; }
   else if(f.zoom){ var vis=f.H/f.cell, topC=COLS/2+f.pan/f.cell+vis/2;   // colonne (bord) en haut de la vue
     s+='<rect class="vmapview" x=".6" y="'+Y(topC)+'" width="'+(w-1.2).toFixed(1)+'" height="'+(vis*k).toFixed(1)+'" rx="2" fill="rgba(255,210,62,.16)" stroke="#ffd23e" stroke-width="1.3"/>'; }
   else s+='<rect class="vmapview" x=".6" y=".6" width="'+(w-1.2).toFixed(1)+'" height="'+(h-1.2).toFixed(1)+'" rx="6" fill="none" stroke="#ffd23e" stroke-width="1.3" stroke-dasharray="3 2"/>';
@@ -14893,7 +14895,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1592584,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1597160,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
