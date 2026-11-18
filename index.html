@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v718</title>
+<title>Deck 3D v719</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -393,7 +393,8 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .pchip{padding:7px 11px;border-radius:8px;border:0;font:800 12px 'Segoe UI',system-ui,sans-serif;background:#22344a;color:#9fb6cd;cursor:pointer;min-height:34px;} .pchip.on.L{background:#2f7d5a;color:#fff;} .pchip.on.H{background:#c4572a;color:#fff;} .pchip.on.R{background:#3b5f95;color:#fff;}
 .pday.game .gl{flex:1;color:#ffd36b;font:800 13px 'Segoe UI',system-ui,sans-serif;} .pday.cup{background:#3a2c0a;border-color:#c9a227;} .pday.today{box-shadow:0 0 0 2px #8fe3b5 inset;}
 .pleg{font-size:12px;color:#9fb6cd;margin:5px 0;text-align:left;} .pbtn{display:block;width:100%;text-align:center;padding:10px;border-radius:9px;border:0;font:800 14px 'Segoe UI',system-ui,sans-serif;background:#2f7d5a;color:#fff;margin-top:8px;cursor:pointer;} .pbtn.sm{background:#3a4b5c;padding:7px;font-size:13px;}
-.pfrow{display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid #22344a;} .pfrow .pos{width:26px;font:800 11px 'Segoe UI',system-ui,sans-serif;color:#9fb6cd;} .pfrow .pn{flex:1;min-width:0;font-weight:700;font-size:13px;} .pfrow .pn small{color:#9fb6cd;font-weight:400;}
+.pfrow{display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid #22344a;} .pfrow .pos{width:26px;font:800 11px 'Segoe UI',system-ui,sans-serif;color:#9fb6cd;} .pfrow .pn{flex:1;min-width:0;font-weight:700;font-size:13px;} .pfrow .pn small{color:#9fb6cd;font-weight:400;} .pfrow .pnm{background:none;border:0;padding:8px 6px 8px 0;margin:-8px 0;font:inherit;color:inherit;text-align:left;cursor:pointer;text-decoration:underline dotted #5f7f9f;text-underline-offset:3px;}   /* v719 : le nom ouvre la carte (zone de toucher confortable) */
+#pracPlayerOverlay{z-index:258;background:rgba(5,11,19,.78);} #pracPlayerOverlay .mcard{width:min(440px,94vw);max-height:92vh;overflow-y:auto;box-sizing:border-box;}
 .pbar{height:5px;background:#22344a;border-radius:3px;margin-top:3px;max-width:120px;} .pbar i{display:block;height:5px;border-radius:3px;background:#8fe3b5;}
 .pfoc{padding:6px 8px;border-radius:8px;border:0;background:#1f4a39;color:#bff2d6;font:800 12px 'Segoe UI',system-ui,sans-serif;cursor:pointer;min-height:32px;} .pfval{font:800 12px 'Segoe UI',system-ui,sans-serif;color:#ffd36b;min-width:58px;text-align:right;}
 .ppick{display:flex;flex-wrap:wrap;gap:5px;background:#0f1a26;border:1px solid #3f8f6a;border-radius:10px;padding:7px;margin:4px 0 6px;} .pkey{padding:7px 9px;border-radius:7px;border:0;background:#22344a;color:#e8eef5;font:700 12px 'Segoe UI',system-ui,sans-serif;cursor:pointer;} .pkey.on{background:#2f7d5a;color:#fff;}
@@ -433,7 +434,7 @@ body.office .boardwrap{z-index:249;}   /* son parent fixe fait une couche : sans
 .ctab{overflow-x:auto;margin-top:8px;} .ctab table{width:100%;border-collapse:collapse;font-size:11px;color:#dce8f5;}
 .ctab th{color:#9fb6cd;font-weight:700;text-align:left;padding:3px 4px;border-bottom:1px solid #26435f;}
 .ctab td{padding:3px 4px;border-bottom:1px solid #18293b;white-space:nowrap;} .ctab tr.me td{background:rgba(31,138,138,.28);}
-.ctab tr.cut td{border-bottom:2px solid #ffd23e;} .ctab.cst th,.ctab.cst td{padding:3px 2px;} .cbar{display:inline-block;width:46px;height:6px;background:#18293b;border-radius:3px;vertical-align:middle;overflow:hidden;} .cbar i{display:block;height:100%;background:#1f8a8a;}
+.ctab tr.cut td{border-bottom:2px solid #ffd23e;} .ctab .cstteam .clogo{width:22px;height:22px;margin:0 6px 0 0;border-radius:50%;}   /* v719 : le logo du classement */ .ctab.cst th,.ctab.cst td{padding:3px 2px;} .cbar{display:inline-block;width:46px;height:6px;background:#18293b;border-radius:3px;vertical-align:middle;overflow:hidden;} .cbar i{display:block;height:100%;background:#1f8a8a;}
 .cbadge{color:#ffd23e;} .cplay{cursor:pointer;} .crec .cbar{width:90px;}   /* v484 : progression */
 .cbar.cen{position:relative;} .cbar .ccap-dark{position:absolute;top:0;bottom:0;right:0;background:rgba(0,0,0,.55);} .cbar .ccap{position:absolute;top:0;bottom:0;width:1px;margin-left:-1px;background:#fff;}   /* v709 : le plafond de la saison */
 .cen.low i{background:#e0533a;} .cinjt{color:#ff8a7a;font-size:11px;} .cst{color:#9fb6cd;font-size:11px;} .crest.on,.cgk.on{background:#2c6e9e;} .dcp-en{font-size:10px;margin-left:6px;color:#9fe0a8;} .dcp-en.low{color:#ff8a7a;} .dcp-tired{display:block;font-size:10px;color:#ffb36b;}   /* v489 : energie et blessures */
@@ -1137,6 +1138,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov menu" id="careerOverlay"><div class="mcard" id="careerCard"></div><div class="offsay" id="offSay"></div><div class="offbar" id="offBar"></div></div>
 <div class="ov menu" id="cupOverlay"><div class="mcard cupcard" id="cupCard"></div></div>
 <div class="ov menu" id="pracOverlay"><div class="mcard" id="pracCard"></div></div>
+<div class="ov menu" id="pracPlayerOverlay"><div class="mcard" id="pracPlayer"></div></div>
 <div class="ov menu" id="injOverlay"><div class="mcard" id="injCard"></div></div>
 <div class="ov menu" id="tutMenu"><div class="mcard"><div class="mtitle">🎓 Tutorial</div><div class="msub">Learn the game one step at a time.</div><div id="tutList"></div><button class="mbtn" id="tutBack" data-tut="1">← Back to menu</button></div></div>
 <div class="ov tip" id="tipOverlay" role="dialog" aria-label="Tip"><div class="tipcard"><div class="tiphd">💡 Tip</div><div class="tiptext" id="tipText"></div><div class="tipbtns"><button class="tipoff" id="tipOff">Turn off tips</button><button class="tipok" id="tipOk">Got it</button></div></div></div>
@@ -1442,7 +1444,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v718';
+var GAME_VERSION='v719';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12632,7 +12634,7 @@ function careerRestCap(p){   // la nuit d'un jour sans depense : le plafond rega
 // Un jour de match (ligue ou coupe : T._played) : pas de pratique ; un blesse ne pratique pas ; Rest : rien (le plafond regagne un peu). L'IA : la semaine par defaut, son point faible.
 // Valeurs de depart, faciles a changer. MESURE (files/619-pratiques.mjs, saison complete simulee) : voir le rapport de la v713.
 var CAREER_PRACTICE={light:{xp:1, fat:0.2}, hard:{xp:2.5, fat:0.8}, cost:22, week:'LHLLRRR'};
-var PRAC_DAYS=['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], PRAC_UI={view:'week', pick:null};
+var PRAC_DAYS=['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], PRAC_UI={view:'week', pick:null, card:false};
 var PRAC_SKILL={tir:['🎯', 'Shot'], passe:['🏒', 'Pass'], vitesse:['⛸️', 'Speed'], physique:['💪', 'Physical'], defense:['🛡️', 'Defense'], maniement:['🪄', 'Handling'], pressure:['🧊', 'Pressure'], forme:['🫁', 'Conditioning'], arret100:['🧤', 'Saves'], couverture100:['🥅', 'Positioning']};
 function careerPracticeWeek(c){ var w=c && c.wk; return (typeof w==='string' && /^[LHR]{7}$/.test(w)) ? w : CAREER_PRACTICE.week; }
 function careerPracticeDow(c, n){ return (careerDateOf(c, n).dow+6)%7; }   // 0 = lundi ... 6 = dimanche
@@ -12730,7 +12732,9 @@ function pracDayInfo(c, n){   // « game » (un match de ligue), « cup » (un m
   var C=c.champ; if(C && C.q && C.s===(c.season||1)){ for(var d2=0;d2<6;d2++){ if(champDate(c, d2)===n && champMine(c, d2)) return 'cup'; } }
   return ''; }
 function pracOpen(){ if(!CAREER) return; PRAC_UI.view='week'; PRAC_UI.pick=null; pracRender(); _show('pracOverlay'); }
-function pracClose(){ PRAC_UI.pick=null; _hide('pracOverlay'); }
+function pracClose(){ PRAC_UI.pick=null; PRAC_UI.card=false; _hide('pracPlayerOverlay'); _hide('pracOverlay'); }
+function pracPlayerOpen(uid){ if(!CAREER) return; CAREER_PUID=uid; PRAC_UI.card=true; careerRender(true); _show('pracPlayerOverlay'); var el=document.getElementById('pracPlayer'); if(el) el.scrollTop=0; }   // v719 : toucher le nom -> la carte du joueur par-dessus PLAYER FOCUS
+function pracPlayerClose(){ PRAC_UI.card=false; _hide('pracPlayerOverlay'); var el=document.getElementById('pracCard'), y=el ? el.scrollTop : 0; pracRender(); if(el) el.scrollTop=y; }   // on revient a PLAYER FOCUS, au meme endroit (les valeurs a jour)
 function pracView(v){ PRAC_UI.view=v; PRAC_UI.pick=null; pracRender(); var el=document.getElementById('pracCard'); if(el) el.scrollTop=0; }
 function pracSetDay(i, k){ var c=CAREER; if(!c || !(i>=0 && i<7) || 'LHR'.indexOf(k)<0) return; var w=careerPracticeWeek(c).split(''); w[i]=k; c.wk=w.join(''); careerSave(); pracRender(); }
 function pracPick(uid){ PRAC_UI.pick=(PRAC_UI.pick===uid) ? null : uid; pracRender(); }
@@ -12743,7 +12747,7 @@ function pracRender(){ var c=CAREER, el=document.getElementById('pracCard'); if(
     h+='<div class="ptitle">👥 PLAYER FOCUS</div><div class="psub">Each player works on one skill on practice days</div>';
     all.forEach(function(p){ var gk=careerIsGoalie(p), bk=gk ? null : careerBadgeFocus(p), key=careerPracticeFocus(p), shown=key||p.foc||careerPracticeWeak(p)||careerPracticeKeys(p)[0], sk=PRAC_SKILL[shown]||PRAC_SKILL[careerPracticeKeys(p)[0]], v=p[shown], max=!key && !bk;
       var plc=gk ? '' : ' <small>· ⭐ '+careerBadgeUsed(p)+'/'+careerBadgePlaces(p)+'</small>';   // v715 : les places de badge utilisees
-      h+='<div class="pfrow" data-uid="'+p.uid+'"><span class="pos">'+careerEsc(gk ? 'G' : p.pos)+'</span><span class="pn">'+careerEsc(p.name)+plc+(max ? ' <small>· at max</small>' : '')+'<div class="pbar"><i style="width:'+(bk ? careerBadgePct(p, bk) : (max ? 0 : Math.min(100, Math.round((p.prog||0)/CAREER_PRACTICE.cost*100))))+'%"></i></div></span>'
+      h+='<div class="pfrow" data-uid="'+p.uid+'"><span class="pos">'+careerEsc(gk ? 'G' : p.pos)+'</span><span class="pn"><button class="pnm" onclick="pracPlayerOpen('+p.uid+')">'+careerEsc(p.name)+'</button>'+plc+(max ? ' <small>· at max</small>' : '')+'<div class="pbar"><i style="width:'+(bk ? careerBadgePct(p, bk) : (max ? 0 : Math.min(100, Math.round((p.prog||0)/CAREER_PRACTICE.cost*100))))+'%"></i></div></span>'
         +(bk ? '<button class="pfoc bg" onclick="pracPick('+p.uid+')">⭐ '+CAREER_BADGE.name[bk]+'</button><span class="pfval">'+careerBadgeVal(p, bk)+'</span></div>'
              : '<button class="pfoc" onclick="pracPick('+p.uid+')">'+sk[0]+' '+sk[1]+'</button><span class="pfval">'+(max ? v+' max' : v+' → '+(v+1))+'</span></div>');
       if(PRAC_UI.pick===p.uid){
@@ -12794,8 +12798,8 @@ function careerStatLine(st, gk){ if(gk) return (st.sv||0)+(st.sv===1?' save':' s
   [['g','G'],['a','A'],['sog','SOG'],['hit','hit'],['dk','deke'],['stl','takeaway'],['bat','battle']].forEach(function(x){ var n=st[x[0]]; if(n) o.push(n+' '+x[1]+((n>1 && x[1]===x[1].toLowerCase())?'s':'')); });
   return o.length ? o.join(' · ') : '—'; }
 function careerOpenPlayer(uid){ CAREER_PUID=uid; CAREER_BACK=CAREER_VIEW; careerGo('player', true); }
-function careerPlus(k){ var p=careerPlayerByUid(CAREER.teams[CAREER.my], CAREER_PUID); if(p && careerSpendPoint(p, k)){ careerSave(); careerRender(); } }
-function careerPerk(k){ var p=careerPlayerByUid(CAREER.teams[CAREER.my], CAREER_PUID); if(p && careerTakePerk(p, k)){ careerSave(); careerRender(); } }
+function careerPlus(k){ var p=careerPlayerByUid(CAREER.teams[CAREER.my], CAREER_PUID); if(p && careerSpendPoint(p, k)){ careerSave(); careerRender(PRAC_UI.card); } }
+function careerPerk(k){ var p=careerPlayerByUid(CAREER.teams[CAREER.my], CAREER_PUID); if(p && careerTakePerk(p, k)){ careerSave(); careerRender(PRAC_UI.card); } }
 var CAREER_VIEW='start', CAREER_DIVTAB=3, CAREER_MSG='', CAREER_PENDING=null;
 var DIV_NAME={1:'Division 1', 2:'Division 2', 3:'Division 3', 4:'Division 4'};   // v707 : juste le numero
 function careerEsc(t){ return String(t).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); }
@@ -12840,7 +12844,7 @@ function offGo(obj, then, extra, wait){   // la camera glisse vers l'objet ; a l
   OFF.want=obj; OFF.then=then||null; clearTimeout(OFF.timer);
   if(OFF.at===obj && OFF.sent){ offArrived(); return; }
   var T=CAREER.teams[CAREER.my];
-  hj3dSend('cue', 'office:'+obj+(OFF.sent ? (extra||'') : ':'+T.key+':'+T.colors[0]+':'+T.colors[1])); OFF.sent=true; OFF.at=''; OFF.seen=false; OFF.quad=null;
+  hj3dSend('cue', 'office:'+obj+(OFF.sent ? (extra||'') : ':'+T.key+':'+T.colors[0]+':'+T.colors[1]+':'+(T.logo!=null ? T.logo : -1))); OFF.sent=true;   /* v719 : le logo de l'equipe au mur (-1 : les lettres) */ OFF.at=''; OFF.seen=false; OFF.quad=null;
   OFF.timer=setTimeout(function(){ if(OFF.on && OFF.want===obj && OFF.at!==obj){ OFF.at=obj; OFF.seen=false; offArrived(); } }, wait||OFF_WAIT); }
 function offArrived(){ var f=OFF.then; OFF.then=null; if(f) f(); }
 function offMsg(o){   // la 3D : arrivee a un objet (ses 4 coins a l'ecran), glissement (obj null), ou la vue a change de taille
@@ -12885,7 +12889,7 @@ function offPaintBoard(c){   // le tableau blanc : le classement de CAREER_DIVTA
   x.textAlign='right'; COLS.forEach(function(k){ x.fillText(k[0], k[1], 165); });
   var NR=rows.length, PITCH=NR>8 ? 44 : 62, FS=NR>8 ? 34 : 46, Y0=NR>8 ? 214 : 228;   // v707 : 12 equipes en D1 / D2 tiennent sur le tableau (ligne de 44 au lieu de 62)
   var LS=NR>8 ? 36 : 50, NX=120+LS+10;   // v707 : le logo de l'equipe avant son nom
-  rows.forEach(function(r, i){ var y=Y0+i*PITCH, gd=r.gf-r.ga, nm=c.teams[r.key].nick, mk=(dd>1 && i<2)?' ↑':((dd<4 && i>=NR-2)?' ↓':'');
+  rows.forEach(function(r, i){ var y=Y0+i*PITCH, gd=r.gf-r.ga, nm=c.teams[r.key].city, mk=(dd>1 && i<2)?' ↑':((dd<4 && i>=NR-2)?' ↓':'');
     x.font='bold '+FS+'px '+OFF_MARKER; x.fillStyle=BLUE;
     x.textAlign='right'; x.fillText(String(i+1), 88, y);
     logoDraw(x, c.teams[r.key].logo, 120, y-LS*0.8, LS);
@@ -13711,12 +13715,12 @@ function careerImport(txt){ var c=careerImportText(txt);
   CAREER=c; careerSave(); if(OFF.on) offLeave();   /* v616 : au bureau, une autre carriere -> le bureau est refait (ses couleurs, ses images) */ CAREER_MSG='✅ Career loaded: '+careerEsc(c.teams[c.my].full)+', season '+c.season+'.'; careerGo('hub', true); return true; }
 function careerImportFile(inp){ var f=inp.files && inp.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(){ careerImport(String(rd.result||'')); }; rd.readAsText(f); }
 function careerImportPaste(){ var t=document.getElementById('careerPaste'); careerImport(t ? t.value : ''); }
-function careerRender(){
-  var el=document.getElementById('careerCard'); if(!el) return; var v=CAREER_VIEW, c=CAREER, h='';
-  if(v==='hub' && c) cupAutoOpen(c);   // v710 : un tirage est du : son ecran s'ouvre une fois
-  if(OFF.on && !offActive()) offLeave();   // v608 : la 3D est tombee -> les ecrans d'aujourd'hui
-  if((v==='hub' || v==='report') && c && c.teams[c.my].coach && offActive()) offEnter();   // v612 : apres le match, le bureau s'ouvre sur la feuille de match   // v608 : le hub de carriere = le bureau du coach
-  if(OFF.on && offRender(v, c)) return;
+function careerRender(inPrac){   // v719 : inPrac = la carte du joueur dessinee dans #pracPlayer (par-dessus PLAYER FOCUS), sans toucher au bureau
+  var el=document.getElementById(inPrac ? 'pracPlayer' : 'careerCard'); if(!el) return; var v=inPrac ? 'player' : CAREER_VIEW, c=CAREER, h='';
+  if(!inPrac && v==='hub' && c) cupAutoOpen(c);   // v710 : un tirage est du : son ecran s'ouvre une fois
+  if(!inPrac && OFF.on && !offActive()) offLeave();   // v608 : la 3D est tombee -> les ecrans d'aujourd'hui
+  if(!inPrac && (v==='hub' || v==='report') && c && c.teams[c.my].coach && offActive()) offEnter();   // v612 : apres le match, le bureau s'ouvre sur la feuille de match   // v608 : le hub de carriere = le bureau du coach
+  if(!inPrac && OFF.on && offRender(v, c)) return;
   if(v==='meet' || v==='levelup') v='player';   // v618 : la rencontre n'existe qu'au bureau (3D) ; la 3D en retard : la fiche d'aujourd'hui (l'arrivee tardive passe a l'objet)
   if(v==='plaque') v='season';   // v616 : la plaque n'existe qu'au bureau (3D) ; sans 3D, ou la 3D en retard (secours de 1,5 s) : le bilan d'aujourd'hui (la vue reste 'plaque' : l'arrivee tardive passe a l'objet)
   if(v==='start'){
@@ -13762,11 +13766,11 @@ function careerRender(){
     h+='<div class="crow"><button class="mbtn sm" onclick="careerGo(\'standings\')">Standings</button><button class="mbtn sm" id="careerCup" onclick="cupOpenBracket()">🏆 Cup</button><button class="mbtn sm" onclick="careerGo(\'stats\')">Stats</button><button class="mbtn sm" onclick="careerGo(\'schedule\')">Schedule</button><button class="mbtn sm" onclick="careerGo(\'roster\')">Roster</button><button class="mbtn sm" id="careerPractice" onclick="pracOpen()">🏋️ Practice</button><button class="mbtn sm" id="careerFA" onclick="careerGo(\'fa\')">Free agents</button><button class="mbtn sm" onclick="careerGo(\'save\')">Save file</button></div>';
     h+='<button class="mbtn" onclick="careerToMenu()">← Main menu</button>';
   } else if(v==='standings'){
-    var dd=CAREER_DIVTAB, rows=careerStandings(c, dd);
+    var dd=CAREER_DIVTAB, rows=careerStandings(c, dd); logoCss();   // v719 : logo + ville
     h+='<div class="mtitle">Standings</div><div class="crow">'+CAREER_DIVS.map(function(x){ return '<button class="mbtn sm'+(x===dd?' on':'')+'" onclick="careerDivTab('+x+')">D'+x+'</button>'; }).join('')+'<button class="mbtn sm" id="careerCupTab" onclick="cupOpenBracket()">🏆 Cup</button></div><div class="msub">'+DIV_NAME[dd]+'</div>';
     h+='<div class="ctab"><table><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>OTL</th><th>PTS</th><th>GD</th></tr>';
     rows.forEach(function(r, i){ var T2=c.teams[r.key], mk=(dd>1 && i<2)?' ↑':((dd<4 && i>=rows.length-2)?' ↓':''), gd=r.gf-r.ga;
-      h+='<tr class="'+(r.key===c.my?'me':'')+'"><td>'+(i+1)+'</td><td>'+careerSwatch(T2)+careerEsc(T2.nick)+mk+'</td><td>'+r.gp+'</td><td>'+r.w+'</td><td>'+r.l+'</td><td>'+r.otl+'</td><td><b>'+r.pts+'</b></td><td>'+(gd>0?'+':'')+gd+'</td></tr>'; });
+      h+='<tr class="'+(r.key===c.my?'me':'')+'"><td>'+(i+1)+'</td><td class="cstteam">'+cupLogoHtml(c, r.key)+careerEsc(T2.city)+mk+'</td><td>'+r.gp+'</td><td>'+r.w+'</td><td>'+r.l+'</td><td>'+r.otl+'</td><td><b>'+r.pts+'</b></td><td>'+(gd>0?'+':'')+gd+'</td></tr>'; });
     h+='</table></div><div class="msub">'+(dd>1?'↑ top 2 go up':'')+(dd>1 && dd<4?' · ':'')+(dd<4?'↓ last 2 go down':'')+'</div><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   } else if(v==='stats'){   // v579 : les meneurs de la division
     var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gkv=(sk==='gk'), SL=careerLeaders(c, sd, sk, spo).slice(0, gkv ? 5 : 10);
@@ -13864,7 +13868,7 @@ function careerRender(){
     h+='</table></div>';
     if(P4.perkPick) h+='<div class="cmsg">Level 5: pick a second perk.</div><div class="crow">'+P4.perkPick.map(function(k){ return '<button class="mbtn sm cperk" data-perk="'+k+'" onclick="careerPerk(\''+k+'\')">'+careerEsc(PERK_INFO[k].n)+'</button>'; }).join('')+'</div>'
       +'<div class="msub">'+P4.perkPick.map(function(k){ return careerEsc(PERK_INFO[k].n)+': '+careerEsc(PERK_INFO[k].d); }).join(' · ')+'</div>';
-    h+='<button class="mbtn" onclick="careerGo(CAREER_BACK, true)">← Back</button>';
+    h+=inPrac ? '<button class="mbtn" id="pracPlayerBack" onclick="pracPlayerClose()">← Back</button>' : '<button class="mbtn" onclick="careerGo(CAREER_BACK, true)">← Back</button>';
   } else if(v==='season'){
     var Hs=c.history[c.history.length-1], my=c.teams[c.my];
     var mv=Hs.up.indexOf(c.my)>=0 ? '⬆ Promoted to Division '+(Hs.myDiv-1)+'!' : (Hs.down.indexOf(c.my)>=0 ? '⬇ Relegated to Division '+(Hs.myDiv+1)+'.' : 'Stays in Division '+Hs.myDiv+'.');
@@ -14802,7 +14806,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1583608,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1584712,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
