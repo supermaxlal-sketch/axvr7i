@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v716</title>
+<title>Deck 3D v717</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1442,7 +1442,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v716';
+var GAME_VERSION='v717';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2941,7 +2941,21 @@ function recvBackDrop(p,t){ if(!p||!t||t.type!=='sk' || S.tut) return 0;   /* v6
   return (f===dir(t.team) && (t.mom||0)>0) ? 0.10 : 0.20; }   // son choix : -10 s'il file vers le filet adverse (la passe dans sa course), -20 s'il est arrete ou recule
 function ddPass(p,t){ if(S.tut || !p || !t || p.type!=='sk' || t.type!=='sk' || p.team!==t.team || p.pos!=='D' || t.pos!=='D' || Math.abs(p.c-t.c)>1 || inOffZone(p.team,p.c) || inOffZone(p.team,t.c)) return false; return !laneThreat(p,t).def; }   // v683 (« Passe def a def devrait avoir un haut % de reussite surtout si personne entre les 2 ») : 2 defenseurs, meme colonne +-1, hors zone offensive, couloir vide
 function ddPassProb(p){ return 0.85 + 0.12*Math.max(0, Math.min(1, (n100(p.passe)-50)/50)); }   // v683 : 85 % (passe 50 ou moins) a 97 % (passe 100)
-function passCatch(p,t){ var old=passRolls(p,t) ? passCatchProb(p,t) : 1-recvBackDrop(p,t); return ddPass(p,t) ? Math.max(old, ddPassProb(p)) : old; }   /* v683 : def a def -- jamais moins bien qu'avant (la passe courte reste a 100) */   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
+// v717 (ses choix : « les passes libres reussissent », niveau LNH) : une passe SANS adversaire dans le couloir a un plancher selon la stat Pass du passeur
+// (70 + 0,25 x Pass : 90 -> ~93 %, 80 -> 90, 60 -> 85, 50 -> ~82) ; la distance ne la fait plus descendre. Elle baisse sous ce plancher pour une raison qui se voit :
+// passeur de dos au jeu, receveur de dos, (la pression du passeur : passOdds / passRattle), souffle vide (souMul). Pas dans les lecons ni vers un gardien.
+// v717 (suite, son choix) : une passe COURTE et libre (5 cases ou moins) vaut 99 % ; le plancher selon Pass sert pour 6 cases et plus.
+var PASS_FREE={base:0.70, per:0.0025, min:0.60, max:0.95, short:0.99, shortMax:5};
+function passFreeFloor(p){ return Math.max(PASS_FREE.min, Math.min(PASS_FREE.max, PASS_FREE.base+PASS_FREE.per*n100(p.passe))); }
+function passFreeBase(p,t){ return (t && cheb(p,t)<=PASS_FREE.shortMax) ? PASS_FREE.short : passFreeFloor(p); }
+function passFree(p,t){ return !!(p && t && !S.tut && p.type==='sk' && t.type==='sk' && !laneThreat(p,t).def); }
+function passCatch(p,t){
+  var old=passRolls(p,t) ? passCatchProb(p,t) : 1-recvBackDrop(p,t), cc=ddPass(p,t) ? Math.max(old, ddPassProb(p)) : old;   /* v683 */
+  if(passFree(p,t)){   // v717 : couloir libre -> le plancher, puis les raisons qui se voient
+    var fl=passFreeBase(p,t);
+    if(ddPass(p,t)) cc=Math.max(fl, ddPassProb(p));
+    else { if(passFacingThr(p,t)<0) fl=Math.min(fl, passCatchProb(p,t)); cc=fl*(1-recvBackDrop(p,t)); } }
+  return cc*souMul(p); }   /* v716 : le souffle (dans le tirage aussi, v717) */   /* v683 : def a def -- jamais moins bien qu'avant (la passe courte reste a 100) */   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
   return Math.max(0.05, Math.min(0.90, 0.55 + 0.006*(n100(def.defense)-n100(passer.passe)) + (hasPerk(def,'intercepteur')?0.20:0) - (hasPerk(passer,'passeur')?0.30:0) + 0.005*speechK(def.team, 'sys'))); }   // v504
@@ -4394,10 +4408,10 @@ function passOdds(p,t){   // % que la passe passe : couloir actuel (1-thr/6) ET 
   var lt=laneThreat(p,t);
   var laneProb=1 - (lt.def ? lt.prob : 0);
   var _catch=passCatch(p,t);   // v421 : passe longue / dos au jeu -> reception sur 100 ; v628 : receveur de dos -> 80
-  var pct=Math.round(laneProb*(1-laneReachRisk(p,t))*_catch*100);
+  var pct=Math.round(laneProb*_catch*100);   // v717 : « un adversaire pas loin qui pourrait couper » ne compte plus (laneReachRisk) ; v716 : le souffle est dans passCatch
   pct=Math.round(pct*(1-passRattle(p)));   // v646 : la pression du moment
-  pct=Math.round(pct*souMul(p));   // v716 : le souffle
   var cap=ddPass(p,t) ? 97 : Math.max(80, 96 - cheb(p,t));   /* v683 : def a def, plafond 97 */   // meme couloir vide : embuscade cachee, mauvaise reception -> jamais 100
+  if(passFree(p,t)) cap=Math.max(cap, Math.round(passFreeBase(p,t)*100));   // v717 : le plafond est au moins le plancher d'une passe libre
   return Math.max(5, Math.min(pct, cap));   // plancher : une passe n'est jamais 0% (deviation chanceuse, rondelle dans les patins) — comme jamais 100%
 }
 /* targetPct : % de l'action que represente la case (c,r) pour le joueur selectionne — pour le badge
@@ -6606,7 +6620,8 @@ function aiBuildPlan(){
     if(!inOffZone(AI_TEAM,cg.c) && !ownZone(AI_TEAM,cg.c) && _toBlue>=1 && _toBlue<=moveBudget(car) && !mateOffside(car.id)){
       var _en=entryRead(car, cg); S._aiEntry=_en;
       if(_en.pick==='carry'){ plan.push({kind:'move', id:car.id, toC:_en.carry.c, toR:_en.carry.r}); gh[car.id]={c:_en.carry.c,r:_en.carry.r}; continue; }
-      if(_en.pick==='pass' && step<PLAN_N-1){ var _ep=_en.pass, _ee=_ep.cells[_ep.cells.length-1], _em=_ep.cells[_ep.k-1];
+      var _realIn=onIceSkaters(AI_TEAM).some(function(m2){ return m2.id!==car.id && inOffZone(AI_TEAM, m2.c); });   // v717 : un coequipier REELLEMENT deja dans la zone (il ne la quitte que dans ce plan) : pas de passe d'entree (la passe qui monte a 55 % ne doit pas risquer le hors-jeu)
+      if(_en.pick==='pass' && !_realIn && step<PLAN_N-1){ var _ep=_en.pass, _ee=_ep.cells[_ep.cells.length-1], _em=_ep.cells[_ep.k-1];
         plan.push({kind:'move', id:_ep.id, toC:_ee.c, toR:_ee.r, path:_ep.cells.slice(), n:_ep.cells.length});   // son trajet a travers la bleue...
         plan.push({kind:'pass', id:car.id, target:_ep.id, stride:true, routeK:_ep.k, toC:_em.c, toR:_em.r});     // ...la passe le rejoint avant la bleue (meme etape)
         gh[_ep.id]={c:_ee.c,r:_ee.r}; owner=_ep.id; step++; continue; }
@@ -7055,8 +7070,9 @@ function doPass(p,targetId){
   [intc, blk].forEach(function(x){ if(x && x.def && !x.intercepted){ var dd=distToSeg(x.def.c, x.def.r, pc, pr, tc, tr).d; if(!_near || dd<_near.d) _near={id:x.def.id, d:dd}; } });
   var _lf=liftRecvTry(p, t); if(_lf && _lf.ok){ liftRecvPlay(p, t, _lf.d, _flow); return; }   // v648 : stick lift sur le receveur colle
   var pdist=cheb(p,t), pmiss=false, pdie=0, pthr=0;
-  if(passRolls(p,t) || recvBackDrop(p,t)){   // v683 : def a def ; la passe roule si elle est longue OU dos au jeu (v421) ; v628 : receveur de dos aussi
-    var _pcp=passCatch(p,t); pthr=Math.round(_pcp*100); pdie=1+Math.floor(Math.random()*100); pmiss=(pdie>pthr); if(tutGuided()) pmiss=(p.team!==HUMAN_TEAM);   /* v451 */
+  var _pcp0=passCatch(p,t);   // v717 : une passe libre ou un souffle vide se tirent aussi (le % affiche = le tirage)
+  if(passRolls(p,t) || recvBackDrop(p,t) || _pcp0<0.995){   // v683 : def a def ; la passe roule si elle est longue OU dos au jeu (v421) ; v628 : receveur de dos aussi
+    var _pcp=_pcp0; pthr=Math.round(_pcp*100); pdie=1+Math.floor(Math.random()*100); pmiss=(pdie>pthr); if(tutGuided()) pmiss=(p.team!==HUMAN_TEAM);   /* v451 */
     if(_stride && pmiss && Math.random()<_rescue) pmiss=false;   // v419 : recue dans la course malgre tout
   }
   if(pmiss){
@@ -7076,7 +7092,7 @@ function doPass(p,targetId){
       if(pOff&&S.puckLoose) S.puckLoose.offside=pOff;
       sfx('drop');
       morPass(p, false); checkFx('passmiss', pc, pr);   // passe ratee (longue ou dos au jeu) : PASS MISSED (grise), a l'endroit du passeur
-      pushLog('<b>'+pname+'</b> tries a long pass to '+tname+' over '+pdist+' squares ('+pthr+'%) — it does not connect, the puck is loose.');
+      pushLog('<b>'+pname+'</b> tries a '+(pdist>5?'long ':'')+'pass to '+tname+(pdist>5?' over '+pdist+' squares':'')+' ('+pthr+'%) — it does not connect, the puck is loose.');
       // le receveur est a une case : il peut la reprendre, MAIS ca lui coute un mouvement restant
       var _rc=byId(tid), _L=S.puckLoose, _canChase=false;
       var _v2s = (S.planResume && S.planResume.v2seq) ? S.planResume.v2seq : null;
@@ -9749,7 +9765,7 @@ function oddsReport(){
       for(var i=0;i<pts.length;i++){ var mate=byId(pts[i].id); if(!mate) continue;
         var lt=laneThreat(subj, mate), pct=passOdds(subj, mate);
         var det = lt.def ? ('couloir: '+lt.def.name+'(defense '+n100(lt.def.defense)+(hasPerk(lt.def,'intercepteur')?',+I':'')+') foule'+lt.crowd+' interception '+Math.round(lt.prob*100)+'%') : 'couloir libre';
-        var _rr=Math.round(laneReachRisk(subj, mate)*100); if(_rr>0) det += ' | risque qu\'un adversaire entre dans le couloir '+_rr+'%';
+        /* v717 : le risque qu'un adversaire entre dans le couloir ne compte plus dans le % (laneReachRisk reste, mais n'est plus lu) */
         L.push('  -> '+mate.name+' @'+mate.c+','+mate.r+'  '+pct+'%  | dist'+cheb(subj,mate)+' '+det+(hasPerk(subj,'passeur')?' [passeur -4]':''));
       }
     }
