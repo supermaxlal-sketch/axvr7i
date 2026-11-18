@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v713</title>
+<title>Deck 3D v714</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1436,7 +1436,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v713';
+var GAME_VERSION='v714';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12508,7 +12508,7 @@ function careerRestCap(p){   // la nuit d'un jour sans depense : le plafond rega
 // la barre p.prog avance (xp) ; pleine (cost) -> +1 a l'attribut, sans depasser p.cap ; la fatigue passe par careerSpend(.., 'practice') (le plafond d'energie s'use).
 // Un jour de match (ligue ou coupe : T._played) : pas de pratique ; un blesse ne pratique pas ; Rest : rien (le plafond regagne un peu). L'IA : la semaine par defaut, son point faible.
 // Valeurs de depart, faciles a changer. MESURE (files/619-pratiques.mjs, saison complete simulee) : voir le rapport de la v713.
-var CAREER_PRACTICE={light:{xp:1, fat:1}, hard:{xp:2.5, fat:4}, cost:22, week:'LHLLRRR'};
+var CAREER_PRACTICE={light:{xp:1, fat:0.2}, hard:{xp:2.5, fat:0.8}, cost:22, week:'LHLLRRR'};
 var PRAC_DAYS=['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], PRAC_UI={view:'week', pick:null};
 var PRAC_SKILL={tir:['🎯', 'Shot'], passe:['🏒', 'Pass'], vitesse:['⛸️', 'Speed'], physique:['💪', 'Physical'], defense:['🛡️', 'Defense'], maniement:['🪄', 'Handling'], pressure:['🧊', 'Pressure'], arret100:['🧤', 'Saves'], couverture100:['🥅', 'Positioning']};
 function careerPracticeWeek(c){ var w=c && c.wk; return (typeof w==='string' && /^[LHR]{7}$/.test(w)) ? w : CAREER_PRACTICE.week; }
