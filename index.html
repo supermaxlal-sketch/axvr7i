@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v721</title>
+<title>Deck 3D v722</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v721';
+var GAME_VERSION='v722';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -11599,7 +11599,7 @@ function careerProgress(){   // au Continue : l'experience de tes joueurs qui on
   S.pieces.forEach(function(q){ var st=(CAREER_LOG && CAREER_LOG.st[q.id]) || {}, gk=q.type==='g';
     all.push({name:q.name, team:q.team, score:(st.g||0)*5+(st.a||0)*3+(st.sog||0)+(st.hit||0)*2+(st.stl||0)*2+(st.dk||0)*2+(st.sv||0)});
     if(!q.uid || !((q.team==='A' ? used : usedB)[q.id] || gk)) return;
-    if(!(CAREER_MATCH && CAREER_MATCH.cup)) careerSeasonAdd(q, st, gk, po);   // v710 : un match de coupe ne compte pas aux stats de saison   // v579 : la saison et la carriere, les deux equipes ; v580 : les series a part
+    careerSeasonAdd(q, st, gk, (CAREER_MATCH && CAREER_MATCH.cup) ? (CAREER_MATCH.cup.ch ? 'cc' : 'cl') : po);   // v722 : un match de coupe compte A PART (p.sl / p.sc, p.tl / p.tc), jamais a la saison de ligue   // v579 : la saison et la carriere, les deux equipes ; v580 : les series a part
     if(q.team!=='A') return;
     var p=careerPlayerByUid(T, q.uid); if(!p) return;
     p.gp=(p.gp||0)+1;
@@ -11824,15 +11824,18 @@ function careerStandings(c, div){   // points, victoires, difference, buts pour
 var SIM_D_GOAL=0.35, SIM_D_AST=0.7, SIM_A1=0.85, SIM_A2=0.65, SIM_SHOTS=28;
 function careerStatRand(){ return Math.random(); }   // a part de careerRand : les suites fixees des autres batteries ne bougent pas
 // v580 (« ca prend une stat serie et une serie carriere ») : po -> p.ps = les series de la saison, p.pc = les series en carriere
-function careerSs(p, gk, po){ var f=po?'ps':'ss'; return p[f] || (p[f] = gk ? {gp:0, w:0, l:0, otl:0, sa:0, ga:0} : {gp:0, g:0, a:0}); }
-function careerSt(p, po){ var f=po?'pc':'st'; return p[f] || (p[f] = {gp:0, g:0, a:0}); }
+// v722 (ses choix : les matchs de coupe comptent, A PART) : po = 'cl' (Coupe de la ligue) ou 'cc' (Coupe des champions) -> p.sl / p.sc (la saison), p.tl / p.tc (la carriere)
+function careerStatF(po, car){ if(po==='cl') return car ? 'tl' : 'sl'; if(po==='cc') return car ? 'tc' : 'sc'; return po ? (car ? 'pc' : 'ps') : (car ? 'st' : 'ss'); }
+function careerIsCupPo(po){ return po==='cl' || po==='cc'; }
+function careerSs(p, gk, po){ var f=careerStatF(po, false); return p[f] || (p[f] = gk ? {gp:0, w:0, l:0, otl:0, sa:0, ga:0} : {gp:0, g:0, a:0}); }
+function careerSt(p, po){ var f=careerStatF(po, true); return p[f] || (p[f] = {gp:0, g:0, a:0}); }
 function careerAddSk(p, gp, g, a, po){ var s=careerSs(p, false, po), t=careerSt(p, po); s.gp+=gp; s.g+=g; s.a+=a; t.gp+=gp; t.g+=g; t.a+=a; }
 function careerAddGk(p, won, otl, sa, ga, po){ var s=careerSs(p, true, po); careerSt(p, po).gp++; s.gp++; if(won) s.w++; else if(otl) s.otl++; else s.l++; s.sa+=sa; s.ga+=ga; }
 function careerSvPct(s){ return (s && s.sa) ? (s.sa-s.ga)/s.sa : 0; }
 function careerSvTxt(s){ if(!s || !s.sa) return '—'; var r=Math.round(1000*careerSvPct(s)); return r>=1000 ? '1.000' : '.'+String(1000+r).slice(1); }
 var CAREER_STATDIV=3, CAREER_STATK='pts', CAREER_STATPO=false;
-function careerLeaders(c, div, kind, po){   // les meneurs d'une division (equipe actuelle) : 'pts', 'g' ou 'gk' ; po : les series (v580)
-  var f=po?'ps':'ss', out=[]; (c.divs[div]||[]).forEach(function(k){ var T=c.teams[k];
+function careerLeaders(c, div, kind, po){   // les meneurs d'une division (equipe actuelle) : 'pts', 'g' ou 'gk' ; po : les series (v580) ; v722 : 'cl' / 'cc' = toute la coupe, toutes divisions confondues (div ignore)
+  var f=careerStatF(po, false), out=[], ks=careerIsCupPo(po) ? [].concat(c.divs[1]||[], c.divs[2]||[], c.divs[3]||[], c.divs[4]||[]) : (c.divs[div]||[]); ks.forEach(function(k){ var T=c.teams[k]; if(!T) return;
     (kind==='gk' ? [T.goalie, T.goalie2] : T.skaters).forEach(function(p){ if(p && p[f] && p[f].gp) out.push({p:p, key:k, s:p[f]}); }); });
   function nm(x, y){ return x.p.name<y.p.name ? -1 : (x.p.name>y.p.name ? 1 : 0); }
   if(kind==='gk') return out.sort(function(x, y){ return (y.s.w-x.s.w) || (careerSvPct(y.s)-careerSvPct(x.s)) || nm(x, y); });
@@ -11840,23 +11843,25 @@ function careerLeaders(c, div, kind, po){   // les meneurs d'une division (equip
   out=out.filter(function(x){ return kind==='g' ? x.s.g>0 : pt(x)>0; });
   return out.sort(function(x, y){ return (kind==='g' ? ((y.s.g-x.s.g) || (pt(y)-pt(x))) : ((pt(y)-pt(x)) || (y.s.g-x.s.g))) || (x.s.gp-y.s.gp) || nm(x, y); });
 }
-function careerStatTab(d, k, po){ if(d) CAREER_STATDIV=d; if(k) CAREER_STATK=k; if(po===true || po===false) CAREER_STATPO=po; careerRender(); }
+function careerStatTab(d, k, po){ if(d) CAREER_STATDIV=d; if(k) CAREER_STATK=k; if(po===true || po===false || careerIsCupPo(po)) CAREER_STATPO=po; else if(d) CAREER_STATPO=false; careerRender(); }   // v722 : toucher une division revient a la saison de la ligue ; 'cl' / 'cc' ouvre une coupe
+function careerStatTitle(c, po, d){ return po==='cl' ? 'League Cup' : (po==='cc' ? 'Champions Cup' : DIV_NAME[d]); }   // v722 : le titre de l'ecran Stats
 function careerCardStats(p, gk){   // la fiche : la saison, les series, la carriere, les series en carriere (v580)
   function sea(lb, s){ s=s||{}; return lb+': '+(s.gp||0)+' GP · '+(gk ? (s.w||0)+' W · '+careerSvTxt(s)+' SV%' : (s.g||0)+' G · '+(s.a||0)+' A · '+((s.g||0)+(s.a||0))+' PTS'); }
   function car(lb, t){ t=t||{}; return lb+': '+(t.gp||0)+' GP'+(gk ? '' : ' · '+(t.g||0)+' G · '+(t.a||0)+' A'); }
-  var o=[sea('Season', p.ss)]; if(p.ps && p.ps.gp) o.push(sea('Playoffs', p.ps)); o.push(car('Career', p.st)); if(p.pc && p.pc.gp) o.push(car('Career playoffs', p.pc));   // v707 : plus de series -- leurs lignes ne s'affichent que pour de vieilles donnees
+  var o=[sea('Season', p.ss)]; if(p.ps && p.ps.gp) o.push(sea('Playoffs', p.ps)); if(p.sl && p.sl.gp) o.push(sea('League Cup', p.sl)); if(p.sc && p.sc.gp) o.push(sea('Champions Cup', p.sc));   // v722 : une ligne par coupe, seulement avec au moins 1 MJ
+  o.push(car('Career', p.st)); if(p.pc && p.pc.gp) o.push(car('Career playoffs', p.pc)); if(p.tl && p.tl.gp) o.push(car('Career League Cup', p.tl)); if(p.tc && p.tc.gp) o.push(car('Career Champions Cup', p.tc));   // v707 : plus de series -- leurs lignes ne s'affichent que pour de vieilles donnees
   return o.join('<br>'); }
 function careerPickW(list, w){ var tot=0, i; for(i=0;i<list.length;i++) tot+=w(list[i]); var x=careerStatRand()*tot;
   for(i=0;i<list.length;i++){ x-=w(list[i]); if(x<0) return list[i]; } return list[list.length-1]; }
 function careerSimStats(c, r, po){   // un match simule : buteurs et passeurs selon les cotes, les tirs, la decision des gardiens ; po : les series (v580)
   var H=c.teams[r.home], A=c.teams[r.away], fh=careerTeamFit(H), fa=careerTeamFit(A), out={goals:[], shots:{}};
-  var AddSk=(po==='cup') ? function(){} : careerAddSk, AddGk=(po==='cup') ? function(){} : careerAddGk;   // v710 : un match de coupe : l'experience de mes joueurs seulement, aucune stat de saison
+  var AddSk=careerAddSk, AddGk=careerAddGk, cup=careerIsCupPo(po);   // v722 : un match de coupe compte A PART (po = 'cl' / 'cc' : p.sl / p.sc et p.tl / p.tc) ; la saison de ligue ne bouge pas
   function gw(p){ var t=(p.tir||50)/100; return t*t*(p.pos==='D'?SIM_D_GOAL:1); }
   function aw(p){ var t=(p.passe||50)/100; return t*t*(p.pos==='D'?SIM_D_AST:1); }
   [[r.home, H, r.hs, A, r.as, fh-fa, 'home'], [r.away, A, r.as, H, r.hs, fa-fh, 'away']].forEach(function(x){
     var key=x[0], T=x[1], gf=x[2], O=x[3], ga=x[4], ros=careerMatchRoster(T), sk=T.skaters.filter(function(p){ return ros.indexOf(p.uid)>=0; });
     sk.forEach(function(p){ AddSk(p, 1, 0, 0, po); });
-    for(var i=0;i<gf && sk.length;i++){ var sc=careerPickW(sk, gw), as=[]; AddSk(sc, 0, 1, 0, po); careerBadgeSimGoal(sc, key===c.my);   // v715 : son but compte pour ses badges
+    for(var i=0;i<gf && sk.length;i++){ var sc=careerPickW(sk, gw), as=[]; AddSk(sc, 0, 1, 0, po); if(!cup || key===c.my) careerBadgeSimGoal(sc, key===c.my);   /* v722 : un match de coupe des autres equipes : rien d'autre que ces stats (pas de badge) */   // v715 : son but compte pour ses badges
       if(careerStatRand()<SIM_A1){ var o1=sk.filter(function(p){ return p!==sc; });
         if(o1.length){ var a1=careerPickW(o1, aw); as.push(a1);
           if(careerStatRand()<SIM_A2){ var o2=o1.filter(function(p){ return p!==a1; }); if(o2.length) as.push(careerPickW(o2, aw)); } } }
@@ -12069,7 +12074,7 @@ function cupPlayDay(c, k, my, fx){   // le jour de coupe k : mon resultat (my = 
     if(mine && my) res=[my.hs, my.as, my.so ? 2 : (my.ot ? 1 : 0)];
     else { if(fx!==false){ careerAiPrep(c.teams[h]); careerAiPrep(c.teams[a]); }
       var s=cupSimGame(c, r, t, leg, h, a); res=[s.hs, s.as, s.so ? 2 : (s.ot ? 1 : 0)];
-      if(fx!==false){ if(mine){ careerSimStats(c, {home:h, away:a, hs:s.hs, as:s.as, ot:s.ot}, 'cup'); careerSimXp(c); } careerSimEffects(c.teams[h]); careerSimEffects(c.teams[a]); } }
+      if(fx!==false){ careerSimStats(c, {home:h, away:a, hs:s.hs, as:s.as, ot:s.ot}, 'cl'); if(mine) careerSimXp(c); careerSimEffects(c.teams[h]); careerSimEffects(c.teams[a]); } }
     if(fx!==false) cupLog(c, h, a, res[0], res[1], res[2], (mine && my) ? my : null);   // v712 : le match compte pour le moral des deux equipes
     t.g.push(res);
     if(t.g.length>=(r===4 ? 2 : 1)){ var tot=cupTotals(t); t.w=tot.x>tot.y ? t.x : (tot.y>tot.x ? t.y : (careerRand()<0.5 ? t.x : t.y)); } }); }
@@ -12177,7 +12182,7 @@ function champPlayDay(c, d, my, fx){   // le jour d : mon resultat (my = {hs, as
     else { if(fx!==false){ careerAiPrep(c.teams[m.x]); careerAiPrep(c.teams[m.y]); }
       var s=careerSimGame(c, m.x, m.y); if(d<3 && s.ot){ var mn=Math.min(s.hs, s.as); s.hs=mn; s.as=mn; s.ot=false; }   // un match de groupe : l'egalite reste (pas de prolongation) ; apres : prolongation jusqu'a un but, jamais de fusillade
       r=[s.hs, s.as, s.ot ? 1 : 0];
-      if(fx!==false){ if(mine){ careerSimStats(c, {home:m.x, away:m.y, hs:s.hs, as:s.as, ot:s.ot}, 'cup'); careerSimXp(c); } careerSimEffects(c.teams[m.x]); careerSimEffects(c.teams[m.y]); } }
+      if(fx!==false){ careerSimStats(c, {home:m.x, away:m.y, hs:s.hs, as:s.as, ot:s.ot}, 'cc'); if(mine) careerSimXp(c); careerSimEffects(c.teams[m.x]); careerSimEffects(c.teams[m.y]); } }
     if(fx!==false) cupLog(c, m.x, m.y, r[0], r[1], r[2], (mine && my) ? my : null);   // v712 : le match compte pour le moral des deux equipes
     return r; });
   C.R[d]=res; if(d===5) C.w=champWinner(champMatches(c, 5)[0]); }
@@ -13090,7 +13095,7 @@ function offLeaders(c){ return careerLeaders(c, CAREER_STATDIV, CAREER_STATK, CA
 function offLaptopStats(c){   // v610 : devant le portable, la bulle dit notre meilleur ; en bas Points Goals Goalies Playoffs / D1 D2 D3 ‹ Back
   var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gk=(sk==='gk'), SL=offLeaders(c), i=-1, say;
   SL.forEach(function(e, j){ if(i<0 && e.key===c.my) i=j; });
-  if(!SL.length) say=spo ? 'No playoff games yet.' : 'No games played yet.';
+  if(!SL.length) say=careerIsCupPo(spo) ? 'No cup games yet.' : (spo ? 'No playoff games yet.' : 'No games played yet.');   // v722
   else if(i<0) say='None of our players is in the top '+SL.length+'.';
   else { var s=SL[i].s, n=gk ? s.w : (sk==='g' ? s.g : s.g+s.a), u=gk ? 'win' : (sk==='g' ? 'goal' : 'point');
     say='Our best: '+careerEsc(SL[i].p.name)+', '+careerOrd(i+1)+' ('+n+' '+u+(n===1?'':'s')+').'; }
@@ -13098,7 +13103,9 @@ function offLaptopStats(c){   // v610 : devant le portable, la bulle dit notre m
   var tab=function(on, js, t){ return '<button class="mbtn sm'+(on?' on':'')+'" onclick="'+js+'">'+t+'</button>'; };
   document.getElementById('offSay').innerHTML='<div class="who">COACH</div>'+say;
   document.getElementById('offBar').innerHTML=[['pts','Points'],['g','Goals'],['gk','Goalies']].map(function(t){ return tab(t[0]===sk, 'careerStatTab(null, \''+t[0]+'\')', t[1]); }).join('')
-    +CAREER_DIVS.map(function(x){ return tab(x===sd, 'careerStatTab('+x+', null)', 'D'+x); }).join('')+'<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }   // v707 : D1 a D4, plus de Playoffs
+    +CAREER_DIVS.map(function(x){ return tab(x===sd && !careerIsCupPo(spo), 'careerStatTab('+x+', null)', 'D'+x); }).join('')
+    +[['cl','League Cup'],['cc','Champions Cup']].map(function(t){ return tab(spo===t[0], 'careerStatTab(null, null, \''+t[0]+'\')', t[1]); }).join('')   // v722 : les deux coupes (toutes divisions)
+    +'<button class="mbtn sm" onclick="careerGo(\'hub\')">‹ Back</button>'; }   // v707 : D1 a D4, plus de Playoffs
 function offPaintLaptop(c){   // v610 : l'ecran du portable (0,46 x 0,30 m -> 1000 x 652) : les meneurs, texte clair sur ecran sombre, nous en or
   var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gk=(sk==='gk'), SL=offLeaders(c), S=OFF_SCREEN;
   var sig=sd+'|'+sk+'|'+spo+'|'+c.my+'|'+c.season+'|'+SL.map(function(e){ var s=e.s; return e.p.uid+':'+s.gp+'/'+(gk ? s.w+'/'+s.sa+'/'+s.ga : s.g+'/'+s.a); }).join(',');
@@ -13111,10 +13118,10 @@ function offPaintLaptop(c){   // v610 : l'ecran du portable (0,46 x 0,30 m -> 10
   [['pts','Points'],['g','Goals'],['gk','Goalies']].forEach(function(t, i){ var tx=20+i*190;
     if(t[0]===sk){ x.fillStyle=S.bg; x.fillRect(tx, 12, 180, 66); }   // l'onglet ouvert
     x.fillStyle=(t[0]===sk) ? S.fg : S.dim; x.fillText(t[1], tx+90, 56); });
-  x.textAlign='right'; x.fillStyle=S.dim; x.font='bold 28px '+OFF_SANS; x.fillText('D'+sd+' · '+(spo ? 'Playoffs' : 'Season '+c.season), 975, 54);
+  x.textAlign='right'; x.fillStyle=S.dim; x.font='bold 28px '+OFF_SANS; x.fillText(careerIsCupPo(spo) ? (spo==='cl' ? 'League Cup' : 'Champions Cup')+' · Season '+c.season : 'D'+sd+' · '+(spo ? 'Playoffs' : 'Season '+c.season), 975, 54, 380);   // v722 : 380 = ne touche pas les onglets
   x.font='bold 26px '+OFF_SANS; x.fillText('#', 60, 128); x.textAlign='left'; x.fillText(gk ? 'Goalie' : 'Player', 80, 128); x.fillText('Team', 450, 128);
   x.textAlign='right'; COLS.forEach(function(k){ x.fillStyle=(k[0]===({pts:'PTS', g:'G', gk:'W'})[sk]) ? S.fg : S.dim; x.fillText(k[0], k[1], 128); });   // la colonne du tri, en clair
-  if(!SL.length){ x.textAlign='center'; x.fillStyle=S.fg; x.font='bold 36px '+OFF_SANS; x.fillText(spo ? 'No playoff games yet.' : 'No games played yet.', 500, 340); }
+  if(!SL.length){ x.textAlign='center'; x.fillStyle=S.fg; x.font='bold 36px '+OFF_SANS; x.fillText(careerIsCupPo(spo) ? 'No cup games yet.' : (spo ? 'No playoff games yet.' : 'No games played yet.'), 500, 340); }
   SL.forEach(function(e, i){ var y=180+i*47, s=e.s, me=(e.key===c.my);
     if(me){ x.fillStyle=S.meBg; x.fillRect(16, y-35, 968, 46); }
     x.fillStyle=me ? S.me : S.fg; x.font='bold 36px '+OFF_SANS;
@@ -13419,7 +13426,8 @@ function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleur
     if(r.at) x.fillText('max', 420, r.y);
     else { x.fillStyle='#d9dbe0'; x.fillRect(420, r.y-20, 170, 18); x.fillStyle='#3f7fd6'; x.fillRect(420, r.y-20, Math.round(170*Math.min(1, p.xp[r.k]/careerXpCost(p, r.k))), 18); } });
   x.textAlign='left'; x.fillStyle=INK; x.font='bold 28px '+OFF_SANS;
-  stats.forEach(function(t, i){ x.fillText(t, 44, 930+i*36, W-88); });
+  var sn=stats.length, sdy=sn<=3 ? 36 : (sn<=6 ? 30 : 25); if(sn>3) x.font='bold 24px '+OFF_SANS;   // v722 : les lignes de coupe : plus serrees, la fiche ne deborde pas
+  stats.forEach(function(t, i){ x.fillText(t, 44, (sn>3 ? 912 : 930)+i*sdy, W-88); });
   offSend('card', sig, o.cv); }
 function offCardPlayer(c){   // devant la carte : la bulle ; v618 : un convoque -> ▶ Call (la rencontre) ; ‹ Back (la carte rentre dans le tableau)
   var T=c.teams[c.my], p=careerPlayerByUid(T, CAREER_PUID), say, call=careerWaits(T, p);
@@ -13863,10 +13871,11 @@ function careerRender(inPrac){   // v719 : inPrac = la carte du joueur dessinee 
     h+='</table></div><div class="msub">'+(dd>1?'↑ top 2 go up':'')+(dd>1 && dd<4?' · ':'')+(dd<4?'↓ last 2 go down':'')+'</div><button class="mbtn" onclick="careerGo(\'hub\')">← Back</button>';
   } else if(v==='stats'){   // v579 : les meneurs de la division
     var sd=CAREER_STATDIV, sk=CAREER_STATK, spo=CAREER_STATPO, gkv=(sk==='gk'), SL=careerLeaders(c, sd, sk, spo).slice(0, gkv ? 5 : 10);
-    h+='<div class="mtitle">Stats</div><div class="crow">'+CAREER_DIVS.map(function(x){ return '<button class="mbtn sm'+(x===sd?' on':'')+'" data-sdiv="'+x+'" onclick="careerStatTab('+x+', null)">D'+x+'</button>'; }).join('')+'</div>';
+    h+='<div class="mtitle">Stats</div><div class="crow">'+CAREER_DIVS.map(function(x){ return '<button class="mbtn sm'+(x===sd && !careerIsCupPo(spo)?' on':'')+'" data-sdiv="'+x+'" onclick="careerStatTab('+x+', null)">D'+x+'</button>'; }).join('')
+      +[['cl','League Cup'],['cc','Champions Cup']].map(function(x){ return '<button class="mbtn sm'+(spo===x[0]?' on':'')+'" data-scup="'+x[0]+'" onclick="careerStatTab(null, null, \''+x[0]+'\')">'+x[1]+'</button>'; }).join('')+'</div>';   // v722 : les onglets des deux coupes (toutes divisions)
     h+='<div class="crow">'+[['pts','Points'],['g','Goals'],['gk','Goalies']].map(function(x){ return '<button class="mbtn sm'+(x[0]===sk?' on':'')+'" data-sk="'+x[0]+'" onclick="careerStatTab(null, \''+x[0]+'\')">'+x[1]+'</button>'; }).join('')+'</div>';
-    h+='<div class="msub">'+DIV_NAME[sd]+' · season '+c.season+'</div>';   // v707 : plus de series (le bouton Season / Playoffs est retire)
-    if(!SL.length) h+='<div class="msub">No games played yet.</div>';
+    h+='<div class="msub">'+careerStatTitle(c, spo, sd)+' · season '+c.season+(careerIsCupPo(spo) ? ' · all divisions' : '')+'</div>';   // v707 : plus de series (le bouton Season / Playoffs est retire) ; v722 : une coupe mele les divisions
+    if(!SL.length) h+='<div class="msub">'+(careerIsCupPo(spo) ? 'No cup games yet.' : 'No games played yet.')+'</div>';
     else { h+='<div class="ctab cst"><table><tr><th>#</th><th>'+(gkv?'Goalie':'Player')+'</th><th>Team</th><th>GP</th>'+(gkv?'<th>W</th><th>SV%</th>':'<th>G</th><th>A</th><th>PTS</th>')+'</tr>';
       SL.forEach(function(x, i){ var s=x.s, T5=c.teams[x.key], pt=s.g+s.a;
         h+='<tr class="'+(x.key===c.my?'me':'')+'"><td>'+(i+1)+'</td><td>'+careerEsc(x.p.name)+'</td><td>'+careerSwatch(T5)+careerEsc(T5.nick)+'</td><td>'+s.gp+'</td>'
@@ -14008,7 +14017,7 @@ function careerPack(c){   // pour le compte : sans les valeurs par defaut des jo
     if(p.ss && !Object.keys(p.ss).some(function(x){ return p.ss[x]; })) delete p.ss;   // v579
     if(p.st) p.st=[p.st.gp, p.st.g, p.st.a];   // v579 : les stats en listes (tous les joueurs en ont maintenant)
     if(p.ss) p.ss=(p.ss.sa!=null) ? [p.ss.gp, p.ss.w, p.ss.l, p.ss.otl, p.ss.sa, p.ss.ga] : [p.ss.gp, p.ss.g, p.ss.a];
-    ['ps', 'pc'].forEach(function(f){ var o=p[f]; if(!o) return;   // v580 : les series, pareil
+    ['ps', 'pc', 'sl', 'sc', 'tl', 'tc'].forEach(function(f){ var o=p[f]; if(!o) return;   // v580 : les series, pareil ; v722 : les deux coupes (saison et carriere), pareil
       if(!Object.keys(o).some(function(x){ return o[x]; })) delete p[f]; else p[f]=(o.sa!=null) ? [o.gp, o.w, o.l, o.otl, o.sa, o.ga] : [o.gp, o.g, o.a]; });
     if(p.capF) Object.keys(p.capF).forEach(function(x){ p.capF[x]=Math.round(p.capF[x]*100)/100; });
     ['cap', 'capF', 'xp'].forEach(function(f){ var v=p[f]; [CAREER_PK8, CAREER_PK7, CAREER_PK].forEach(function(K){ if(v && !Array.isArray(v) && Object.keys(v).join()===K.join()) v=p[f]=K.map(function(x){ return v[x]; }); }); }); }); });   /* v646 : 7 avec la Pressure */   // v517 : 18 joueurs par equipe -> plafonds, fourchettes, experience en listes (meme ordre)
@@ -14030,7 +14039,7 @@ function careerUnpack(o){   // l'inverse : les valeurs par defaut reviennent
     if(!p.xp && p.cap){ p.xp={}; Object.keys(p.cap).forEach(function(x){ p.xp[x]=0; }); }
     if(Array.isArray(p.st)) p.st={gp:p.st[0], g:p.st[1], a:p.st[2]};   // v579 : les listes redeviennent des objets
     if(Array.isArray(p.ss)) p.ss=(p.ss.length===6) ? {gp:p.ss[0], w:p.ss[1], l:p.ss[2], otl:p.ss[3], sa:p.ss[4], ga:p.ss[5]} : {gp:p.ss[0], g:p.ss[1], a:p.ss[2]};
-    ['ps', 'pc'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)) p[f]=(v.length===6) ? {gp:v[0], w:v[1], l:v[2], otl:v[3], sa:v[4], ga:v[5]} : {gp:v[0], g:v[1], a:v[2]}; });   // v580
+    ['ps', 'pc', 'sl', 'sc', 'tl', 'tc'].forEach(function(f){ var v=p[f]; if(Array.isArray(v)) p[f]=(v.length===6) ? {gp:v[0], w:v[1], l:v[2], otl:v[3], sa:v[4], ga:v[5]} : {gp:v[0], g:v[1], a:v[2]}; });   // v580
     if(!p.st) p.st={gp:0, g:0, a:0}; }); if(!T.arena) T.arena=arenaMake(T); else { if(T.arena.shape==null) T.arena.shape=arenaMake(T).shape; if(!T.arena.banners) T.arena.banners=arenaMake(T).banners; } });   // v544 : l'histoire des bannieres   // v542 : une vieille carriere recoit les recettes d'arena ; v543 : la forme de l'embleme
   return o;
 }
@@ -14128,9 +14137,9 @@ function careerNewSeason(c){   // les nouvelles divisions, un nouveau calendrier
   if(c.next){ c.next.up.forEach(function(k){ c.teams[k].div--; }); c.next.down.forEach(function(k){ c.teams[k].div++; }); c.next=null; }
   c.divs={1:[],2:[],3:[],4:[]}; Object.keys(c.teams).forEach(function(k){ c.divs[c.teams[k].div].push(k); });
   c.season++; careerNewSchedules(c);
-  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl){ pl.mor=0; delete pl.ss; delete pl.ps; pl.cap100=100; pl.wear=0; pl.en=100; delete pl._sp; } }); });   // v709 : l'ete remet le plafond a 100 et l'energie pleine   // v556 : une nouvelle saison, un moral neuf ; v579 : les stats de la saison repartent a zero
+  Object.keys(c.teams).forEach(function(k){ var T=c.teams[k]; T.skaters.concat([T.goalie], T.goalie2?[T.goalie2]:[]).forEach(function(pl){ if(pl){ pl.mor=0; delete pl.ss; delete pl.ps; delete pl.sl; delete pl.sc; pl.cap100=100; pl.wear=0; pl.en=100; delete pl._sp; } }); });   // v709 : l'ete remet le plafond a 100 et l'energie pleine   // v556 : une nouvelle saison, un moral neuf ; v579 : les stats de la saison repartent a zero
   Object.keys(c.teams).forEach(function(k){ careerSpotsEnsure(c.teams[k]); });   // v626 : un nouveau recoit sa position
-  (c.fa||[]).forEach(function(pl){ delete pl.ss; delete pl.ps; pl.cap100=100; pl.wear=0; pl.en=100; });   // v709 : aussi   // v579 : les agents libres aussi ; v580 : les series aussi
+  (c.fa||[]).forEach(function(pl){ delete pl.ss; delete pl.ps; delete pl.sl; delete pl.sc; pl.cap100=100; pl.wear=0; pl.en=100; });   // v709 : aussi   // v579 : les agents libres aussi ; v580 : les series aussi
 }
 /* ===== v451 : TUTORIEL (spec docs/superpowers/specs/2026-10-02-tutoriel-design.md) =====
    Lecons jouables : des etapes guidees (seuls les gestes surlignes repondent ; les tirages favorisent le joueur), puis
