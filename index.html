@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v727</title>
+<title>Deck 3D v728</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v727';
+var GAME_VERSION='v728';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3841,16 +3841,29 @@ function routeAddCell(c, r){   // le doigt entre dans la case (c,r)
   if(!S.route) return;
   var p=byId(S.route.id); if(!p) return;
   var P=S.route.path, prev=P.length>=2 ? P[P.length-2] : (P.length===1 ? S.route.from : null);
+  S.route.block=null;   // v728 : la marque de la case refusee (recalculee a chaque geste)
   if(prev && prev.c===c && prev.r===r){ P.pop(); return; }   // retour sur l'avant-derniere case : on efface le bout
   var tip=routeTip(), _st=S.route.def?null:planState(p);
   while(P.length<ROUTE_MAX && !(tip.c===c && tip.r===r)){
     var nx={c:tip.c+Math.sign(c-tip.c), r:tip.r+Math.sign(r-tip.r)};
-    if(!routeCellOK(p, nx.c, nx.r)) break;                   // case interdite : le trace s'arrete la
+    if(!routeCellOK(p, nx.c, nx.r)){ S.route.block={c:nx.c, r:nx.r, why:onIce(nx.c,nx.r)?'taken':'boards'}; break; }                   // case interdite : le trace s'arrete la (v728 : hors glace = Boards ; sinon un joueur / un fantome = Taken)
     var _sv=P.slice(); P.push(nx); routeSmoothTail(p, P, S.route.from);
-    if(routeStep(p, S.route.from.c, S.route.from.r, P, _st).n < P.length){ P.length=0; for(var _k=0;_k<_sv.length;_k++) P.push(_sv[_k]);   // v446 : au-dela de la portee de ce tour (ou virage serre) : le trace s'arrete
-      if(!routeAutoPivot(p, P, S.route.from, c, r, _st)) break; }   // v653 : sauf s'il pointe derriere son deplacement : le pivot arriere
+    var _rs=routeStep(p, S.route.from.c, S.route.from.r, P, _st);
+    if(_rs.n < P.length){ P.length=0; for(var _k=0;_k<_sv.length;_k++) P.push(_sv[_k]);   // v446 : au-dela de la portee de ce tour (ou virage serre) : le trace s'arrete
+      if(!routeAutoPivot(p, P, S.route.from, c, r, _st)){ S.route.block={c:nx.c, r:nx.r, why:(_rs.why==='far'?'far':'turn')}; break; } }   // v653 : sauf s'il pointe derriere son deplacement : le pivot arriere ; v728 : la raison vient de la regle de pas (inPush : 'far' d'abord, sinon le virage)
     tip=routeTip();
   }
+}
+// v728 (son choix : « la raison d'une case interdite ») : la marque rouge de la 3D -- la case que le trace refuse (route.block, pose par
+// routeAddCell) ; ou, la ou le trace finit et ne peut pas s'arreter (meme test que routeCommit), la derniere case tant que le doigt est dessus
+var ROUTE_WHY={turn:'Too fast to turn', far:'Out of reach', taken:'Taken', boards:'Boards', stop:'Too fast to stop'};
+function routeBlock(){
+  var R=S.route; if(!R) return null;
+  if(R.block) return {c:R.block.c, r:R.block.r, why:R.block.why, txt:ROUTE_WHY[R.block.why]};
+  if(!R.path.length) return null;
+  var p=byId(R.id); if(!p) return null;
+  if(inWalk(p, R.from.c, R.from.r, R.path, R.def?null:planState(p)).short){ var t=routeTip(); return {c:t.c, r:t.r, why:'stop', txt:ROUTE_WHY.stop}; }
+  return null;
 }
 // v653 (« le pivot de reculons seulement lorsque [on] pointe dans une direction arriere ») : le pas est refuse et le doigt est derriere
 // son deplacement : le trace file sur ses cases de freinage, pivote en angle du cote du doigt ; il recule ensuite vers lui
@@ -10777,7 +10790,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    gsw:(S.gkSw3d||null), cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    gsw:(S.gkSw3d||null), block:(routeBlock()||undefined), cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -10811,7 +10824,7 @@ function rpBusy(k, d){ var R=ANIM_RATE||1;   // combien de temps la 3D anime ce 
 function rpKey(d){ return JSON.stringify([(d.players||[]).map(function(p){ return [p.id, p.c, p.r, p.dc, p.dr, p.st]; }), d.puck, d.slides, d.board]); }
 function hj3dRec(k, js){ if(k==='replay' || k==='paint' || (k==='cue' && (js==='camhome' || String(js).indexOf('perf:')===0))) return;   /* v663 : les reperes de l'essai non plus */   /* v609 : les images du bureau ne servent pas a la reprise ; v620 : camhome non plus */ var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
   while(HJ3D_REC.length>600 || (HJ3D_REC.length && now-HJ3D_REC[0].t>90000)) HJ3D_REC.shift(); }
-function rpSnap(d){ delete d.cells; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
+function rpSnap(d){ delete d.cells; delete d.block; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
 function replayFeed(team){
   var R=HJ3D_REC, gi=-1, i, j;
   for(i=R.length-1;i>=0;i--){ if(R[i].k==='ev' && R[i].j.indexOf('"e":"goal"')>=0){ gi=i; break; } }
@@ -10946,7 +10959,7 @@ function wireRouteDrag(){
       routeBegin(pd.id); if(!S.route){ S._pdown=null; return; }
     }
     var cell=gridCellFromXY(e.clientX,e.clientY);
-    if(cell && S.route){ var _t=routeTip(); if(!(_t.c===cell.c && _t.r===cell.r)){ routeAddCell(cell.c,cell.r); render(); } }
+    if(cell && S.route){ var _t=routeTip(); if(!(_t.c===cell.c && _t.r===cell.r)){ routeAddCell(cell.c,cell.r); render(); } else if(S.route.block){ S.route.block=null; render(); } }   // v728 : le doigt revient sur la pointe : la marque part
   });
   function endDrag(e){
     var pd=S._pdown; if(!pd) return; S._pdown=null;
@@ -14968,7 +14981,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1617464,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1621656,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
