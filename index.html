@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v722</title>
+<title>Deck 3D v723</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v722';
+var GAME_VERSION='v723';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12618,7 +12618,23 @@ function careerCapRange(p, k){   // la fourchette du depisteur : la vraie valeur
 // l'experience : bareme des actions par categorie (points), age, cout du +1 selon la marge, niveaux, 2e atout au niveau 5
 var CAREER_XP={forme:{}, pressure:{pup:4}, tir:{sog:2, g:5}, passe:{pc:2, a:3}, maniement:{dk:4, dkf:1}, physique:{hit:4, bat:2}, defense:{stl:4}, vitesse:{cells:0.1, brk:3}, arret100:{sv:2}, couverture100:{svc:1}};
 function careerAgeMul(age){ return age<23?1.5:(age<28?1.2:(age<32?1:0.7)); }
-function careerXpCost(p, k){ var room=p.cap[k]-p[k]; return room>10?20:(room>4?30:45); }
+// v723 (ses choix : « la progression apres le potentiel ») : une stat monte au-dela de son potentiel p.cap (qui ne change pas), jusqu'a min(99, cap + max), mul fois plus lentement :
+// un +1 au-dela coute mul x 45 = 135 d'experience de match, mul x 22 = 66 de pratique. Au sommet (cap + max, ou 99) l'experience est jetee comme avant. Valeurs de depart.
+var CAREER_BEYOND={max:5, mul:3};
+// sa decision : « Pas de 90 par le au-dela » : le sommet est cap + 5, jamais 99+ ; un potentiel sous 90 n'atteint jamais 90 par le au-dela (89 au plus) ; un potentiel deja 90+ garde son +5
+// ... ET la cote ne passe jamais a 90 par le au-dela : un +1 au-dela du plafond qui ferait passer sa cote (overall) de 89 a 90 est refuse (un joueur dont le potentiel donne deja 90+ garde son +5)
+function careerTop(p, k){ var c=p.cap[k], t=Math.min(99, c+CAREER_BEYOND.max); if(c<90) t=Math.min(t, Math.max(c, 89));
+  if(t<=c || p[k]<c) return t;
+  var gk=careerIsGoalie(p), ks=gk ? CAREER_GATTRS : CAREER_ATTRS, cote=gk ? function(x){ return Math.round((x.arret100+x.couverture100)/2); } : overall;   // gardien : la cote = la moyenne de ses 2 stats
+  var q=Object.assign({}, p), o=Object.assign({}, p);   // q : toutes ses stats au moins a leur plafond (avec le au-dela deja pris) ; o : seulement ses plafonds
+  ks.forEach(function(j){ if(p.cap[j]!=null){ q[j]=Math.max(p[j], p.cap[j]); o[j]=p.cap[j]; } });
+  var co=cote(o); if(co>=95) return t;   // son potentiel donne deja 95+ : la vedette garde son +5
+  var thr=co>=90 ? 95 : 90;   // sa decision : « Pas de 95 par le au-delà » : meme regle, un cran plus haut (un potentiel 90+ ne passe pas a 95+ par le au-delà)
+  var best=Math.max(c, p[k]);
+  for(var v=best+1; v<=t; v++){ q[k]=v; if(cote(q)>=thr) break; best=v; }
+  return best; }
+function careerMaxTxt(p, k){ var d=p[k]-p.cap[k]; return d>0 ? 'Max +'+d : 'Max'; }   // la colonne Potential d'une stat au plafond ou au-dela
+function careerXpCost(p, k){ var room=p.cap[k]-p[k]; return room>0 ? (room>10?20:(room>4?30:45)) : 45*CAREER_BEYOND.mul; }
 function careerLevelCost(lvl){ return 40+20*lvl; }
 var PERK_FIT={sniper:['tirvoile','deviation','viragebrusque'], dangler:['viragebrusque','vitesse','relais'], playmaker:['passeur','relais','vitesse'], power:['tirvoile','deviation','voleur'],
   twoway:['vitesse','relais','voleur'], grinder:['voleur','vitesse','intercepteur'], faceoff:['relais','passeur','voleur'], offd:['intercepteur','passeur','relais'],
@@ -12632,9 +12648,10 @@ function careerXpCalc(p, st, goalie){   // v592 : le calcul pur (sans toucher au
   var mul=careerAgeMul(p.age), q={cap:p.cap}, out={gain:{}, up:{}, val:{}, xp:{}, lvlFrom:p.lvl, lvl:p.lvl, txp:p.txp}, tot=0;
   (goalie?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ var tab=CAREER_XP[k], g=0; for(var a in tab) g+=(st[a]||0)*tab[a];
     g=Math.round(g*mul*10)/10; if(!g) return; out.gain[k]=g; tot+=g; var from=p[k], x=p.xp[k];
-    if(p[k]>=p.cap[k]){ out.val[k]=p[k]; out.xp[k]=0; return; }
-    x+=g; q[k]=p[k]; while(q[k]<p.cap[k] && x>=careerXpCost(q, k)){ x-=careerXpCost(q, k); q[k]++; }
-    if(q[k]>=p.cap[k]) x=0;
+    var top=careerTop(p, k);
+    if(p[k]>=top){ out.val[k]=p[k]; out.xp[k]=0; return; }
+    x+=g; q[k]=p[k]; while(q[k]<top && x>=careerXpCost(q, k)){ x-=careerXpCost(q, k); q[k]++; }   // v723 : au plafond le +1 coute 135, jusqu'a cap+5
+    if(q[k]>=top) x=0;
     out.val[k]=q[k]; out.xp[k]=x; if(q[k]>from) out.up[k]=[from, q[k]]; });
   var txp=p.txp+tot, lvl=p.lvl;
   while(txp>=careerLevelCost(lvl)){ txp-=careerLevelCost(lvl); lvl++; }
@@ -12668,16 +12685,16 @@ function careerSimXp(c){   // l'experience de mes habilles pour le match simule 
   var m=CAREER_SIMMINE; CAREER_SIMMINE=null; if(!m) return; var T=c.teams[c.my];
   m.ros.forEach(function(u){ var p=careerPlayerByUid(T, u); if(p) careerApplyXp(p, careerSimStatLine(p, {g:m.g[u]||0, a:m.a[u]||0}, false), false); });
   var G=m.gk!=null ? careerPlayerByUid(T, m.gk) : null; if(G) careerApplyXp(G, careerSimStatLine(G, {sv:m.sv}, true), true); }
-function careerSpendPoint(p, k){ if(!(p.pts>0) || !p.cap || !(k in p.cap) || p[k]>=p.cap[k]) return false; p[k]++; p.pts--; return true; }
+function careerSpendPoint(p, k){ if(!(p.pts>0) || !p.cap || !(k in p.cap) || p[k]>=careerTop(p, k)) return false; p[k]++; p.pts--; return true; }
 // v620 (son bug « Callaway » ; son choix : « il n'est plus convoque ») : au plafond partout, un joueur gagne encore des niveaux et des
 // points, mais aucun ne peut se placer. Il n'attend (aimant dore, ▶ Call, « still waiting », convocation) que s'il peut monter une stat
 // ou choisir un atout ; le point reste dans sa fiche, sans effet.
-function careerCanSpend(p, gk){ return !!p && p.pts>0 && !!p.cap && (gk ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return p[k]<p.cap[k]; }); }
+function careerCanSpend(p, gk){ return !!p && p.pts>0 && !!p.cap && (gk ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return p[k]<careerTop(p, k); }); }
 function careerWaits(T, p){ return !!p && (careerCanSpend(p, p===T.goalie || p===T.goalie2) || !!p.perkPick); }
 function careerWaitsAfter(p, x, gk){   // l'apercu d'un match (careerXpCalc) : apres ce match, pourra-t-il placer un point ou choisir un atout ?
   if(x.lvl<=p.lvl) return false;
   if(!gk && p.lvl<5 && x.lvl>=5 && !p.perk2 && !p.perkPick) return true;
-  return (gk ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return (k in x.val ? x.val[k] : p[k])<p.cap[k]; }); }
+  return (gk ? CAREER_GATTRS : CAREER_ATTRS).some(function(k){ return (k in x.val ? x.val[k] : p[k])<careerTop(p, k); }); }
 function careerTakePerk(p, k){ if(!p.perkPick || p.perkPick.indexOf(k)<0) return false; p.perk2=k; p.perkPick=null; return true; }
 // ---- v489 : ENERGIE ET BLESSURES (spec docs/superpowers/specs/2026-10-10-carriere-3-energie-blessures-design.md) ----
 var CAREER_EN={per:20, hitR:3, hitG:2, bat:2, cells:10, goalie:15, day:15, gDay:12, aiRest:50, aiRestMax:2, aiG2:60, simLo:20, simHi:30, restMax:3};
@@ -12735,9 +12752,12 @@ function careerPracticeDow(c, n){ return (careerDateOf(c, n).dow+6)%7; }   // 0 
 function careerPracticeKind(c, n){ return careerPracticeWeek(c).charAt(careerPracticeDow(c, n)); }
 function careerIsGoalie(p){ return !!p && (p.pos==='G' || p.arret100!=null); }
 function careerPracticeKeys(p){ return careerIsGoalie(p) ? CAREER_GATTRS : CAREER_ATTRS; }
-function careerPracticeWeak(p){ var best=null; if(!p || !p.cap) return null; careerPracticeKeys(p).forEach(function(k){ if((k in p.cap) && p[k]<p.cap[k] && (best===null || p[k]<p[best])) best=k; }); return best; }   // son point faible
-function careerPracticeFocus(p){ if(!p || !p.cap) return null;   // l'habilete qu'il travaille : son choix (null s'il est au plafond : « at max »), sinon son point faible
-  if(p.foc && careerPracticeKeys(p).indexOf(p.foc)>=0) return (p.foc in p.cap) && p[p.foc]<p.cap[p.foc] ? p.foc : null;
+function careerPracticeWeak(p){ var best=null, lim; if(!p || !p.cap) return null;   // son point faible ; v723 : la plus basse SOUS le plafond, sinon la plus basse sous cap+5
+  for(lim=0; lim<2 && best===null; lim++) careerPracticeKeys(p).forEach(function(k){ if((k in p.cap) && p[k]<(lim ? careerTop(p, k) : p.cap[k]) && (best===null || p[k]<p[best])) best=k; });
+  return best; }
+function careerPracticeCost(p, k){ return p[k]>=p.cap[k] ? CAREER_PRACTICE.cost*CAREER_BEYOND.mul : CAREER_PRACTICE.cost; }   // v723 : 22, et 66 au-dela du plafond
+function careerPracticeFocus(p){ if(!p || !p.cap) return null;   // l'habilete qu'il travaille : son choix (null s'il est a cap+5 : « at max »), sinon son point faible
+  if(p.foc && careerPracticeKeys(p).indexOf(p.foc)>=0) return (p.foc in p.cap) && p[p.foc]<careerTop(p, p.foc) ? p.foc : null;
   return careerPracticeWeak(p); }
 // ===== v715 (ses choix : « les pratiques speciales, partie C » -- les BADGES DE TIR) =====
 // 3 badges : Top corner (TL, TR), Low shot (BL, BR), Five-hole (5H) ; patineurs seulement, carriere seulement (ni partie rapide ni fusillade). p.bg = {cle: reussites} (une cle presente = ouvert) ;
@@ -12814,8 +12834,8 @@ function careerPracticeDay(c){   // le jour c.date qui se termine : chaque equip
       if(bk){ careerBadgePractice(p, bk, kind, k===c.my); careerSpend(p, cfg.fat, 'practice'); return; }
       var key=careerPracticeFocus(p); if(!key) return;
       p.prog=(p.prog||0)+cfg.xp;
-      while(p.prog>=mk.cost && p[key]<p.cap[key]){ p.prog-=mk.cost; p[key]++; }
-      if(p[key]>=p.cap[key]) p.prog=0;
+      while(p[key]<careerTop(p, key) && p.prog>=careerPracticeCost(p, key)){ p.prog-=careerPracticeCost(p, key); p[key]++; }   // v723 : 66 au-dela du plafond, jusqu'a cap+5
+      if(p[key]>=careerTop(p, key)) p.prog=0;
       p.prog=Math.round(p.prog*100)/100; if(!p.prog) delete p.prog;   // 0 = absent (la sauvegarde reste petite)
       careerSpend(p, cfg.fat, 'practice'); }); });
 }
@@ -12839,9 +12859,9 @@ function pracSetKey(uid, key){ var c=CAREER, p=c && careerPlayerByUid(c.teams[c.
 function pracRender(){ var c=CAREER, el=document.getElementById('pracCard'); if(!el || !c) return; var h='';
   if(PRAC_UI.view==='focus'){ var T=c.teams[c.my], all=T.skaters.concat(T.goalie?[T.goalie]:[], T.goalie2?[T.goalie2]:[]);
     h+='<div class="ptitle">👥 PLAYER FOCUS</div><div class="psub">Each player works on one skill on practice days</div>';
-    all.forEach(function(p){ var gk=careerIsGoalie(p), bk=gk ? null : careerBadgeFocus(p), key=careerPracticeFocus(p), shown=key||p.foc||careerPracticeWeak(p)||careerPracticeKeys(p)[0], sk=PRAC_SKILL[shown]||PRAC_SKILL[careerPracticeKeys(p)[0]], v=p[shown], max=!key && !bk;
+    all.forEach(function(p){ var gk=careerIsGoalie(p), bk=gk ? null : careerBadgeFocus(p), key=careerPracticeFocus(p), shown=key||p.foc||careerPracticeWeak(p)||careerPracticeKeys(p)[0], sk=PRAC_SKILL[shown]||PRAC_SKILL[careerPracticeKeys(p)[0]], v=p[shown], max=!key && !bk, ov=(key && !bk && p[key]>=p.cap[key]) ? p[key]-p.cap[key] : -1;   // v723 : ov = de combien il depasse son potentiel (-1 : sous le plafond)
       var plc=gk ? '' : ' <small>· ⭐ '+careerBadgeUsed(p)+'/'+careerBadgePlaces(p)+'</small>';   // v715 : les places de badge utilisees
-      h+='<div class="pfrow" data-uid="'+p.uid+'"><span class="pos">'+careerEsc(gk ? 'G' : p.pos)+'</span><span class="pn"><button class="pnm" onclick="pracPlayerOpen('+p.uid+')">'+careerEsc(p.name)+'</button>'+plc+(max ? ' <small>· at max</small>' : '')+'<div class="pbar"><i style="width:'+(bk ? careerBadgePct(p, bk) : (max ? 0 : Math.min(100, Math.round((p.prog||0)/CAREER_PRACTICE.cost*100))))+'%"></i></div></span>'
+      h+='<div class="pfrow" data-uid="'+p.uid+'"><span class="pos">'+careerEsc(gk ? 'G' : p.pos)+'</span><span class="pn"><button class="pnm" onclick="pracPlayerOpen('+p.uid+')">'+careerEsc(p.name)+'</button>'+plc+(max ? ' <small>· at max</small>' : (ov>=0 ? ' <small>· max'+(ov>0 ? ' +'+ov : '')+'</small>' : ''))+'<div class="pbar"><i style="width:'+(bk ? careerBadgePct(p, bk) : (max ? 0 : Math.min(100, Math.round((p.prog||0)/careerPracticeCost(p, key)*100))))+'%"></i></div></span>'
         +(bk ? '<button class="pfoc bg" onclick="pracPick('+p.uid+')">⭐ '+CAREER_BADGE.name[bk]+'</button><span class="pfval">'+careerBadgeVal(p, bk)+'</span></div>'
              : '<button class="pfoc" onclick="pracPick('+p.uid+')">'+sk[0]+' '+sk[1]+'</button><span class="pfval">'+(max ? v+' max' : v+' → '+(v+1))+'</span></div>');
       if(PRAC_UI.pick===p.uid){
@@ -13381,7 +13401,7 @@ function offIsGk(T, p){ return p===T.goalie || p===T.goalie2; }
 function offCardRows(T, p){   // [{k, y, at}] : une ligne par stat
   var C=OFF_CARD;
   var ks=offIsGk(T, p) ? CAREER_GATTRS : CAREER_ATTRS, dy=offRowDy(C.dy, ks.length);
-  return ks.map(function(k, i){ return {k:k, y:C.y0+i*dy, at:p[k]>=p.cap[k]}; }); }
+  return ks.map(function(k, i){ return {k:k, y:C.y0+i*dy, at:p[k]>=careerTop(p, k)}; }); }   /* v723 : at = au sommet (cap+5) */
 function offRowDy(base, n){ return n>6 ? base*5/(n-1) : base; }   // v646 : 7 stats (la Pressure) dans la place de 6 : la derniere ligne ne bouge pas
 function offCardLines(p){ var o=[];   // la sante, en mots (comme careerCardHealth)
   if(p.inj) o.push(['Injured: '+p.inj.t+' ('+CAREER_SEV[p.inj.sev]+'), out '+careerDaysTxt(p.inj.left), OFF_INK.red]);
@@ -13395,7 +13415,7 @@ function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleur
   var sub=gk ? 'Goalie · '+gkStyleLabel(p)+' · age '+p.age : SPOT_LONG[spotOf(p)]+' · age '+p.age+' · '+((ARCH_INFO[p.archetype]||{}).n||p.archetype)+' · '+(p.hand==='G' ? 'Left shot' : 'Right shot');   // v626 : sa position, sa main
   var stats=careerCardStats(p, gk).split('<br>');
   var sig=p.uid+'|'+T.colors.join()+'|'+p.lvl+'|'+Math.round(p.txp)+'|'+p.pts+'|'+(p.perkPick||[]).join()+'|'+[p.perk, p.perk2].join()+'|'+e+'/'+careerCapN(p)+'|'+H.map(function(l){ return l[0]; }).join()+'|'
-    +rows.map(function(r){ return r.k+':'+p[r.k]+'/'+careerCapRange(p, r.k).join('-')+'/'+(r.at ? 'max' : Math.round(100*p.xp[r.k]/careerXpCost(p, r.k))); }).join(',')+'|'+stats.join()+'|'+sub;
+    +rows.map(function(r){ return r.k+':'+p[r.k]+'/'+(p[r.k]>=p.cap[r.k] ? careerMaxTxt(p, r.k) : careerCapRange(p, r.k).join('-'))+'/'+(r.at ? 'max' : Math.round(100*p.xp[r.k]/careerXpCost(p, r.k))); }).join(',')+'|'+stats.join()+'|'+sub;
   if(OFF.paint.card===sig) return;
   var o=offCanvas(OFF_CARD.w, OFF_CARD.h); if(!o) return;
   var x=o.x, W=OFF_CARD.w, INK='#15171b', DIM='#6a707b', hd=offInk(T.colors[0]);
@@ -13422,8 +13442,8 @@ function offPaintCard(c, p){   // la carte (800 x 1120, 5:7) : cadre aux couleur
   rows.forEach(function(r){ var rg=careerCapRange(p, r.k);
     x.fillStyle=INK; x.textAlign='left'; x.font='bold 34px '+OFF_SANS; x.fillText(CAREER_ABBR[r.k], 44, r.y);
     x.textAlign='right'; x.font='bold 44px '+OFF_SANS; x.fillText(String(p[r.k]), 230, r.y+2);
-    x.textAlign='left'; x.font='bold 30px '+OFF_SANS; x.fillStyle=DIM; x.fillText(rg[0]+'–'+rg[1], 270, r.y);
-    if(r.at) x.fillText('max', 420, r.y);
+    x.textAlign='left'; x.font='bold 30px '+OFF_SANS; x.fillStyle=DIM; x.fillText(p[r.k]>=p.cap[r.k] ? careerMaxTxt(p, r.k) : rg[0]+'–'+rg[1], 270, r.y);   // v723 : « Max » / « Max +N » au plafond ou au-dela
+    if(r.at) x.fillText('—', 420, r.y);
     else { x.fillStyle='#d9dbe0'; x.fillRect(420, r.y-20, 170, 18); x.fillStyle='#3f7fd6'; x.fillRect(420, r.y-20, Math.round(170*Math.min(1, p.xp[r.k]/careerXpCost(p, r.k))), 18); } });
   x.textAlign='left'; x.fillStyle=INK; x.font='bold 28px '+OFF_SANS;
   var sn=stats.length, sdy=sn<=3 ? 36 : (sn<=6 ? 30 : 25); if(sn>3) x.font='bold 24px '+OFF_SANS;   // v722 : les lignes de coupe : plus serrees, la fiche ne deborde pas
@@ -13960,8 +13980,8 @@ function careerRender(inPrac){   // v719 : inPrac = la carte du joueur dessinee 
     h+=careerCardHealth(P4);   // v489
     if(P4.pts>0) h+='<div class="cmsg">'+P4.pts+' point'+(P4.pts>1?'s':'')+' to place: tap +1.</div>';
     h+='<div class="ctab"><table><tr><th></th><th>Now</th><th>Potential</th><th>Next +1</th><th></th></tr>';
-    (gk?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ var rg=careerCapRange(P4, k), at=P4[k]>=P4.cap[k];
-      h+='<tr><td>'+CAREER_ABBR[k]+'</td><td><b>'+P4[k]+'</b></td><td>'+rg[0]+'–'+rg[1]+'</td><td>'+(at?'max':'<span class="cbar"><i style="width:'+Math.min(100, Math.round(100*P4.xp[k]/careerXpCost(P4, k)))+'%"></i></span>')+'</td><td>'
+    (gk?CAREER_GATTRS:CAREER_ATTRS).forEach(function(k){ var rg=careerCapRange(P4, k), at=P4[k]>=careerTop(P4, k), ovr=P4[k]>=P4.cap[k];   // v723 : au plafond ou au-dela : « Max +N », la barre vers le +1 a 135 ; a cap+5 : « — »
+      h+='<tr><td>'+CAREER_ABBR[k]+'</td><td><b>'+P4[k]+'</b></td><td>'+(ovr ? careerMaxTxt(P4, k) : rg[0]+'–'+rg[1])+'</td><td>'+(at?'—':'<span class="cbar"><i style="width:'+Math.min(100, Math.round(100*P4.xp[k]/careerXpCost(P4, k)))+'%"></i></span>')+'</td><td>'
         +(P4.pts>0 && !at ? '<button class="mbtn sm cplus" data-k="'+k+'" onclick="careerPlus(\''+k+'\')">+1</button>' : '')+'</td></tr>'; });
     h+='</table></div>';
     if(P4.perkPick) h+='<div class="cmsg">Level 5: pick a second perk.</div><div class="crow">'+P4.perkPick.map(function(k){ return '<button class="mbtn sm cperk" data-perk="'+k+'" onclick="careerPerk(\''+k+'\')">'+careerEsc(PERK_INFO[k].n)+'</button>'; }).join('')+'</div>'
