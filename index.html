@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v725</title>
+<title>Deck 3D v726</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v725';
+var GAME_VERSION='v726';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3396,7 +3396,7 @@ function doDump(p,tc,tr){
 // sur la case puis glisse 1-2 cases. Rate : une passe molle, courte (50-75 % du chemin), glisse 0-1 case, rondelle libre. Dans les ESTRADES (jet d'abord) :
 // 15 % (passe faible) a 5 % (passe 100) x (1 + k) x angle (1 / 1,3 / 1,6) x 1,3 (bande devant lui, il lui fait face), plafond 60 % : sifflet ; depuis sa zone
 // = retard de jeu (PEN_SECS au banc, mise au jeu dans sa zone) ; ailleurs : mise au jeu au point le plus proche.
-var FLIP_GLASS=0.15, FLIP_GLASS_MIN=0.05, FLIP_GLASS_CAP=0.60, FLIP_PEAK=3.0, FLIP_GLASS_PEAK=4.0, AI_FLIP_P=0.5;
+var FLIP_GLASS=0.15, FLIP_GLASS_MIN=0.05, FLIP_GLASS_CAP=0.60, FLIP_PEAK=3.0, FLIP_GLASS_PEAK=4.0, AI_FLIP_P=0.5, AI_FLIP_P_NZ=0.3;   // v726 : l'IA lobe depuis sa zone (50 %) ou depuis la zone neutre (30 %, seulement derriere ta defense)
 function flipAngle(p,tc,tr){   // degres (0-180) entre son regard et la direction de la cible
   var f=facingOf(p), dx=tc-p.c, dy=tr-p.r, n=Math.hypot(dx,dy), fn=Math.hypot(f.dc, f.dr||0);
   if(!n || !fn) return 0;
@@ -3521,21 +3521,45 @@ function flipStoppage(dot, big, sub, pen){
 function aiFlipAct(car, at, posOf, oddsFn){
   if(!car || car.type!=='sk' || S.tut || S.so) return null;
   var pos=at||{c:car.c, r:car.r}, po=posOf||function(q){ return {c:q.c, r:q.r}; }, team=car.team;
-  if(!ownZone(team, pos.c) || pos.c!==car.c || pos.r!==car.r) return null;
+  if(inOffZone(team, pos.c) || pos.c!==car.c || pos.r!==car.r) return null;   // v726 : sa zone OU la zone neutre (jamais en zone offensive)
   if(passPressure(car).P<40) return null;   // k >= 0,4
+  var inOwn=ownZone(team, pos.c);
   var mates=onIceSkaters(team), opps=onIceSkaters(team==='A'?'B':'A'), i;
   for(i=0;i<mates.length;i++){ var m=mates[i]; if(m.id===car.id || isDown(m)) continue; var mg=po(m);
     if(cheb(pos, mg)>6 || aiPassOffside(pos, mg, team)) continue;
     var od=oddsFn ? oddsFn(m) : passOdds(car, m); if(od!=null && od>=AI_PASS_MIN) return null; }   // une passe sure existe
-  var best=null, bs=-1e9, lo=BLUE_B+1, hi=BLUE_A-1;   // la zone neutre (cases entre les bleues)
-  for(var c=lo;c<=hi;c++) for(var r=0;r<ROWS;r++){
+  // v726 (son choix) : d'abord une case DERRIERE les defenseurs adverses (plus loin vers leur filet que chacun) ou un de SES avants (pos F, debout,
+  // position prevue) est plus pres que chacun de ces defenseurs ; jamais de hors-jeu (un des siens deja dans leur zone : aucune case dans leur zone,
+  // ni a moins de 3 de la bleue : la glisse la franchirait) ni jusqu'a la ligne des buts (degagement refuse)
+  var best=null, bs=-1e9, dr=dir(team), Ds=opps.filter(function(q){ return q.pos==='D'; }), fwds=[], mateIn=false;
+  for(i=0;i<mates.length;i++){ var mq=mates[i]; if(mq.id===car.id) continue; var mpg=po(mq);
+    if(inOffZone(team, mpg.c)) mateIn=true;
+    if(mq.pos==='F' && !isDown(mq)) fwds.push(mpg); }
+  if(Ds.length && fwds.length){
+    var blueIn=(team==='A') ? BLUE_A : BLUE_B, netC=goalCol(team);
+    for(var c2=0;c2<COLS;c2++) for(var r2=1;r2<ROWS-1;r2++){
+      if(!onIce(c2,r2) || pieceAt(c2,r2) || ownZone(team,c2)) continue;
+      var cell={c:c2, r:r2}, dd=99, behind=true;
+      for(i=0;i<Ds.length;i++){ if(!(dr*(c2-Ds[i].c)>0)){ behind=false; break; } dd=Math.min(dd, cheb(Ds[i], cell)); }
+      if(!behind || cheb(pos,cell)>10) continue;
+      if(Math.abs(c2-netC)<3) continue;   // pas jusqu'a la ligne des buts : degagement refuse
+      if(mateIn && (inOffZone(team,c2) || Math.abs(c2-blueIn)<3)) continue;   // hors-jeu
+      var fd=99; for(i=0;i<fwds.length;i++){ fd=Math.min(fd, cheb(fwds[i], cell)); }
+      if(!(fd<dd)) continue;
+      var dmA=99; for(i=0;i<opps.length;i++){ dmA=Math.min(dmA, cheb(opps[i], cell)); }
+      var sB=3*(dd-fd)+2*dmA-0.25*Math.abs(r2-CTR_R)-((r2<=1||r2>=ROWS-2)?2:0)-0.2*cheb(pos,cell);
+      if(sB>bs){ bs=sB; best={c:c2, r:r2}; } } }
+  var flipP=inOwn ? AI_FLIP_P : AI_FLIP_P_NZ;
+  if(!best && !inOwn) return null;   // zone neutre sans avant pour la suivre : pas de lob
+  var lo=BLUE_B+1, hi=BLUE_A-1;   // la zone neutre (cases entre les bleues) : le flip d'avant, depuis sa zone
+  if(!best) for(var c=lo;c<=hi;c++) for(var r=0;r<ROWS;r++){
     if(!onIce(c,r) || pieceAt(c,r) || ownZone(team,c) || inOffZone(team,c)) continue;
     if(team==='A' ? c>BLUE_A-3 : c<BLUE_B+3) continue;   // loin de la bleue : la glisse ne la franchit pas (hors-jeu)
     if(cheb(pos,{c:c,r:r})>9) continue;
     var dm=99; for(i=0;i<opps.length;i++){ dm=Math.min(dm, cheb(opps[i],{c:c,r:r})); }
     var sc=dm*3+Math.abs(r-CTR_R)-0.2*cheb(pos,{c:c,r:r});
     if(sc>bs){ bs=sc; best={c:c, r:r}; } }
-  if(!best || Math.random()>=AI_FLIP_P) return null;
+  if(!best || Math.random()>=flipP) return null;
   return {kind:'flip', id:car.id, toC:best.c, toR:best.r}; }
 function canShootFrom(p){
   var c = (S.planning ? ghostOf(p).c : p.c);
@@ -6622,6 +6646,9 @@ function aiBuildPlan(){
     if(_dpa){ plan.push(_dpa); owner=_dpa.target; continue; }
     // v687 : sa zone, pressee, aucune passe sure : il flippe la rondelle vers la zone neutre (1 action, la rondelle est libre apres)
     var _fla=aiFlipAct(car, cg, gp, function(m){ return oddsAt(car, cg, m, gp(m)); });
+    if(_fla && !ownZone(AI_TEAM, cg.c)){   // v726 : en zone neutre, la lecture d'entree (porter, passe d'entree) passe avant le lob
+      var _bl0=(AI_TEAM==='A')?BLUE_A:BLUE_B, _tb0=(AI_TEAM==='A')?(_bl0-cg.c):(cg.c-_bl0);
+      if(_tb0>=1 && _tb0<=moveBudget(car) && !mateOffside(car.id)){ var _en0=entryRead(car, cg); if(_en0.pick==='carry' || _en0.pick==='pass') _fla=null; } }
     if(_fla){ plan.push(_fla); break; }
     // 2. servir un coequipier mieux place
     var bestT=null, bestP=-1;
