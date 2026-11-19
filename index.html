@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v723</title>
+<title>Deck 3D v724</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v723';
+var GAME_VERSION='v724';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -3265,19 +3265,31 @@ function doSaucer(p, tc, tr){
   var team=p.team, pc=p.c, pr=p.r, L=saucerLand(p, tc, tr), pname=p.name;
   S.animating=true; S.puckOwner=null; S.puckLoose=null; S.carrierMoved=true; clearSel(); sfx('pass'); render();
   var lt=laneThreat(p, {c:L.c, r:L.r}), cut=(lt.def && Math.random()<lt.prob/3) ? lt.def : null;   // par-dessus les batons : le couloir coupe 3 fois moins
+  // v724 : le geste 3D. 'pass' (saucer:true) = le coup de poignet du passeur, vers la case visee (to : un patineur y est, quelle que soit son equipe) ; puis le vol porte
+  // le sommet (hi), la part en l'air (hl), la rotation a plat et l'amorti du receveur (rcv, rk : catch / miss / pick / cut). Les regles ne changent pas.
+  var q0=pieceAt(L.c, L.r), qs=(q0 && q0.type==='sk' && q0.onIce) ? q0 : null, fullD=Math.hypot(L.c-pc, L.r-pr), hi=saucerPeak(fullD);
+  var missPre=undefined, sev={id:p.id, saucer:true, toC:L.c, toR:L.r}; if(qs) sev.to=qs.id;
+  matchEv('pass', sev);
   if(cut){
     var cp=passCutPoint(pc, pr, L.c, L.r, cut), cc={c:Math.round(cp.c), r:Math.round(cp.r)};
     if((cc.c!==cut.c || cc.r!==cut.r) && onIce(cc.c, cc.r) && !pieceAt(cc.c, cc.r)) skateToSpot(cut, cc);
+    var cutD=Math.hypot(cp.c-pc, cp.r-pr), fr=Math.max(0.05, Math.min(1, cutD/Math.max(0.01, fullD)));   // la rondelle est coupee en l'air : l'arc entier, arrete a fr
     flyPuckBoard(pc, pr, cp.c, cp.r, function(){ S.puckOwner=cut.id; S.rcvPop=cut.id; careerTrack('steal', {id:cut.id}); morPass(p, false); checkFx('blockpass', cp.c, cp.r);
       document.getElementById('outcome').innerHTML='Saucer pass cut off by '+cut.name+'!'; pushLog('<b>Interception</b> : '+cut.name+' gets a stick on '+pname+'\'s saucer pass.'); S.animating=false; gainPuck(cut.team); },
-      Math.max(0.08, 0.62*Math.hypot(cp.c-pc, cp.r-pr)/Math.max(0.01, Math.hypot(L.c-pc, L.r-pr))));
+      Math.max(0.08, 0.62*cutD/Math.max(0.01, fullD)), undefined, {hi:hi, hl:+Math.min(2, SAUCER_HL/fr).toFixed(3), spin:1, sau:1, rcv:cut.id, rk:'cut'});
     return; }
-  flyPuckBoard(pc, pr, L.c, L.r, function(){ saucerLanded(p, L, pc); }, Math.max(0.45, 0.30*Math.hypot(L.c-pc, L.r-pr)));
+  var ext={hi:hi, hl:SAUCER_HL, spin:1, sau:1};
+  if(qs){ missPre=(Math.random()<saucerMiss(qs)); ext.rcv=qs.id; ext.rk=missPre ? 'miss' : (qs.team!==team ? 'pick' : 'catch'); }   // le jet de reception est tire avant le vol (l'amorti de la 3D le sait) ; meme jet, meme ordre pour le jeu
+  flyPuckBoard(pc, pr, L.c, L.r, function(){ saucerLanded(p, L, pc, missPre); }, Math.max(0.45, 0.30*fullD), undefined, ext);
 }
-function saucerLanded(p, L, pc){
+// v724 : le sommet du vol d'une passe soulevee (m, vu par la 3D) : juste par-dessus les batons. 0,30 pour une passe courte (SAUCER_NEAR cases), 0,50 des SAUCER_FAR cases ; entre les deux, lineaire.
+// SAUCER_HL : la part du trajet en l'air (le reste, la rondelle est posee a plat et glisse).
+var SAUCER_PEAK_MIN=0.30, SAUCER_PEAK_MAX=0.50, SAUCER_NEAR=3, SAUCER_FAR=10, SAUCER_HL=0.88;
+function saucerPeak(cells){ var k=Math.max(0, Math.min(1, (cells-SAUCER_NEAR)/(SAUCER_FAR-SAUCER_NEAR))); return +(SAUCER_PEAK_MIN+(SAUCER_PEAK_MAX-SAUCER_PEAK_MIN)*k).toFixed(3); }
+function saucerLanded(p, L, pc, missPre){
   var team=p.team, q=pieceAt(L.c, L.r), pname=p.name;
   if(q && q.type==='sk' && q.onIce){
-    if(Math.random()<saucerMiss(q)){   // la reception est plus dure : il l'echappe, la rondelle est libre a cote de lui
+    if(missPre===undefined ? Math.random()<saucerMiss(q) : missPre){   // la reception est plus dure : il l'echappe, la rondelle est libre a cote de lui
       var best=null, bd=1e9; DIRS8.forEach(function(m){ var c=q.c+m[0], r=q.r+m[1]; if(!onIce(c, r) || pieceAt(c, r)) return; var dd=Math.random(); if(dd<bd){ bd=dd; best={c:c, r:r}; } });
       morPass(p, false); checkFx('passmiss', pc, p.r);
       document.getElementById('outcome').innerHTML='Saucer pass — '+q.name+' cannot control it!'; pushLog('<b>'+q.name+'</b> cannot control the saucer pass — the puck bounces away, loose.');
@@ -4085,8 +4097,8 @@ function pickupAlongPath(p, fromC, fromR, toC, toR){
 function pickupLoose(p,c,r){ if(battleHolds(p)) return null;   // v497 : la bataille la reserve aux deux joueurs
   if(S.puckLoose&&S.puckLoose.c===c&&S.puckLoose.r===r){ var off=S.puckLoose.offside, ice=S.puckLoose.icing, iceRow=S.puckLoose.icingRow; S.puckOwner=p.id; S.puckLoose=null; S._fromLoose=true; armScramble(p.id,'loose');
     if(p.type==='g'){ S.puckLoose={c:c,r:r}; S.puckOwner=null; goalieCover(p); return null; } if(off&&off===p.team&&inOffZone(p.team,c)){ pushLog('<b>'+p.name+'</b> touches the puck while offside — whistle!'); return p.team; } if(ice&&ice!==p.team){ pushLog('<b>'+p.name+'</b> touches it first — icing!'); return 'icing:'+ice+':'+iceRow; } pushLog('<b>'+p.name+'</b> recovers the loose puck.'); } return null; }
-function flyPuckBoard(fromC,fromR,toC,toR,onDone,dur,near){
-  var _ev={pts:[[fromC,fromR],[toC,toR]], ms:Math.round((dur||0.62)*1000)}; if(near) _ev.near=near; matchEv('puck', _ev);   // v447 ; v584 : near (la 3D : il essaie et la rate)
+function flyPuckBoard(fromC,fromR,toC,toR,onDone,dur,near,extra){   // v724 : extra = des champs de plus pour la 3D (la passe soulevee : hi, hl, spin, sau, rcv, rk)
+  var _ev={pts:[[fromC,fromR],[toC,toR]], ms:Math.round((dur||0.62)*1000)}; if(near) _ev.near=near; if(extra){ for(var _xk in extra) _ev[_xk]=extra[_xk]; } matchEv('puck', _ev);   // v447 ; v584 : near (la 3D : il essaie et la rate)
   var fp=document.getElementById('flypuck'); if(!fp){ onDone(); return; }
   var rd=reduced(); dur=dur||0.62;
   fp.style.display='block'; fp.style.transition='none';
@@ -10759,7 +10771,7 @@ function rpBusy(k, d){ var R=ANIM_RATE||1;   // combien de temps la 3D anime ce 
   if(k==='snap'){ var m=0, sl=d.slides||{}; for(var id in sl) if(sl[id] && sl[id].ms>m) m=sl[id].ms; return m; }   // glissement : ms reelles
   if(k!=='ev') return 0;
   if(d.e==='puck') return d.pz ? Math.max(400, d.ms||1200)/R : (d.ms||600)*(d.tu ? RP_PUCK_BUSY : 1)/R;   // PUCK_TAIL : la fin de glisse (v701 : la suite part a 80 % de la queue, la rondelle va encore ~5 m/s ; les derniers 20 % rampent)
-  if(d.e==='pass') return 420/R;   // PASS_DUR
+  if(d.e==='pass') return (d.saucer ? 460 : 420)/R;   // PASS_DUR (v724 : SAUCER_DUR)
   if(d.e==='shot') return (700+380)/R;   // SHOT_DUR + SHOT_MS
   if(d.e==='deke') return d.ms || 560/R;
   if(d.e==='hit') return (d.ok ? 180+900 : 700)/R;
@@ -14924,7 +14936,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1597160,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1603656,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
