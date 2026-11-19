@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v726</title>
+<title>Deck 3D v727</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v726';
+var GAME_VERSION='v727';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -7757,6 +7757,11 @@ function contactSpd(C){ return Math.max(0, Math.min(6, Math.max((C&&C.mom)||0, (
 // ses choix : vitesse 4 et plus ; porteur a vitesse 0 ou qui vient de changer de direction ; +25 points ; projete, sonne 3 tours,
 // blessure 8 % ; « le gros tient, surtout si celui qui plaque est plus petit mais il peut quand meme faire tomber le gros »)
 var BIG_HIT_SPD=4, BIG_HIT_BONUS=0.25;
+// v727 (ses choix : la camera cadre la percutante, avec un court ralenti au contact) : la 3D ralentit ~0,5 s reelle (0,38 x) autour de l'epaule et prend
+// ~0,31 s reelle de retard (live3d.gd BL_LAG_REAL) ; pour rester synchrone, le jeu attend ce meme delai de plus avant la suite apres une percutante
+// (res 'blast'), seulement si la 3D est branchee. En ms reelles : le delai suit ANIM_RATE (setTimeout divise par ANIM_RATE).
+var BLAST_LAG_REAL_MS=310;
+function blastLag(){ return hj3dActive() ? Math.round(BLAST_LAG_REAL_MS*ANIM_RATE) : 0; }
 function justTurned(C){ var a=C && C._inA; return !!a && a.n>0 && (a.kind==='sharp' || a.kind==='pivot' || a.kind==='front'); }   // son dernier pas : un virage serre
 function hitSpd(p){ return Math.max(contactSpd(p), (p && p._inA && p._inA.n>0) ? skatedMom(p) : 0); }   // sa vitesse en arrivant (l'elan du patinage en cours n'est pas encore pose dans mom)
 function bigHit(checker, C){ return !!checker && !!C && checker.type==='sk' && C.type==='sk' && !S.tut && hitSpd(checker)>=BIG_HIT_SPD && (hitSpd(C)===0 || justTurned(C)); }
@@ -8071,7 +8076,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   else if(_feintBeat){ document.getElementById('outcome').innerHTML=carName+' has already beaten '+cName+' — no contact.'; pushLog('<b>'+cName+'</b> was beaten on the feint — he can\'t make the check.'); }
   else { if(C.team===HUMAN_TEAM) tipTrigger('wear');   /* v456 */ document.getElementById('outcome').innerHTML = isBody ? (carName+' takes the hit and keeps the puck!') : (isLift ? (carName+' keeps his stick on the puck.') : (carName+' shields the puck.')); pushLog(isBody ? ('<b>'+carName+'</b> shrugs off the hit from '+cName+'.') : (isLift ? ('<b>Stick lift</b> missed: '+carName+' keeps the puck away from '+cName+'.') : ('<b>'+carName+'</b> avoids the poke check from '+cName+'.'))); }
   render(); checkFx(success?(isBody?'body':(isLift?'lift':'poke')):(_blowby?'blowby':(_feintBeat?'dekestop':(_shielded?'shield':(isBody?'checkmiss':(isLift?'liftmiss':'pokemiss'))))), cc, cr);   /* rate nomme l'action : PROTECTED si bouclier, sinon CHECK MISSED / POKE MISSED */ if(anticipated){ var ocp=document.getElementById('outcome'); ocp.innerHTML='Pressure read! '+ocp.innerHTML; } var activeHas=!!(S.puckOwner && byId(S.puckOwner) && byId(S.puckOwner).team===activeTeam); var lost=activeHad && !activeHas;
-  setTimeout(function(){ if(success && isBody){ hitNext(_out, checker.team); } else if(success && !isBody){ if(isLift || hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700:450);
+  setTimeout(function(){ if(success && isBody){ hitNext(_out, checker.team); } else if(success && !isBody){ if(isLift || hasPerk(checker,'voleur')){ gainPuck(checker.team); } else { looseBall(checker.team); } } else { S.animating=false; spend(); } }, success?700+(_hr==='blast'?blastLag():0):450);   // v727 : la percutante -- la 3D ralentit au contact, le jeu l'attend
   return {success:!!success, body:!!isBody}; }   // v614 : pour le coup en route (orderMeetTry)
 function nearEnemySkater(p){ for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(e.onIce&&e.type==='sk'&&e.team!==p.team&&cheb(p,e)<=2) return e; } return null; }
 function selfBankLanding(p){ var d=dir(p.team), cand=[[2*d,0],[2*d,-1],[2*d,1],[1*d,-1],[1*d,1],[1*d,0]]; for(var i=0;i<cand.length;i++){ var c=p.c+cand[i][0], r=p.r+cand[i][1]; if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!pieceAt(c,r)) return {c:c,r:r}; } return null; }
@@ -14963,7 +14968,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1611048,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1617464,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
