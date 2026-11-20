@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v729</title>
+<title>Deck 3D v730</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v729';
+var GAME_VERSION='v730';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10790,7 +10790,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
-    gsw:(S.gkSw3d||null), block:(routeBlock()||undefined), cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
+    gsw:(S.gkSw3d||null), block:(routeBlock()||undefined), course:(hj3dCourse()||undefined), cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
   if(!hj3dActive()) return;
@@ -10824,7 +10824,7 @@ function rpBusy(k, d){ var R=ANIM_RATE||1;   // combien de temps la 3D anime ce 
 function rpKey(d){ return JSON.stringify([(d.players||[]).map(function(p){ return [p.id, p.c, p.r, p.dc, p.dr, p.st]; }), d.puck, d.slides, d.board]); }
 function hj3dRec(k, js){ if(k==='replay' || k==='paint' || (k==='cue' && (js==='camhome' || String(js).indexOf('perf:')===0))) return;   /* v663 : les reperes de l'essai non plus */   /* v609 : les images du bureau ne servent pas a la reprise ; v620 : camhome non plus */ var now=Date.now(); HJ3D_REC.push({t:now, k:k, j:js});
   while(HJ3D_REC.length>600 || (HJ3D_REC.length && now-HJ3D_REC[0].t>90000)) HJ3D_REC.shift(); }
-function rpSnap(d){ delete d.cells; delete d.block; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
+function rpSnap(d){ delete d.cells; delete d.block; delete d.course; delete d.ghosts; delete d.routes; delete d.tip; (d.players||[]).forEach(function(p){ p.cls=''; }); return d; }   // sans les aides de plan
 function replayFeed(team){
   var R=HJ3D_REC, gi=-1, i, j;
   for(i=R.length-1;i>=0;i--){ if(R[i].k==='ev' && R[i].j.indexOf('"e":"goal"')>=0){ gi=i; break; } }
@@ -10981,6 +10981,43 @@ function routeBrake(p, from, path, st){
   if(k<0) return [];
   var out=[]; for(var j=Math.max(0,k-m0); j<k; j++) out.push(j);
   return out;
+}
+// v730 (son choix : « les lignes de course ») : TROIS lignes qui partent de la case du joueur -- tout droit dans sa direction de glisse,
+// une courbe douce de chaque cote -- et suivent les cases qu'il peut patiner CE tour-ci sans perdre de vitesse : la regle de pas (inState /
+// inPush), aucun sharp / pivot / freinage, vitesse a chaque pas >= celle du depart, jamais plus loin que sa portee ; la bande arrete la
+// ligne, les autres joueurs ne comptent pas. « Courbe » = UN SEUL cran de 45 degres, au premier pas ou la regle le laisse sans perte,
+// puis en diagonale jusqu'au bout de la portee (ou la bande) : jamais plus de 45 degres au total. Rien pour un joueur
+// arrete ou qui recule. Affichage seulement : aucune regle ne change.
+function runLines(p, st, fc, fr){
+  var a0=inState(p, st, fc, fr), s0=a0.s; if(!(s0>0) || a0.back) return [];
+  var h=a0.v||facingOf(p), h0=dirIdx(h.dc, h.dr||0); if(h0<0) return [];
+  var out=[], seen={};
+  for(var sd=0;sd<3;sd++){
+    var turn=sd===0?0:(sd===1?1:-1), a=inState(p, st, fc, fr), x=fc, y=fr, hi=h0, turned=false, pts=[[fc,fr]];
+    a.sp=null; a.tags=null;
+    for(var step=0;step<ROUTE_MAX;step++){
+      var tries=(turn && !turned) ? [(hi+turn+8)%8, hi] : [hi], ok=false;   /* UN seul cran de 45 degres, au premier pas permis sans perte ; ensuite en diagonale */
+      for(var k=0;k<tries.length && !ok;k++){ var d=DIR8R[tries[k]], nx=x+d[0], ny=y+d[1]; if(!onIce(nx, ny)) continue;
+        var b={s:a.s, sc:a.sc, m:a.m, m0:a.m0, r:a.r, cap:a.cap, gw:a.gw, gh:a.gh, back:a.back, v:a.v, n:a.n, man:a.man, sp:null, tags:null, kind:'', x:a.x, y:a.y};
+        if(inPush(b, p, d[0], d[1]) || b.kind || b.back || b.s<s0) continue;
+        a=b; if(tries[k]!==hi) turned=true; hi=tries[k]; x=nx; y=ny; pts.push([x, y]); ok=true; }
+      if(!ok) break; }
+    var key=pts.join(';'); if(pts.length<2 || seen[key]) continue;
+    seen[key]=1; out.push(pts); }
+  return out;
+}
+var _rcKey='', _rcVal=null;
+function hj3dCourse(){   // pour l'instantane 3D : mon patineur touche (avec l'eventail) ou en plein trace ; calcule une fois par etat (cache)
+  var p, from;
+  if(S.route){ p=byId(S.route.id); from=S.route.from; }
+  else { p=byId(S.sel); if(!p || !S.moves || !S.moves.length) return null; from=S.planning ? ghostOf(p) : {c:p.c, r:p.r}; }
+  if(!p || p.type!=='sk' || p.team!==HUMAN_TEAM || !hasPos(p) || !from) return null;
+  var st=planState(p), f=facingOf(p); if(S.route && S.route.def) st=null;
+  var key=p.id+'|'+from.c+','+from.r+'|'+(st?st.mom+','+(st.vel?st.vel.dc+','+st.vel.dr:'-')+','+st.run+','+(st.back?1:0):'x')+'|'+(p.mom||0)+'|'+f.dc+','+(f.dr||0);
+  if(key===_rcKey) return _rcVal;
+  var L=runLines(p, st, from.c, from.r);
+  _rcKey=key; _rcVal=L.length ? L : null;
+  return _rcVal;
 }
 // v476 : les traces a dessiner, en points de case -- la 2D les peint en SVG (renderRoute), la 3D les recoit dans
 // l'instantane hj3d (meme source : aucune difference entre les deux vues)
@@ -14994,7 +15031,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1623768,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1628168,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
