@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v728</title>
+<title>Deck 3D v729</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1467,7 +1467,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v728';
+var GAME_VERSION='v729';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10970,6 +10970,18 @@ function wireRouteDrag(){
   grid.addEventListener('pointercancel', endDrag);
 }
 function _routeXY(cell){ return { x:(cell.c+0.5)*100, y:(cell.r+0.5)*100 }; }
+// v729 (son choix : « le trajet marque ou il freine ») : sur le trace en cours, les SEGMENTS (segment i = point i -> point i+1) ou il freine
+// pour pouvoir prendre son premier virage serre (sharp, ou pivot : il exige le meme freinage) -- les m0 pas juste avant le virage, sans
+// depasser le debut. Affichage seulement : la regle de pas (inWalk) est celle d'avant.
+function routeBrake(p, from, path, st){
+  if(!p || !path || !path.length) return [];
+  var m0=inState(p, st, from.c, from.r).m0; if(!(m0>0)) return [];
+  var w=inWalk(p, from.c, from.r, path, st), k=-1;
+  for(var i=0;i<w.tags.length;i++){ if(w.tags[i]==='sharp' || w.tags[i]==='pivot'){ k=i; break; } }
+  if(k<0) return [];
+  var out=[]; for(var j=Math.max(0,k-m0); j<k; j++) out.push(j);
+  return out;
+}
 // v476 : les traces a dessiner, en points de case -- la 2D les peint en SVG (renderRoute), la 3D les recoit dans
 // l'instantane hj3d (meme source : aucune difference entre les deux vues)
 function routeLines(){
@@ -10980,7 +10992,8 @@ function routeLines(){
     for(var k in S.ghost){ var gh=S.ghost[k], gp=byId(k); if(gh && gp && gh.path && gh.path.length) both(gp, gh.path.concat(gh.rest||[]), gh.path.length, 7); }
     if(S.defCommit){ for(var i=0;i<S.defCommit.picks.length;i++){ var pk=S.defCommit.picks[i], pp=byId(pk.defId); if(pk.path && pp) both(pp, pk.path, pk.n||pk.path.length, 7); } }
   }
-  if(S.route){ var p=byId(S.route.id); if(p){ var n=S.route.path.length ? routeStep(p, p.c, p.r, S.route.path, S.route.def?null:planState(p)).n : 0; both(p, S.route.path, n, 11); } }
+  if(S.route){ var p=byId(S.route.id); if(p){ var n=S.route.path.length ? routeStep(p, p.c, p.r, S.route.path, S.route.def?null:planState(p)).n : 0; both(p, S.route.path, n, 11);
+    var _bk=routeBrake(p, S.route.from, S.route.path, S.route.def?null:planState(p)); if(_bk.length){ for(var _bi=out.length-1;_bi>=0;_bi--){ if(out[_bi].solid && out[_bi].w===11){ out[_bi].brk=_bk.filter(function(x){ return x<out[_bi].pts.length-1; }); break; } } } } }   // v729 : la 3D peint ces segments en orange
   var _hs=huntShown(); if(_hs) out.push({pts:[[_hs.h.c, _hs.h.r],[_hs.car.c, _hs.car.r]], solid:false, w:7, col:'hunt'});   // v629 : le chasseur -> ton porteur (pointilles rouges)
   var _sr=S.so && S.so.run; if(_sr && _sr.path && _sr.path.length && (_sr.phase==='draw' || _sr.phase==='skate')){ var _sp=byId(_sr.id); if(_sp) line([{c:_sp.c, r:_sp.r}].concat(_sr.path.slice(_sr.k||0)), true, 11); }   // v541 : le trajet du tireur
   return out;
@@ -14981,7 +14994,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1621656,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":1623768,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
