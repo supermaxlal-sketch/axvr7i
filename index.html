@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v735</title>
+<title>Deck 3D v736</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1474,7 +1474,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v735';
+var GAME_VERSION='v736';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -1738,7 +1738,8 @@ function resolveSeq(seq){
   if(p && p.team===AI_TEAM) seq.acted=true;
 
   var _dn=!!(p && p.onIce && downNow(p, seq)); if(_dn) pushLog('<b>'+p.name+'</b> is down — he cannot act.');   // v679
-  if(!a || !p || !p.onIce || _dn){
+  var _ns=!!(a && p && p.onIce && brkNo(p) && BRK_BAN[a.kind]); if(_ns) pushLog('<b>'+p.name+'</b> has no stick — he cannot do that.');   // v736 : le baton casse plus tot dans le plan
+  if(!a || !p || !p.onIce || _dn || _ns){
     var df0=resolveSeqDefStep(seq);
     if(df0==='takeover') return;
     if(!df0){ seq.rank++; resolveSeq(seq); return; }
@@ -2381,7 +2382,7 @@ function dekeStepIn(p, d){   // a 2 cases : il avance d'une case vers lui (le je
   var oc=p.c, orr=p.r; p.c=m.c; p.r=m.r; markSkated(p, oc, orr, m.c, m.r); addSlide(p.id, oc-m.c, orr-m.r);
   pushLog(p.name+' steps in on '+d.name+'.'); return true; }
 function dekeTargets(p, baseC, baseR){
-  if(!p) return [];
+  if(!p || brkNo(p)) return [];   // v736
   var base=(baseC!==undefined) ? {c:baseC, r:baseR} : (S.planning?ghostOf(p):{c:p.c,r:p.r}), out=[];   // base optionnelle : tester un deke depuis une case hypothetique (guide des cases-approche)
   for(var dc2=-1;dc2<=1;dc2++)for(var dr2=-1;dr2<=1;dr2++){ if(!dc2&&!dr2) continue;   // v668 : a 2 cases, depuis la case du milieu
     var d2=pieceAt(base.c+2*dc2, base.r+2*dr2); if(!d2 || d2.team===p.team || d2.type!=='sk') continue;
@@ -2539,7 +2540,7 @@ function dekeAdjGoalie(p){ if(!p) return null; var b=S.planning?ghostOf(p):{c:p.
 function dekeFoe(p){ var a=adjacentEnemySkater(p); if(a) return a; var t=dekeTargets(p); return t.length ? byId(t[0].defId) : null; }   // v668
 function gFeintsFor(p){ var m=(p && p.maniement)||50; return SO_AI_FEINTS.filter(function(f){ return m>=f[1]; }).map(function(f){ return f[0]; }); }
 function gFeintProb(p, g, k){ var v=SO_FBASE+(((p && p.maniement)||50)-SO_MID)*0.006-(((g && g.arret100)||70)-70)*0.006+(k==='kane'?0.06:0)-0.10*feintSeenCount(g, 'g:'+k); return Math.max(0.05, Math.min(0.75, v)); }
-function dekeMenu(p){ var out=[]; if(!p || p.type!=='sk' || p.team!==S.turn || !ownsPuck(p.id)) return out;
+function dekeMenu(p){ var out=[]; if(!p || p.type!=='sk' || p.team!==S.turn || !ownsPuck(p.id) || brkNo(p)) return out;   // v736 : sans baton, pas de feinte
   var g=dekeAdjGoalie(p);
   if(g) gFeintsFor(p).forEach(function(k){ out.push({label:SO_FEINTS[k].n, pct:Math.round(gFeintProb(p, g, k)*100), oc:"pickGFeint('"+k+"')"}); });
   if(dekeTargets(p).length){ out.push({label:'Deke', pct:null, oc:'armDangle()'});
@@ -3029,7 +3030,7 @@ function passCatch(p,t){
     var fl=passFreeBase(p,t);
     if(ddPass(p,t)) cc=Math.max(fl, ddPassProb(p));
     else { if(passFacingThr(p,t)<0) fl=Math.min(fl, passCatchProb(p,t)); cc=fl*(1-recvBackDrop(p,t)); } }
-  return cc*souMul(p); }   /* v716 : le souffle (dans le tirage aussi, v717) */   /* v683 : def a def -- jamais moins bien qu'avant (la passe courte reste a 100) */   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
+  return cc*souMul(p)*(brkNo(p) ? BRK_KICK.catchK : 1); }   /* v736 : la passe du patin, molle */   /* v716 : le souffle (dans le tirage aussi, v717) */   /* v683 : def a def -- jamais moins bien qu'avant (la passe courte reste a 100) */   // v628 : passe longue / passeur de dos -> passCatchProb ; sinon 100, ou 80 si le receveur est de dos
 function selfBankProb(p){ return Math.max(0.10, Math.min(0.90, 0.40 + 0.008*(n100(p&&p.passe)-60))); }   // passe a soi-meme par la bande
 function blockPassProb(def, passer){ if(!def||!passer) return 0;   // ordre « Block the pass »
   return Math.max(0.05, Math.min(0.90, 0.55 + 0.006*(n100(def.defense)-n100(passer.passe)) + (hasPerk(def,'intercepteur')?0.20:0) - (hasPerk(passer,'passeur')?0.30:0) + 0.005*speechK(def.team, 'sys'))); }   // v504
@@ -3568,9 +3569,67 @@ function aiFlipAct(car, at, posOf, oddsFn){
     if(sc>bs){ bs=sc; best={c:c, r:r}; } }
   if(!best || Math.random()>=flipP) return null;
   return {kind:'flip', id:car.id, toC:best.c, toR:best.r}; }
+// ===== v736 : LE BATON CASSE (docs/PROJECT-NOTES.md « Le baton casse ») =====
+// A chaque TIR ou PASSE d'un patineur : une chance selon l'Equipement (finLv(T,1)) de SON club -- FIN_BREAK : 1,5 / 0,75 / 0,25 / 0,1 / 0 % ; hors carriere :
+// Normal. Il casse : p.nostk=true, le tir / la passe RATE (rondelle molle, libre), S.brkBits = les bouts qui restent sur la glace jusqu'au sifflet (la 3D les montre,
+// l'arbitre les ramasse). Sans baton : ni tir, ni feinte, ni poke / stick lift, ni passe soulevee / lob / tour du filet ; il peut recevoir, plaquer / bloquer, patiner
+// avec la rondelle ; sa passe est une passe du PATIN : couloir plus large, menace plus forte, reception x0,8 (molle, facile a couper). Baton neuf : il passe sur une
+// case le long de SON banc (brkBenchCells), ou au sifflet (startFaceoffRPS : tous), ou il sort de la glace. L'IA : plus de tir / feinte ; vers son banc si c'est pres.
+var BRK_BAN={shoot:1, dangle:1, wrap:1, saucer:1, flip:1};   // les gestes du plan qui demandent un baton
+var BRK_KICK={lane:0.25, width:1.3, catchK:0.8, near:9};     // la passe du patin ; near : l'IA va au banc s'il est a 9 cases ou moins
+function brkNo(p){ return !!(p && p.nostk && p.type==='sk'); }
+function brkLv(team){ var m=CAREER_MATCH; if(m && typeof CAREER!=='undefined' && CAREER && CAREER.teams){ var T=CAREER.teams[team==='A' ? m.my : m.opp]; if(T) return finLv(T, 1); } return 2; }   // l'Equipement de son club (Normal hors carriere)
+function brkTry(p){ if(!p || p.type!=='sk' || p.nostk || !S || S.tut || S.so) return false; var pr=FIN_BREAK[brkLv(p.team)]/100; if(!(pr>0)) return false; var r=Math.random(); return r>0 && r<pr; }   // r>0 : le tirage 0 pile (les batteries forcent « le meilleur de ») ne casse jamais ; en vrai : 1 chance sur 2^53
+function brkBreak(p, why){ p.nostk=true; var f=facingOf(p), bc=Math.max(0, Math.min(COLS-1, p.c+(f.dc||0))), br=p.r;
+  (S.brkBits||(S.brkBits=[])).push({id:p.id, c:bc, r:br}); matchEv('stk', {k:'brk', id:p.id, c:p.c, r:p.r, bc:bc, br:br, why:why}); checkFx('stickbrk', p.c, p.r);
+  pushLog('<b>Broken stick</b>: '+p.name+"'s stick snaps"+(why==='pass' ? ' on the pass' : ' on the shot')+'.'); }
+function brkPassFail(p, t, flow){   // la passe rate : la rondelle molle roule a 1-2 cases du passeur vers le receveur, libre
+  var pc=p.c, pr=p.r, d=Math.max(1, cheb(p, t)), k=Math.max(1, Math.min(2, Math.floor(d/2))), c=pc+Math.round((t.c-pc)*k/d), r=pr+Math.round((t.r-pr)*k/d);
+  S.animating=true; S.puckOwner=null; S.puckLoose=null; clearSel(); brkBreak(p, 'pass'); morPass(p, false);
+  if(!onIce(c, r) || (pieceAt(c, r) && pieceAt(c, r).id!==p.id)){ c=pc; r=pr; }
+  document.getElementById('outcome').innerHTML='Broken stick — the pass is lost!'; render();
+  flyPuckBoard(pc, pr, c, r, function(){ placeLooseNear(c, r); looseOffside(p.team, pc); S.animating=false; render(); looseBall(p.team, null); }, flow ? flow.ms/1000*k/d : undefined); }
+function brkShotFail(sh){   // le tir rate : pas de tir, la rondelle molle devant lui, libre (l'adversaire la reprend en premier)
+  S.aiming=null; S.oneTimerActive=false; S.otNoScene=false; S.otInfo=null; S.deflector=null; S.deflectShot=false;
+  document.getElementById('shotOverlay').classList.remove('show'); document.getElementById('saim').style.display='none';
+  brkBreak(sh, 'shot'); document.getElementById('outcome').innerHTML='Broken stick — no shot!';
+  var f=facingOf(sh), c=Math.max(0, Math.min(COLS-1, sh.c+(f.dc||dir(sh.team)))), r=sh.r, pc=sh.c, pr=sh.r;
+  if(pieceAt(c, r)){ c=pc; r=pr; }
+  S.puckOwner=null; S._looseLoser=sh.id; S.animating=true; render();
+  flyPuckBoard(pc, pr, c, r, function(){ placeLooseNear(c, r); looseOffside(sh.team, pc); S.animating=false; render(); looseBall(sh.team==='A' ? 'B' : 'A'); }); }
+function brkBenchCells(team){ var cs=[], cen=CTR_C+(team==='A' ? -2 : 2), lo=Math.ceil(cen-1.9), hi=Math.floor(cen+1.9);   // le banc : 3,85 m de part et d'autre de son centre (a 4 m de la ligne rouge), le long de la bande (batiment : endsCol)
+  for(var c=lo; c<=hi; c++) cs.push({c:endsCol(c), r:benchRow()}); return cs; }
+function brkOnBench(p, c, r){ if(!brkNo(p) || r!==benchRow()) return false; var cs=brkBenchCells(p.team); for(var i=0; i<cs.length; i++) if(cs[i].c===c) return true; return false; }
+function brkGive(p, why){ p.nostk=false; matchEv('stk', {k:'new', id:p.id, why:why}); pushLog('<b>'+p.name+'</b> gets a new stick'+(why==='bench' ? ' at the bench' : '')+'.'); }
+function brkPassBench(p, fc, fr, tc, tr){ if(!brkNo(p)) return; var x=fc, y=fr;   // son trajet touche une case de SON banc (case par case, comme markSkated)
+  if(brkOnBench(p, x, y)){ brkGive(p, 'bench'); return; }
+  while(x!==tc || y!==tr){ x+=Math.sign(tc-x); y+=Math.sign(tr-y); if(brkOnBench(p, x, y)){ brkGive(p, 'bench'); return; } } }
+function brkCheckNow(){ if(!S || !S.pieces) return; for(var i=0; i<S.pieces.length; i++){ var q=S.pieces[i]; if(!q.nostk) continue; if(!q.onIce){ q.nostk=false; continue; } if(brkOnBench(q, q.c, q.r)) brkGive(q, 'bench'); } }   // il s'arrete sur le banc ; il sort de la glace (changement) : baton neuf
+function brkRestock(){ if(!S || !S.pieces) return; var n=0; S.pieces.forEach(function(q){ if(q.nostk){ q.nostk=false; n++; } }); var had=!!(S.brkBits && S.brkBits.length); S.brkBits=[];
+  if(n || had) matchEv('stk', {k:'whistle', n:n}); if(n) pushLog('Everyone gets a new stick at the whistle.'); }   // le sifflet : tous les sans-baton en recoivent un ; les bouts restent pour l'arbitre (3D)
+function brkStepToward(q, tc, tr){ for(var n=Math.max(1, moveBudget(q)); n>=1; n--){ var c=q.c, r=q.r;   // la case atteignable vers (tc,tr), en ligne droite
+    for(var k=0; k<n && (c!==tc || r!==tr); k++){ c+=Math.sign(tc-c); r+=Math.sign(tr-r); }
+    if((c===q.c && r===q.r) || pieceAt(c, r) || !onIce(c, r) || !reachOK(q, q.c, q.r, c, r)) continue; return {c:c, r:r}; } return null; }
+function brkNearBench(q){ var cs=brkBenchCells(q.team), best=null, bd=1e9; cs.forEach(function(b){ var d=cheb(q, b); if(d<bd){ bd=d; best=b; } }); return best ? {c:best.c, r:best.r, d:bd} : null; }
+function brkAiGo(q){ var b=brkNearBench(q); if(!b || b.d>BRK_KICK.near || b.d<1) return null; if(S.puckLoose && cheb(q, S.puckLoose)<=2) return null; return brkStepToward(q, b.c, b.r); }   // « si c'est raisonnable » : pres du banc, pas sur la rondelle libre
+function brkAiPlan(plan){   // le plan de l'IA : pas de tir / feinte / passe soulevee sans baton ; le porteur sans baton passe ; ceux sans baton vont vers le banc
+  var out=[]; (plan||[]).forEach(function(a){ var p=a && byId(a.id); if(p && p.team===AI_TEAM && brkNo(p) && BRK_BAN[a.kind]) return; out.push(a); });
+  var car=S.puckOwner ? byId(S.puckOwner) : null;
+  if(car && car.team===AI_TEAM && brkNo(car) && !out.some(function(a){ return a && a.id===car.id; })){ var best=null, bd=1e9;
+    onIceSkaters(AI_TEAM).forEach(function(q){ if(q.id===car.id) return; var d=cheb(car, q)+(laneThreat(car, q).def ? 4 : 0); if(d<bd){ bd=d; best=q; } });
+    if(best) out.push({kind:'pass', id:car.id, target:best.id}); }
+  onIceSkaters(AI_TEAM).forEach(function(q){ if(!brkNo(q) || q.id===S.puckOwner || out.some(function(a){ return a && a.kind==='pass' && a.target===q.id; })) return;
+    var s=brkAiGo(q); if(!s) return; var mv=null; for(var i=0; i<out.length; i++) if(out[i] && out[i].kind==='move' && out[i].id===q.id){ mv=out[i]; break; }
+    if(mv){ mv.toC=s.c; mv.toR=s.r; delete mv.path; delete mv.n; } else out.push({kind:'move', id:q.id, toC:s.c, toR:s.r}); });
+  return out; }
+function brkAiDef(){   // la defense cachee de l'IA : sans baton, ni poke ni stick lift ; il file vers son banc s'il est pres
+  if(!S.hiddenDef) return; S.hiddenDef.forEach(function(m){ var d=m && byId(m.defId); if(!brkNo(d) || d.team!==AI_TEAM) return;
+    if(m.order==='poke' || m.order==='lift') m.order=null;
+    if(m.mate || m.forecheck) return; var s=brkAiGo(d); if(!s) return; m.toC=s.c; m.toR=s.r; m.role=null; m.aimRole=false; m.order=null; delete m.path; delete m.aimC; delete m.aimR; }); }
+function brkDefHtml(html, id){ if(!brkNo(byId(id))) return html; return html.replace(/<button[^>]*(?:112,111,107,101|108,105,102,116|data-o="poke"|data-o="lift")[^>]*>.*?<\/button>/g, ''); }   // ses boutons Poke / Stick lift disparaissent
 function canShootFrom(p){
   var c = (S.planning ? ghostOf(p).c : p.c);
-  if(p.type!=='sk' || !p.onIce) return false;
+  if(p.type!=='sk' || !p.onIce || p.nostk) return false;
   return inOffZone(p.team, c) && (p.team==='A' ? c<=NET_A : c>=NET_B) && facesShotGoal(p);
 }
 function inOffZone(team,c){ return team==='A' ? c>=BLUE_A : c<=BLUE_B; }
@@ -3743,7 +3802,7 @@ function isCyclePass(p, targetId){ return !!p && cycleTargets(p).indexOf(targetI
 // WRAPAROUND (Phase 2) : derriere le filet adverse, le porteur tente de fourrer la rondelle au
 // poteau rapproche avant que le gardien glisse. Jeu a faible % qui exige de l'elan.
 function canWraparound(p){
-  if(!p || S.puckOwner!==p.id || p.type!=='sk') return false;
+  if(!p || S.puckOwner!==p.id || p.type!=='sk' || p.nostk) return false;   // v736 : sans baton, pas de tour du filet
   if(p.c !== goalCol(p.team) + dir(p.team)) return false;   // derriere le filet adverse (col 18 pour A, 0 pour B)
   if(Math.abs(p.r - CTR_R) > 2) return false;                // pres de la bouche
   return true;
@@ -4005,7 +4064,7 @@ function computeOptions(){
   if(S.planning && ownsPuck(p.id)) fillRoutePassTargets(p);   // v428 : passe dans le trajet
   for(var dc=-1;dc<=1;dc++)for(var dr=-1;dr<=1;dr++){ if(!dc&&!dr) continue;
     var e=pieceAt(p.c+dc,p.r+dr);
-    if(e&&e.team!==p.team&&e.type==='sk'){ if(S.puckOwner===p.id||S.puckOwner===e.id) S.duelT.push(e.id); if(S.puckOwner===e.id) S.pokeT.push(e.id); } }
+    if(e&&e.team!==p.team&&e.type==='sk'){ if(S.puckOwner===p.id||S.puckOwner===e.id) S.duelT.push(e.id); if(S.puckOwner===e.id && !brkNo(p)) S.pokeT.push(e.id); } }   // v736 : sans baton, pas de poke
   S._dekeApp = (!S.dangle && ownsPuck(p.id)) ? dekeApproachCells(p) : [];   // guide mauve : ou aller pour deker
   if(S.bonus && S.bonus.release){ S.moves=[]; S._dekeApp=[]; }   // v449 : apres la coupe au centre -> passe ou lancer
 }
@@ -4438,7 +4497,7 @@ function flyPuckPath(pts, onDone, noEv, extra){   // v441 : la rondelle suit la 
 function distToSeg(px,py,ax,ay,bx,by){ var dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy; var t=L?((px-ax)*dx+(py-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); var qx=ax+t*dx, qy=ay+t*dy; return {d:Math.sqrt((px-qx)*(px-qx)+(py-qy)*(py-qy)), t:t}; }
 function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PUR (sans jet, sans effet de bord) — sert a la resolution ET a l'affichage
   var lane=[];
-  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(!e.onIce||e.type!=='sk'||e.team===p.team||isDown(e)) continue; var sg=distToSeg(e.c,e.r,p.c,p.r,t.c,t.r); if(sg.d<=0.85 && sg.t>0.12 && sg.t<0.92){ lane.push({e:e,d:sg.d}); } }
+  for(var i=0;i<S.pieces.length;i++){ var e=S.pieces[i]; if(!e.onIce||e.type!=='sk'||e.team===p.team||isDown(e)) continue; var sg=distToSeg(e.c,e.r,p.c,p.r,t.c,t.r); if(sg.d<=(brkNo(p) ? BRK_KICK.width : 0.85) && sg.t>0.12 && sg.t<0.92){ lane.push({e:e,d:sg.d}); } }   // v736 : la passe du patin : couloir plus large
   if(!lane.length) return {def:null, crowd:0, thr:0, prob:0};
   lane.sort(function(a,b){return a.d-b.d;});
   var best=lane[0].e, crowd=lane.length, bd=lane[0].d;
@@ -4453,6 +4512,7 @@ function laneThreat(p,t){   // menace d'interception d'une passe p->t : seuil PU
   pr-=MOM_BONUS*momK(p.team) + MOR_BONUS*morK(p) + stPts(p, 'pass');   /* v559 : son etat */ // v554 : le momentum du passeur (moins d'interceptions) ; v555 : son moral
   var _st=S._exStart && S._exStart[best.id];
   if(_st && (_st.c!==best.c || _st.r!==best.r)){ var _s0=distToSeg(_st.c,_st.r,p.c,p.r,t.c,t.r); if(!(_s0.d<=0.85 && _s0.t>0.12 && _s0.t<0.92)) pr*=0.5; }   // v642 : il arrive dans le couloir
+  if(brkNo(p)) pr+=BRK_KICK.lane;   // v736 : la passe du patin : facile a couper
   pr=Math.max(0.05, Math.min(0.90, pr));
   return {def:best, crowd:crowd, prob:pr, thr:pr*6};   // thr : compat « seuil /6 »
 }
@@ -4875,6 +4935,7 @@ function markSkated(p, fromC, fromR, toC, toR){
     if(!_lt || _lt.c!==fromC || _lt.r!==fromR) _m=_L[p.id]={pts:[{c:fromC, r:fromR}]};
     var _x=fromC, _y=fromR; while(_x!==toC || _y!==toR){ _x+=Math.sign(toC-_x); _y+=Math.sign(toR-_y); _m.pts.push({c:_x, r:_y}); } }
   p._skatedThisAction=true;
+  brkPassBench(p, fromC, fromR, toC, toR);   // v736 : son trajet passe le long de SON banc : un baton neuf
   var _n0=(p._inA && p._inA.sp)?p._inA.sp.length:0;
   inMark(p, fromC, fromR, toC, toR);   // v653 : la regle de pas (avant que vel change)
   inProfNote(p, _n0, fromC, fromR, toC, toR);   // v655
@@ -6242,6 +6303,7 @@ function defCommitCell(c,r){ var dc=S.defCommit; if(!dc||!dc.selDef) return; var
   S.moves=[]; render(); renderDefBar(); }
 function finalizeDefPick(order){
   var dc=S.defCommit; if(!dc||!dc.selDef||!dc.pendingMove) return;
+  if((order==='poke' || order==='lift') && brkNo(byId(dc.selDef))) return;   // v736 : sans baton, ni poke ni stick lift
   if(!order && !dc.extend){
     if(dc.pendingMove.path){ defSlideDone(); return; }   // v411 : un trace ne s'allonge pas d'une case
     var ex=defExtendMoves(dc);
@@ -6262,7 +6324,7 @@ function undoDefPick(){ var dc=S.defCommit; if(!dc) return; if(dc.forecheck || d
   var _lp=dc.picks[dc.picks.length-1]; if(dc.selDef && !(_lp && _lp.defId===dc.selDef)){ dc.selDef=null; dc.markMode=false; S.moves=[]; render(); renderDefBar(); return; }   // v407 : defenseur choisi sans rien faire -> Undo le deselectionne (le choix precedent reste)
   var _pp=dc.picks.pop(); if(_pp && _pp.cont){ var _pq=byId(_pp.defId); if(_pq) _pq.route=null; }   // v410 : Undo sur une suite annule le trace
   dc.selDef=null; S.moves=[]; render(); renderDefBar(); }
-function defOrderPick(order){ var dc=S.defCommit; if(!dc||!dc.selDef) return; if(dc.picks.length>=3) return; dc.picks.push({defId:dc.selDef, kind:'order', order:order}); dc.selDef=null; S.moves=[]; render(); renderDefBar(); defAutoConfirm(); }
+function defOrderPick(order){ var dc=S.defCommit; if(!dc||!dc.selDef) return; if(dc.picks.length>=3) return; if((order==='poke' || order==='lift') && brkNo(byId(dc.selDef))) return;   /* v736 */ dc.picks.push({defId:dc.selDef, kind:'order', order:order}); dc.selDef=null; S.moves=[]; render(); renderDefBar(); defAutoConfirm(); }
 /* ===== MARQUAGE HOMME-A-HOMME ===== */
 function defendCol(team){ return team==='A' ? NET_B : NET_A; }   // le filet que l'equipe DEFEND (la ou est son gardien)
 function startMark(){ var dc=S.defCommit; if(!dc||!dc.selDef) return; dc.markMode=true; setHint('Tap an opponent to shadow (man-to-man).'); render(); renderDefBar(); }
@@ -6448,7 +6510,7 @@ function renderDefChoice(){
   var _mk=markTargets(byId(dc.selDef)).length?1:0;
   var key=dc.selDef+'|'+dc.pendingMove.toC+','+dc.pendingMove.toR+'|'+(dc.extend?1:0)+'|'+(dc.pendingMove.path?1:0)+'|'+_mk;
   if(el.getAttribute('data-k')!==key){ el.setAttribute('data-k', key); var op=defOrderPcts()||{}; var pc=function(v){ return v!=null ? ' '+v+'%' : ''; };
-    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : (dc.pendingMove.path?'':'<button class="cbo" data-o="more">+1 more square</button>')+'<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'+(_mk?'<button class="cbo" data-o="mark">🎯 Mark</button>':'')); }
+    el.innerHTML='<button class="cbo" data-o="done">Done</button>'+(dc.extend ? '' : (dc.pendingMove.path?'':'<button class="cbo" data-o="more">+1 more square</button>')+'<button class="cbo ordC" data-o="check">Body check'+pc(op.check)+'</button><button class="cbo ordP" data-o="poke">Poke'+pc(op.poke)+'</button><button class="cbo ordP" data-o="lift">Stick lift'+pc(op.lift)+'</button><button class="cbo ordB" data-o="block">Block pass'+pc(op.block)+'</button><button class="cbo ordB" data-o="sblock">Block shot'+pc(op.sblock)+'</button>'+(_mk?'<button class="cbo" data-o="mark">🎯 Mark</button>':'')); el.innerHTML=brkDefHtml(el.innerHTML, dc.selDef); }   /* v736 : sans baton : ni Poke ni Stick lift */
   placeDefChoice(el);
 }
 function defBubblesOn(){ return !!(document.querySelector('.boardwrap') && !S.paused); }   /* v693 : la barre ne double plus les bulles */
@@ -6467,7 +6529,7 @@ function renderDefBar(){ var db=document.getElementById('defbar'); if(!db) retur
   else if(dc.selDef && dc.pendingMove && defBubblesOn() && !dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — pick on the ice</span>'; }
   else if(dc.selDef && dc.pendingMove && dc.extend){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' can go 1 more square — tap it, or</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — stay here</button>'; }
   else if(dc.selDef && dc.pendingMove){ html+='<span style="color:#9fb6cd">'+byId(dc.selDef).name+' slides — and then?</span><button class="perkbtn ordS" onclick="defSlideDone()">Done — just move</button>'+(dc.pendingMove.path?'':'<button class="perkbtn" onclick="finalizeDefPick(null)">+1 more square</button>')+'<button class="perkbtn ordC" onclick="finalizeDefPick(String.fromCharCode(99,104,101,99,107))">+ Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="finalizeDefPick(String.fromCharCode(98,108,111,99,107))">+ Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(112,111,107,101))">+ Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="finalizeDefPick(String.fromCharCode(108,105,102,116))">+ Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="finalizeDefPick(String.fromCharCode(115,98,108,111,99,107))">+ Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':''); }
-  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(protOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(112,114,111,116,110,101,116))">Protect net</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : dc.forecheck ? '<span style="color:#9fb6cd">Forecheck '+(dc.forecheck==='212'?'2-1-2':'1-2-2')+': your forwards press high.</span>' : (dc.fcMenu && forecheckOK()) ? '<span class="perklbl">Forecheck</span><button class="perkbtn" onclick="forecheckGo(String.fromCharCode(49,50,50))">1-2-2 · safe</button><button class="perkbtn ordC" onclick="forecheckGo(String.fromCharCode(50,49,50))">2-1-2 · aggressive</button><button class="perkbtn cancel" onclick="forecheckCancel()">Cancel</button>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')+(forecheckOK() ? '<button class="perkbtn" style="background:#c27a12" onclick="forecheckMenu()">⏩ Forecheck</button>' : '')); }   /* v622 ; v700 : Forecheck */   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=html; db.style.display='flex'; if(S.tut) tutDecorateButtons(); if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
+  else { html+= dc.selDef ? ('<span style="color:#9fb6cd">'+byId(dc.selDef).name+' : tap a square (slide) or post him in place (tap him again to pivot) :</span><button class="perkbtn ordC" onclick="defOrderPick(String.fromCharCode(99,104,101,99,107))">Body check'+_ckS+'</button><button class="perkbtn ordB" onclick="defOrderPick(String.fromCharCode(98,108,111,99,107))">Block the pass'+_bkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(112,111,107,101))">Poke check'+_pkS+'</button><button class="perkbtn ordP" onclick="defOrderPick(String.fromCharCode(108,105,102,116))">Stick lift'+_lfS+'</button><button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(115,98,108,111,99,107))">Block the shot'+_sbS+'</button>'+(markTargets(byId(dc.selDef)).length?'<button class="perkbtn ordM" onclick="startMark()">🎯 Mark</button>':'')+(protOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="defOrderPick(String.fromCharCode(112,114,111,116,110,101,116))">Protect net</button>':'')+(brakeOK(byId(dc.selDef))?'<button class="perkbtn ordS" onclick="toggleBrake(S.defCommit.selDef)">⏹ Brake</button>':'')) : (dc.backup ? '<span style="color:#9fb6cd">Back up: all five skate back between the puck and your net.</span>' : dc.forecheck ? '<span style="color:#9fb6cd">Forecheck '+(dc.forecheck==='212'?'2-1-2':'1-2-2')+': your forwards press high.</span>' : (dc.fcMenu && forecheckOK()) ? '<span class="perklbl">Forecheck</span><button class="perkbtn" onclick="forecheckGo(String.fromCharCode(49,50,50))">1-2-2 · safe</button><button class="perkbtn ordC" onclick="forecheckGo(String.fromCharCode(50,49,50))">2-1-2 · aggressive</button><button class="perkbtn cancel" onclick="forecheckCancel()">Cancel</button>' : '<span style="color:#9fb6cd">tap a player to set the ambush</span>'+(backupOK() ? '<button class="perkbtn ordC" onclick="backupGo()">⏪ Back up</button>' : '')+(forecheckOK() ? '<button class="perkbtn" style="background:#c27a12" onclick="forecheckMenu()">⏩ Forecheck</button>' : '')); }   /* v622 ; v700 : Forecheck */   /* v622 */ if(dc.picks.length>0 || (dc.selDef && !dc.pendingMove)) html+='<button class="perkbtn cancel" onclick="undoDefPick()">Undo</button>';   /* v407 : annule aussi un defenseur choisi */ if(dc.picks.length>=maxn || S.tut) html+='<button class="perkbtn" onclick="confirmDefCommit(true)">Confirm</button>';   /* v451 : en lecon, toujours */ db.innerHTML=brkDefHtml(html, dc.selDef); db.style.display='flex'; if(S.tut) tutDecorateButtons();   /* v736 : sans baton : ni Poke ni Stick lift */ if(isVRink() && dc.selDef) setTimeout(showDefOrders, 0); }   /* v474 */
 // v474 : telephone -- si un ordre de l'embuscade reste sous la barre GO, le panneau defile pour le montrer
 function showDefOrders(){
   if(!isVRink() || !S.defCommit) return;
@@ -6843,7 +6905,7 @@ function aiBuildPlan(){
     if(!_ps || _ps.type!=='sk' || facesShotGoal(_ps)) continue;
     var _pv=false; for(var _pj=0;_pj<_pi;_pj++){ if(plan[_pj].kind==='pivot' && plan[_pj].id===_pa.id) _pv=true; }
     if(!_pv){ plan.splice(_pi, 0, {kind:'pivot', id:_pa.id}); _pi++; } }
-  return plan;
+  return brkAiPlan(plan);   // v736 : sans baton : ni tir, ni feinte, ni passe soulevee ; il passe, ou file vers son banc
 }
 function aiScrambleMove(){
   if(!S.puckLoose){ return; }
@@ -6859,7 +6921,8 @@ function aiScrambleMove(){
   if(bo){ doMove(b,bo.c,bo.r); } else { passTurn(); }
 }
 function mostDangerousAttacker(atkTeam){ var nc=goalCol(atkTeam), best=null, bd=99, arr=onIceSkaters(atkTeam); for(var i=0;i<arr.length;i++){ var a=arr[i]; if(a.id===S.puckOwner) continue; if(!inOffZone(atkTeam,a.c)) continue; var d=Math.abs(a.c-nc); if(d<bd){ bd=d; best=a; } } return best; }
-function commitHiddenDefense(){
+function commitHiddenDefense(){ commitHiddenDefense0(); brkAiDef(); }   // v736 : l'IA sans baton : ni poke ni stick lift, vers son banc s'il est pres
+function commitHiddenDefense0(){
   S.hiddenDef=[]; S.defRevealIdx=0;
   if(S.tut && !tutAiDefense()) return;   // v455 : sauf si la lecon laisse jouer la vraie defense ('ai')   // v451 : lecon -- defense IA ecrite d'avance
   if(!S.puckOwner) return; var carrier=byId(S.puckOwner); if(!carrier) return;
@@ -6908,9 +6971,9 @@ function commitHiddenDefense(){
 // v399 : BULLES DE RESULTAT sur la glace (glace verticale). Au-dessus de la case de l'evenement, a l'endroit :
 // titre colore (sarcelle = reussi, rouge = rate) + la phrase du journal ; 2 bulles max ; disparait en ~2 s.
 var BUBBLE_T={post:'POST!',bar:'CROSSBAR!',onetimer:'ONE-TIMER',otwhiff:'WHIFF',pass:'PASS',passmiss:'PASS MISSED',poke:'POKE',pokemiss:'POKE MISSED',trip:'TRIPPED',lift:'STICK LIFT',liftmiss:'LIFT MISSED',body:'BODY CHECK',checkmiss:'CHECK MISSED',
-  shot:'SHOT',wide:'WIDE',save:'SAVE',blockshot:'SHOT BLOCKED',blockpass:'PASS BLOCKED',battle:'BATTLE',dekestop:'DEKE STOPPED',
+  shot:'SHOT',wide:'WIDE',save:'SAVE',blockshot:'SHOT BLOCKED',blockpass:'PASS BLOCKED',battle:'BATTLE',dekestop:'DEKE STOPPED',stickbrk:'BROKEN STICK',
   dumpin:'DUMP IN',dumpoff:'DUMP OFF',shield:'PROTECTED',stuffed:'STOPPED',blockmiss:'BLOCK MISSED',whiff:'BEATEN',blowby:'BLOWN BY'};
-var BUBBLE_MISS={otwhiff:1,passmiss:1,pokemiss:1,liftmiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
+var BUBBLE_MISS={stickbrk:1,otwhiff:1,passmiss:1,pokemiss:1,liftmiss:1,checkmiss:1,wide:1,dekestop:1,dumpoff:1,stuffed:1,blockmiss:1,whiff:1,blowby:1};
 function logPlain(i){ var h=(S.log&&S.log[i||0])||''; var d=document.createElement('div'); d.innerHTML=h; return (d.textContent||'').replace(/\s+/g,' ').trim(); }
 // v494 : OU EST UNE CASE A L'ECRAN (coordonnees de .boardwrap). 2D : la grille (glace verticale ou non). 3D : la camera
 // de Godot (hj3d.cam : projection x vue, colonne par colonne) projette le point monde de la case sur le canevas #g3d --
@@ -6953,7 +7016,7 @@ function iceBubble(type, c, r, fallback){
   setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1350);   // v405 : plus court (etait 2,3 s)
 }
 function checkFx(type, c, r){ var fx=document.getElementById('checkfx'); if(!fx) return; var txt=type==='body'?'BODY CHECK':(type==='poke'?'POKE !':(type==='whiff'?'BEATEN!':
-    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='pressure'?'UNDER PRESSURE':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED')))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='lift') txt='STICK LIFT'; else if(type==='liftmiss') txt='LIFT MISSED'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!';   /* v495 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
+    (type==='shot'?'SHOT !':(type==='pass'?'PASS':(type==='blockshot'?'BLOCKED !':(type==='pressure'?'UNDER PRESSURE':(type==='blockpass'?'PASS BLOCKED':(type==='battle'?'BATTLE !':(type==='save'?'SAVE !':(type==='wide'?'WIDE !':(type==='pokemiss'?'POKE MISSED':(type==='checkmiss'?'CHECK MISSED':(type==='passmiss'?'PASS MISSED':(type==='dekestop'?'DEKE STOPPED':(type==='dumpin'?'DUMP IN':(type==='dumpoff'?'DUMP OFF':(type==='shield'?'PROTECTED':(type==='stuffed'?'STOPPED':(type==='blockmiss'?'BLOCK MISSED':(type==='blowby'?'BLOWN BY!':'SHIELDED')))))))))))))))))))); if(type==='onetimer') txt='ONE-TIMER'; else if(type==='lift') txt='STICK LIFT'; else if(type==='liftmiss') txt='LIFT MISSED'; else if(type==='otwhiff') txt='WHIFF'; else if(type==='post') txt='POST!'; else if(type==='bar') txt='CROSSBAR!'; else if(type==='stickbrk') txt='BROKEN STICK';   /* v495 ; v736 */ fx.className='checkfx '+type; fx.classList.remove('go'); fx.innerHTML='<div class="fxburst"></div><div class="fxtxt">'+txt+'</div>'; fx.style.left=((c+0.5)/COLS*100)+'%'; fx.style.top=((r+0.5)/ROWS*100)+'%'; fx.style.display='block'; void fx.offsetWidth; fx.classList.add('go'); if(isVRink() || hj3dActive()) iceBubble(type, c, r, txt);   /* v494 : aussi sur la 3D */
   if(type==='body'){ sfx('bang'); } else if(type==='poke' || type==='lift'){ sfx('poke'); } else if(type==='block'){ sfx('block'); }
   else if(type==='shot'){ sfx('shot'); } else if(type==='pass'){ sfx('pass'); }
   else if(type==='blockshot'||type==='blockpass'){ sfx('block'); } else if(type==='save'){ sfx('save'); } else if(type==='post'||type==='bar'){ sfx('ding'); }   /* v495 */
@@ -7166,6 +7229,7 @@ function doPass(p,targetId){
   sfx('pass');
   var _flow=S._routeFlow; S._routeFlow=null;   // v429 : vol = duree du patinage du receveur, pas de pause a la reception
   var _stride=!!S._stridePass; S._stridePass=false;   // v419 : passe dans la course -> +STRIDE_BONUS % (chance de sauver une passe ratee)
+  if(brkTry(p)){ brkPassFail(p, t, _flow); return; }   // v736 : le baton casse sur la passe
   var _rt=passRattle(p); if(_rt>0 && ttype==='sk' && Math.random()<_rt){ pressPassBad(p, t, passPressure(p), _flow); return; }   // v646 : sous la pression, la passe part mal
   S._prsPass=(_rt>0);   // v646 : une passe reussie sous pression (carriere : la stat Pressure monte)
   var _rescue=_stride ? strideRescue((passOdds(p,t)||0)/100) : 0;
@@ -7665,7 +7729,7 @@ function passByMeet(p, cells, om){
   if(!p || p.type!=='sk' || S.puckOwner!==p.id || S.tut || S.so || !cells || !cells.length) return null;
   var mp=[{c:p.c, r:p.r}].concat(cells), L=S._rankMoves||{}, list=[], i;
   for(i=0;i<S.pieces.length;i++){ var q=S.pieces[i];
-    if(!q.onIce || q.type!=='sk' || q.team===p.team || passByHasOrder(q) || raceLate(q.id) || racePassLate(q.id) || chargedPending(q) || (S.feintBeaten && S.feintBeaten[q.id])) continue;
+    if(!q.onIce || q.type!=='sk' || q.team===p.team || brkNo(q) || passByHasOrder(q) || raceLate(q.id) || racePassLate(q.id) || chargedPending(q) || (S.feintBeaten && S.feintBeaten[q.id])) continue;
     var mq=(L[q.id] && L[q.id].pts.length) ? L[q.id].pts : [{c:q.c, r:q.r}];
     if(mq.length>1 && ptsCut(mp, mq)) continue;   // v432 : ils se coupent net -- la collision de toujours
     if(cheb(mp[0], mq[0])<2 || cheb(mp[mp.length-1], mq[mq.length-1])<2) continue;   // colle au depart, ou a l'arrivee : le contact de toujours
@@ -8001,6 +8065,7 @@ function renderPen(){ var P=S.pen; ['A','B'].forEach(function(t){ var el=documen
     el.textContent=out.join(' '); }); }
 function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v450 : forcePoke = poke check assure (rondelle exposee sur le revers) ; v652 : pokeOnly = le poke au passage (jamais une mise en echec ni un stick lift)
   if(typeof S!=='undefined'&&S)S._cineAction='hit';   // indice camera (lecture seule)
+  if(brkNo(checker)){ forcePoke=false; pokeOnly=false; }   // v736 : sans baton, il plaque (jamais de poke ni de stick lift)
   var _pn=S.planNext; S.planNext=null;
   if(_pn && _pn.v2seq){
     var _sq=_pn.v2seq;
@@ -8017,7 +8082,7 @@ function resolveCheck(checker, anticipated, posted, forcePoke, pokeOnly){   // v
   // le gabarit (def) ne decide plus SI c'est un body check, il en pilote seulement la REUSSITE et la SEPARATION.
   // Un def<4 NON poste (simple contact au passage) fait encore un poke (le finaud ne charge pas tout seul).
   var _postedHit = (posted || !!hasOrder(checker.id,'check'));
-  var isBody=!pokeOnly && (_postedHit || (checker.def>=4 && !hasOrder(checker.id,'poke') && !hasOrder(checker.id,'lift')));   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit ; v648 : Stick lift aussi
+  var isBody=!pokeOnly && (_postedHit || brkNo(checker) || (checker.def>=4 && !hasOrder(checker.id,'poke') && !hasOrder(checker.id,'lift')));   /* v736 : sans baton : la mise en echec */   // v459 (ecart 3) : l'ordre Poke check fait poker le gros gabarit ; v648 : Stick lift aussi
   if(C && C.type==='g' && (checker.team===AI_TEAM || !_postedHit)) isBody=false;   // v631 (match TRV, P3 0:08 ; son choix) : sur un gardien, l'IA fait un poke, jamais une mise en echec ; toi : seulement sur ton ordre (et c'est une penalite)
   var _liftO=hasOrder(checker.id,'lift'); if(_liftO) _liftO.used=true;   // v648 : l'ordre Stick lift sert une fois (de face : un poke)
   var isLift=!isBody && !pokeOnly && !!C && C.type==='sk' && liftProb(checker, C)>0 && (!!_liftO || (!hasOrder(checker.id,'poke') && aiLift(checker, C)));
@@ -8262,7 +8327,7 @@ function liftRecvPlay(p, t, d, flow){   // la passe arrive au receveur, passe so
 function doLift(p, carId){   // v648 : le bouton a ton tour (comme doPoke) -- reussi : il repart avec la rondelle
   if(S.animating||S.gameEnded) return;
   var car=byId(carId);
-  if(!p||!car||S.puckOwner!==car.id||car.team===p.team||S.gestes<=0) return;
+  if(!p||!car||S.puckOwner!==car.id||car.team===p.team||S.gestes<=0||brkNo(p)) return;   // v736 : sans baton, pas de stick lift
   var lp=liftProb(p, car); if(!(lp>0)) return;
   var thr=Math.round(lp*100); if(protShieldHit(car.id)){ thr=Math.min(thr, 17); } var a=1+Math.floor(Math.random()*100), ok=(a<=thr); bumpWear(car.id);
   var pn=p.name, cn=car.name, pid=p.id, pteam=p.team, cc=car.c, cr=car.r;
@@ -8285,7 +8350,7 @@ function doLift(p, carId){   // v648 : le bouton a ton tour (comme doPoke) -- re
 function doPoke(p,carId){
   if(S.animating||S.gameEnded) return;
   var car=byId(carId);
-  if(!p||!car||S.puckOwner!==car.id||car.team===p.team||S.gestes<=0) return;
+  if(!p||!car||S.puckOwner!==car.id||car.team===p.team||S.gestes<=0||brkNo(p)) return;   // v736 : sans baton, pas de poke
   if(!facesTarget(p, car)) return;   // le porteur est derriere : il faut pivoter pour poker
   var thr=Math.round(pokeProb(p,car)*100); if(protShieldHit(car.id)){ thr=17; } var a=1+Math.floor(Math.random()*100), ok=(a<=thr);   /* v406 : poke au % (tirage 1-100) */ bumpWear(car.id);   // protect : premier contact presque toujours repousse
   var pn=p.name, cn=car.name, pid=p.id, pteam=p.team, cc=car.c, cr=car.r;
@@ -8458,6 +8523,7 @@ function onShotTarget(t){
   document.getElementById('saim').style.display='none';
   var _slap=!!S.slapShot && !S.oneTimerActive; S.slapShot=false;   // v649 : le slap shot
   if(_slap && slapPokeTry(sh)) return;                             // il arme : un adversaire colle peut le poker avant le tir
+  if(brkTry(sh)){ brkShotFail(sh); return; }                       // v736 : le baton casse sur le tir (pas de tir, rondelle molle libre)
   if(_slap) pushLog('<b>Slap shot</b>: '+sh.name+' winds up and lets it rip!');
   checkFx('shot', sh.c, sh.r);
   protFoul(sh);   // v678 : Protect net
@@ -9254,7 +9320,7 @@ function deployLineup(){
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
 }
-function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; gkStartRun(); S.down={};   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
+function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; gkStartRun(); S.down={}; brkRestock();   /* v736 : le sifflet : un baton neuf a tous */   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
   matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
@@ -10301,6 +10367,7 @@ function diagSnap(){   // diag : memorise la position de tous les pions + la ron
 }
 function render(){
   gkChgRefresh();   // v691 : le bouton Change goalie
+  brkCheckNow();   // v736 : sans baton, arrete sur la case de son banc (ou sorti de la glace) : un baton neuf
   if(S._holdRender) return;   // v614 : le coup en route se resout avec le porteur pose au croisement -- on ne le dessine pas la
   S._bbT=blowbyTargets(); if(S._bbT && Object.keys(S._bbT).length) tipTrigger('blowby');   // v525 : qui on peut deborder
   // DETECTEUR DE SAUT : une piece qui a change de case depuis le dernier render SANS slide en attente
@@ -10360,11 +10427,11 @@ function render(){
   dbn.style.display=canDump?'inline-block':'none';
   dbn.className='act dump'+(S.dumpAim?' on':'');
   if(canDump){ var _dl=ownZone(sp.team,sp.c)?'⤒ Clear':'⤒ Dump in'; dbn.textContent=S.dumpAim?(_dl+' ✓'):_dl; }
-  var canSaucer = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v677
+  var canSaucer = sp&&carrier&&sp.type==='sk'&&!sp.nostk&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v677 ; v736 : sans baton, pas de passe soulevee
   var sbn=document.getElementById('btnSaucer'); sbn.style.display=canSaucer?'inline-block':'none'; sbn.className='act dump'+(S.saucerAim?' on':''); sbn.textContent=S.saucerAim?'⤴ Saucer pass ✓':'⤴ Saucer pass';
   var canDrop = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v684
   var dpb=document.getElementById('btnDrop'); dpb.style.display=canDrop?'inline-block':'none'; dpb.className='act dump'; dpb.textContent='⤵ Drop pass';
-  var canFlip = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v687 : de n'importe ou (aussi en zone offensive)
+  var canFlip = sp&&carrier&&sp.type==='sk'&&!sp.nostk&&S.gestes>0&&!S.animating&&!S.passBonus&&!S.defCommit&&!S.coachPush;   // v687 ; v736 : sans baton, pas de lob : de n'importe ou (aussi en zone offensive)
   var flb=document.getElementById('btnFlip'); flb.style.display=canFlip?'inline-block':'none'; flb.className='act dump'+(S.flipAim?' on':''); flb.textContent=S.flipAim?'⤴ Flip ✓':'⤴ Flip';
   var canWrap = sp&&carrier&&sp.type==='sk'&&S.gestes>0&&!S.animating&&!S.passBonus&&canWraparound(sp);
   var wbn=document.getElementById('btnWrap');
@@ -10788,6 +10855,7 @@ function hj3dSnapshot(slides){
     var ms=stState(q); if(ms) pl.ms=ms;   /* v681 : l'etat mental seul (stun, angry, conf, panic) -> l'icone 3D ; ni par terre, ni frein, ni Protect net */
     if(isDown(q)) pl.dn=(S.down[q.id].k==='flat' ? 'flat' : 'knee');   /* v680 : couche (percutante) ou a genou (toute autre chute), seulement quand st = down */
     if(q.vel && (q.vel.dc||q.vel.dr)) pl.mv=[q.vel.dc||0, q.vel.dr||0];   /* v661 : sa direction de glisse -> les chevrons de vitesse derriere elle (pas derriere son regard) */
+    if(brkNo(q)) pl.ns=1;   /* v736 : sans baton -> mains vides et l'icone du baton casse au-dessus de sa tete (3D) */
     if(q._gpark){ pl.c=q._gpark.c; pl.r=q._gpark.r; }   /* v689 : au banc */
     if(goalieTrav(q)) pl.trav=1;   /* v689 : le gardien patine vers son banc / son filet : la 3D le laisse glisser */
     if(q.type==='g') pl.gs=(gkStyle(q)==='butterfly'?'b':'s');   /* v585 : son style, pour ses gestes 3D */   /* v660 : cm et lb -> la 3D dessine sa hauteur et sa largeur (patineurs) */
@@ -10797,6 +10865,7 @@ function hj3dSnapshot(slides){
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
+    stk:(S.brkBits||[]).map(function(b){ return {id:b.id, c:b.c, r:b.r}; }),   /* v736 : les bouts de baton casse sur la glace (jusqu'au sifflet : l'arbitre les ramasse) */
     gsw:(S.gkSw3d||null), block:(routeBlock()||undefined), course:(hj3dCourse()||undefined), cells:cells, fan:hj3dFan(), ghosts:ghosts, routes:routeLines(), tip:tip ? [tip.c, tip.r] : null, slides:hj3dSlides(slides), bench:hj3dBench(), box:hj3dBox(), injw:hj3dInjw(), ends:!!S.ends, room:hj3dRoom(), arena:hj3dArena(), emblems:hj3dEmblems(), board:{a:TEAM_ABBR.A, b:TEAM_ABBR.B, sa:S.score.A, sb:S.score.B, per:(S.so ? 'SO' : (S.overtime ? 'OT' : 'P'+S.period)), clock:fmtClock(S.clock)},   /* v544 : le tableau indicateur */ abbr:{A:TEAM_ABBR.A, B:TEAM_ABBR.B} };   // v505 : les bancs ; v507 : la chambre
 }
 function hj3dPush(slides){   // envoie l'instantane a Godot s'il a change (rien en vue 2D, rien sans Godot)
@@ -15503,7 +15572,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":5030792,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":5047768,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
