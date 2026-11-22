@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v746</title>
+<title>Deck 3D v747</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -993,6 +993,10 @@ body:not(.vrink) .thumbx{display:none !important;}
 .abub .ab:focus-visible{outline:3px solid #ffd34d;outline-offset:1px;}
 .abub .ab.tuthl{box-shadow:0 0 0 3px #ffd23e,0 0 12px #ffd23e;}
 .abub .tip{position:absolute;width:0;height:0;pointer-events:none;}
+/* v747 : TENIR le doigt sur un autre joueur : la meme bulle (.hold) avec un titre (.abt) et l'anneau jaune (#hring) sur le joueur vise */
+.abub .abt{flex:0 0 auto;font-family:var(--pxu);font-weight:800;font-size:9px;color:#ffd23e;padding:0 2px 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.abub .abn{flex:0 0 auto;font-family:var(--pxu);font-weight:700;font-size:10px;color:#dbe8f5;text-align:center;line-height:18px;height:18px;}
+#hring{position:absolute;z-index:45;box-sizing:border-box;border:3px solid #ffd23e;border-radius:50%;pointer-events:none;box-shadow:0 0 10px rgba(255,210,62,.8);transform:translate(-50%,-50%);}
 .tbtop{flex-direction:column;gap:6px;flex:0 0 auto;}
 .tbhint{font-family:var(--pxu);font-size:13px;font-weight:700;color:#9fb6cd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px;}
 .tbhint.tbloose{white-space:normal;color:#ffd166;font-size:14px;line-height:1.3;}   /* v413 : consigne de rondelle libre, en entier */
@@ -1532,7 +1536,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v746';
+var GAME_VERSION='v747';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10649,7 +10653,7 @@ function render(){
     if(clickable) cell.className+=' canclick';
     if(S.tut) tutDecorateCell(cell,c,r);   // v451
     if(S._magnet && S._magnet.c===c && S._magnet.r===r && Date.now()-S._magnet.t<450) cell.className+=' magnet';
-    (function(cc,rr){ cell.onclick=function(e){ var _mt=magnetCell(cc,rr,e); onCell(_mt.c,_mt.r); }; })(c,r);   // v391 : toucher aimante
+    (function(cc,rr){ cell.onclick=function(e){ if(S._holdSwallow){ S._holdSwallow=false; return; }   /* v747 : le click qui suit un doigt TENU (bulle ouverte) n'est pas un toucher */ var _mt=magnetCell(cc,rr,e); onCell(_mt.c,_mt.r); }; })(c,r);   // v391 : toucher aimante
     grid.appendChild(cell);
   }
   if(S.puckLoose && S.puckLoose.offside===HUMAN_TEAM) tipTrigger('pending');   // v456
@@ -10721,6 +10725,7 @@ function tapNote(c,r){
   S._taps=S._taps||[]; S._taps.unshift(t); if(S._taps.length>6) S._taps.pop(); return t;
 }
 function onCell(c,r){
+  if(S._hold){ S._hold=null; renderOrbit(); }   // v747 : un toucher (quel qu'il soit) ferme la bulle tenue ; le toucher fait ensuite ce qu'il faisait
   if(S.so && soTapCell(c, r)) return;   // v541 : la fusillade -- toucher la glace = son trajet en ligne droite
   if(S.tut && tutTap(c,r)) return;   // v451 : lecon -- seuls les gestes permis
   var t=tapNote(c,r), sel0=S.sel, n0=(S.atkPlan||[]).length, g0=S.gestes, tr0=S.turn;
@@ -10801,7 +10806,8 @@ var ORB_K={   // cle : [icone, mot, fond, texte]
   protect:['🛡','PROTECT','#2f6f4f','#e6fff0'], wrap:['↩','WRAP','#8a5a14','#fff3e0'], cycle:['🔄','CYCLE','#1f6f7a','#e6fbff'],
   call:['🙋','CALL','#2a6fb0','#fff'], card:['🃏','CARD','#243a52','#dbe8f5'], onetimer:['⚡','1-TIMER','#d1631a','#fff'],
   redirect:['⇝','REDIR.','#8a3c14','#ffe6d5'], check:['💪','CHECK','#b3402f','#fff'], block:['✋','BLOCK\nPASS','#2a6fb0','#fff'],
-  sblock:['🥅','BLOCK\nSHOT','#2a6fb0','#fff'], mark:['🎯','MARK','#4a2f80','#e8dcff'], protnet:['🛡','NET','#0d5d63','#dcfbff']
+  sblock:['🥅','BLOCK\nSHOT','#2a6fb0','#fff'], mark:['🎯','MARK','#4a2f80','#e8dcff'], protnet:['🛡','NET','#0d5d63','#dcfbff'],
+  pass:['→','PASS','#2f7d4a','#fff']   // v747 : la passe normale (toucher le coequipier) n'a pas de bouton ; elle n'existe que dans la bulle tenue
 };
 var ORB_IDS={btnDeke:'deke', btnShoot:'shoot', btnSlap:'slap', btnBank:'bank', btnSelfBank:'bankgo', btnDump:'dump', btnSaucer:'saucer', btnDrop:'drop', btnFlip:'flip', btnPoke:'poke', btnLift:'lift', btnBrake:'brake', btnProtect:'protect', btnWrap:'wrap', btnCycle:'cycle', btnCall:'call'};
 var ORB_OC=[[/showPlayerCard/,'card'],[/armOneTimer|cancelOneTimer/,'onetimer'],[/armRedirect|cancelRedirect/,'redirect'],[/115,98,108,111,99,107/,'sblock'],[/98,108,111,99,107/,'block'],[/99,104,101,99,107/,'check'],
@@ -10839,7 +10845,7 @@ function orbitFire(ref){   // toucher la pastille = toucher le bouton d'avant (r
 }
 // v746 : l'ORDRE de la bulle -- le plus haut % en haut ; une action armee (cochee) reste tout en haut ; sans % apres celles qui en ont, dans
 // l'ordre de la table ORB_PRI (la passe soulevee et le tir d'abord : ce qu'il fait souvent)
-var ORB_PRI=['shoot','slap','saucer','dump','drop','flip','bank','bankgo','deke','onetimer','redirect','wrap','cycle','call','poke','lift','check','block','sblock','protect','protnet','mark','brake','card'];
+var ORB_PRI=['pass','shoot','slap','saucer','dump','drop','flip','bank','bankgo','deke','onetimer','redirect','wrap','cycle','call','poke','lift','check','block','sblock','protect','protnet','mark','brake','card'];
 function orbitSorted(src){
   var L=src.map(function(s, i){ var pr=ORB_PRI.indexOf(s.key); return {s:s, i:i, pr:pr<0?99:pr, sc:s.on ? 1000 : (s.pct!==null && s.pct!==undefined ? parseInt(s.pct, 10) : -1)}; });
   L.sort(function(a, b){ return (b.sc-a.sc) || (a.pr-b.pr) || (a.i-b.i); });
@@ -10867,7 +10873,61 @@ function orbitPlace(P, bw, bh, W, H, obst, cen){
       if(!e || ov<e.ov || (ov===e.ov && md>e.md)) e={x:ex, y:ey, ov:ov, md:md}; } }
   return {x:e ? e.x : m, y:e ? e.y : m, edge:true};
 }
-function orbitClear(){ var el=document.getElementById('abub'); if(el && el.parentNode) el.parentNode.removeChild(el); }
+function orbitClear(){ var el=document.getElementById('abub'); if(el && el.parentNode) el.parentNode.removeChild(el); var rg=document.getElementById('hring'); if(rg && rg.parentNode) rg.parentNode.removeChild(rg); }
+// v747 (sa question : « si je tiens le coequipier au lieu d'appuyer, il apparait les options ») : TENIR le doigt ~0,5 s sur un AUTRE joueur, son joueur
+// etant choisi : la bulle s'ouvre a cote de CE joueur (titre « A > B » / « A vs B », anneau jaune) avec SEULEMENT les actions du joueur choisi qui le
+// visent -- la plus probable en haut. AUCUNE regle ici : un bouton = le vieux bouton puis toucher ce joueur (ou le toucher court : la passe).
+// Quelles actions visent un joueur : coequipier = Pass, Saucer, Bank, Drop (derriere), Cycle ; adversaire = Deke, Protect (colle) ; en defense : le
+// porteur adverse = Check, Block pass, Poke, Lift, tout adversaire a portee = Mark ; non-porteur : Call for it (le porteur). Les autres (Shoot, Slap,
+// Dump, Flip, Bank & go, Wrap, Brake, Block shot, Net, One-timer, Redirect, Card) ne visent personne : pas dans cette bulle.
+var HOLD_MS=450;
+function orbitHoldItems(sub, T, c, r){
+  var me=sub.p, out=[]; if(!T || !T.onIce || T.id===me.id) return out;
+  var by={}, src=orbitSources(sub); for(var i=0;i<src.length;i++){ if(!by[src[i].key]) by[src[i].key]=src[i]; }
+  var mate=(T.team===me.team), pm=(S.planning && !sub.def) ? ghostOf(me) : {c:me.c, r:me.r}, pt=(S.planning && !sub.def) ? ghostOf(T) : {c:T.c, r:T.r};
+  function put(key, pc, fire){ var K=ORB_K[key], s=by[key]; if(!K) return; out.push({key:key, ref:s?s.ref:null, pct:(pc!==null && pc!==undefined) ? String(pc) : null, on:false, word:K[1], title:((s&&s.title)||K[1])+' - '+T.name, tk:null, fire:fire}); }
+  function arm(k, tap){ return function(){ orbitFire(by[k].ref); if(tap) onCell(c, r); }; }   // le vieux bouton, puis (au besoin) toucher ce joueur
+  if(sub.def){
+    if(mate) return out;
+    if(S.puckOwner===T.id){ ['check','block','poke','lift'].forEach(function(k){ if(by[k]) put(k, by[k].pct, arm(k, false)); }); }
+    if(by.mark && T.type==='sk' && markTargets(me).some(function(q){ return q.id===T.id; })) put('mark', null, arm('mark', true));
+    return out; }
+  if(ownsPuck(me.id)){
+    if(mate){
+      if(passEntry(T.id)) put('pass', targetPct(me, c, r), function(){ onCell(c, r); });
+      if(by.saucer) put('saucer', null, arm('saucer', true));
+      if(by.bank){ var bp=null; try{ bp=oddsFromPlanPos(me, function(){ return oddsFromPlanPos(T, function(){ return Math.round(bankLegs(me, {c:me.c, r:me.r}, {c:T.c, r:T.r}, false).pct*100); }); }); }catch(e){ bp=null; }
+        put('bank', bp, function(){ if(!S.bankMode) orbitFire(by.bank.ref); onCell(c, r); }); }
+      var bh=(pm.c-pt.c)*dir(me.team);
+      if(by.drop && T.type==='sk' && bh>=1 && bh<=2 && Math.abs(pt.r-pm.r)<=1 && !isDown(T)) put('drop', null, arm('drop', false));
+      if(by.cycle && cycleTargets(me).indexOf(T.id)>=0) put('cycle', null, arm('cycle', true));
+    } else {
+      if(by.deke && ((T.type==='sk' && dekeTargets(me).some(function(d){ return d.defId===T.id; })) || (T.type==='g' && dekeAdjGoalie(me)===T))) put('deke', by.deke.pct, T.type==='g' ? arm('deke', false) : function(){ armDangle(); });
+      if(by.protect && T.type==='sk' && cheb(pm, pt)<=1) put('protect', null, arm('protect', false)); }
+    return out; }
+  if(mate){ var cc=by.call ? callCarrier(me) : null; if(cc && cc.id===T.id) put('call', by.call.pct, arm('call', false)); }
+  else if(S.pokeT && S.pokeT[0]===T.id){ if(by.poke) put('poke', by.poke.pct, arm('poke', false)); if(by.lift) put('lift', by.lift.pct, arm('lift', false)); }
+  return out;
+}
+// l'etat tenu, s'il est encore bon (meme joueur choisi, joueur vise encore sur la glace) ; sans action, le petit mot ne reste qu'~1 s
+function orbitHoldGet(sub){
+  var h=S._hold; if(!h) return null;
+  var T=byId(h.tid);
+  if(!sub || h.sub!==sub.p.id || !T || !T.onIce){ S._hold=null; return null; }
+  var items=orbitHoldItems(sub, T, h.c, h.r);
+  if(!items.length && !S._holdTm){ S._hold=null; return null; }
+  return {T:T, c:h.c, r:h.r, items:items};
+}
+// le doigt est tenu sur la case (c, r) : la 2D (souris / doigt) et la 3D (hj3d.hold) arrivent ici ; faux = rien de nouveau (le relachement agit comme un toucher)
+function holdOpen(c, r){
+  if(S.paused || S.gameEnded || S.animating || S.autoSim || S.tut) return false;
+  var sub=orbitSubject(); if(!sub) return false;
+  var T=pieceAt(c, r) || (S.planning ? ghostAt(c, r) : null); if(!T || T.id===sub.p.id || !T.onIce) return false;
+  if(S._holdTm){ clearTimeout(S._holdTm); S._holdTm=null; }
+  S._hold={sub:sub.p.id, tid:T.id, c:c, r:r};
+  if(!orbitHoldItems(sub, T, c, r).length) S._holdTm=setTimeout(function(){ S._holdTm=null; if(S._hold && S._hold.tid===T.id){ S._hold=null; renderOrbit(); } }, 1000);
+  renderOrbit(); return true;
+}
 function orbitDefFlag(){   // la barre de l'embuscade cache ses ordres quand ils sont dans la bulle (meme condition que la bulle)
   var db=document.getElementById('defbar'); if(!db) return; var s=orbitSubject(); db.classList.toggle('abubd', !!(s && s.def)); }
 function renderOrbit(){
@@ -10875,40 +10935,50 @@ function renderOrbit(){
   orbitDefFlag();
   var sub=orbitSubject(), id=sub ? sub.p.id : null;
   if(S._orbitSeen!==id){ S._orbitSeen=id; S._orbitShut=null; S._orbitMore=false; }   // un autre joueur (ou plus personne) : la bulle se rouvre, repliee
-  if(!sub || S._orbitShut===id){ orbitClear(); return; }
-  var all=orbitSources(sub); if(!all.length){ orbitClear(); return; }
-  var list=orbitSorted(all), many=list.length>4, open=many && !!S._orbitMore, vis=many && !open ? list.slice(0, 4) : list;
+  var hold=orbitHoldGet(sub);   // v747 : le doigt tenu sur un autre joueur : la bulle va VERS lui
+  if(!sub || (S._orbitShut===id && !hold)){ orbitClear(); return; }
+  var all=hold ? hold.items : orbitSources(sub); if(!all.length && !hold){ orbitClear(); return; }
+  var tgt=hold ? hold.T : sub.p;
+  var list=orbitSorted(all), many=!hold && list.length>4, open=many && !!S._orbitMore, vis=many && !open ? list.slice(0, 4) : list;
   var nRows=vis.length+(many ? 1 : 0);
   var B=bw.getBoundingClientRect(), W=B.width||bw.clientWidth||390, H=B.height||bw.clientHeight||560;
   var BW=146, GAP=4, PADB=14, RH=30; while(RH>22 && nRows*(RH+GAP)-GAP+PADB>H-6) RH-=2;   // la bulle allongee tient dans l'ecran : des lignes plus basses, jamais de defilement
-  var gp=(S.planning && !sub.def) ? ghostOf(sub.p) : {c:sub.p.c, r:sub.p.r};
+  var gp=hold ? {c:hold.c, r:hold.r} : ((S.planning && !sub.def) ? ghostOf(sub.p) : {c:sub.p.c, r:sub.p.r});
   var P=screenOfCell(gp.c, gp.r, 1.0) || {x:W/2, y:H/2}, cp=cellPx(gp.c, gp.r);
-  // ce qu'elle ne doit pas cacher : les joueurs des deux equipes (leur fantome aussi : une cible de passe), la rondelle, le joueur touche
+  // ce qu'elle ne doit pas cacher : les joueurs des deux equipes (leur fantome aussi : une cible de passe), la rondelle, le joueur touche (tenu : celui qu'on vise)
   var hw=Math.max(16, cp*0.6), hu=Math.max(28, cp*1.1), hd=Math.max(14, cp*0.5), obst=[], cen=[];
   function box(pt, pad){ pad=pad||0; obst.push({x0:pt.x-hw-pad, y0:pt.y-hu-pad, x1:pt.x+hw+pad, y1:pt.y+hd+pad}); cen.push(pt); }
-  box(P, 4); var rp=screenOfCell(sub.p.c, sub.p.r, 1.0); if(rp && (rp.x!==P.x || rp.y!==P.y)) box(rp, 0);   /* le vrai joueur aussi quand c'est son fantome qui est la */
-  for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.id===sub.p.id || !hasPos(q)) continue;
+  box(P, 4); var rp=screenOfCell(tgt.c, tgt.r, 1.0); if(rp && (rp.x!==P.x || rp.y!==P.y)) box(rp, 0);   /* le vrai joueur aussi quand c'est son fantome qui est la */
+  for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.id===tgt.id || !hasPos(q)) continue;
     var sq=screenOfCell(q.c, q.r, 1.0); if(sq) box(sq, 0);
     var gq=(S.planning && S.ghost) ? S.ghost[q.id] : null; if(gq && (gq.c!==q.c || gq.r!==q.r)){ var sg=screenOfCell(gq.c, gq.r, 1.0); if(sg) box(sg, 0); } }
   if(S.puckLoose){ var pk=screenOfCell(S.puckLoose.c, S.puckLoose.r, 0.2); if(pk){ obst.push({x0:pk.x-14, y0:pk.y-14, x1:pk.x+14, y1:pk.y+14}); cen.push(pk); } }
   var pos, BH;   // aucune place libre : on essaie des lignes plus basses (jusqu'a 22 px) avant le bord de la glace
-  for(;;){ BH=nRows*(RH+GAP)-GAP+PADB; pos=orbitPlace(P, BW, BH, W, H, obst, cen); if(!pos.edge || RH<=22) break; RH-=2; }
-  var key=id+'|'+RH+'|'+(open?1:0)+'|'+vis.map(function(s){ return s.key+(s.on?'*':'')+(s.pct||'')+s.word; }).join(',')+'|'+list.length;
+  var HEADH=hold ? 15+GAP : 0, NOTEH=(hold && !nRows) ? 18 : 0;   // v747 : le titre (+ le petit mot quand rien ne vise ce joueur)
+  for(;;){ BH=(nRows ? nRows*(RH+GAP)-GAP : 0)+NOTEH+HEADH+PADB; pos=orbitPlace(P, BW, BH, W, H, obst, cen); if(!pos.edge || RH<=22) break; RH-=2; }
+  var key=(hold ? 'H'+hold.T.id+','+hold.c+','+hold.r+'|' : '')+id+'|'+RH+'|'+(open?1:0)+'|'+vis.map(function(s){ return s.key+(s.on?'*':'')+(s.pct||'')+s.word; }).join(',')+'|'+list.length;
   var el=document.getElementById('abub');
   if(!el || el.getAttribute('data-k')!==key){   // les actions ont change : on refait la bulle (sinon on la deplace seulement : un doigt pose reste sur son bouton)
-    orbitClear(); el=document.createElement('div'); el.id='abub'; el.className='abub'; el.setAttribute('data-k', key); bw.appendChild(el);
+    orbitClear(); el=document.createElement('div'); el.id='abub'; el.className='abub'+(hold ? ' hold' : ''); el.setAttribute('data-k', key); bw.appendChild(el);
+    if(hold){ var ti=document.createElement('div'); ti.className='abt'; ti.textContent=(sub.p.name+(tgt.team===sub.p.team ? ' → ' : ' vs ')+tgt.name).toUpperCase(); el.appendChild(ti);
+      if(!vis.length){ var nt=document.createElement('div'); nt.className='abn'; nt.textContent='No action on him'; el.appendChild(nt); } }
     vis.forEach(function(s){ var K=ORB_K[s.key], b=document.createElement('button'); b.type='button'; b.className='ab'+(s.on?' on':''); b.setAttribute('data-k', s.key); if(s.tk) b.setAttribute('data-orbk', s.tk);
       b.style.background=K[2]; b.style.color=K[3]; b.style.height=RH+'px'; b.title=s.title; b.setAttribute('aria-label', s.title);
       var ic=document.createElement('i'); ic.textContent=K[0]; b.appendChild(ic);
       var wd=document.createElement('b'); wd.textContent=s.word.replace(/\n/g, ' ').replace('BLOCK PASS', 'BLK PASS').replace('BLOCK SHOT', 'BLK SHOT').replace('BANK & GO', 'BANK&GO');   /* mots courts : la bulle reste etroite */ b.appendChild(wd);
       if(s.pct){ var sm=document.createElement('small'); sm.textContent=s.pct+'%'; b.appendChild(sm); }
-      b.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); orbitFire(s.ref); };
+      b.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation();
+        if(s.fire){ S._hold=null; try{ s.fire(); } finally { renderOrbit(); } } else orbitFire(s.ref); };   // v747 : tenu = le vieux bouton puis ce joueur ; la bulle tenue se ferme
       el.appendChild(b); });
     if(many){ var mb=document.createElement('button'); mb.type='button'; mb.className='ab more'; mb.setAttribute('data-k', open ? 'less' : 'more'); mb.style.height=RH+'px';
       mb.textContent=open ? 'Less ▴' : 'More ▾ ('+(list.length-4)+')';
       mb.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); S._orbitMore=!open; renderOrbit(); };
       el.appendChild(mb); } }
   el.style.width=BW+'px'; el.style.height=BH+'px'; el.style.left=pos.x.toFixed(1)+'px'; el.style.top=pos.y.toFixed(1)+'px';
+  var rg=document.getElementById('hring');   // v747 : l'anneau jaune autour du joueur vise (au sol)
+  if(hold){ var RG=screenOfCell(gp.c, gp.r, 0.05) || P, rs=Math.max(34, cp*1.3); if(!rg){ rg=document.createElement('div'); rg.id='hring'; bw.appendChild(rg); }
+    rg.style.width=rs.toFixed(1)+'px'; rg.style.height=(rs*0.8).toFixed(1)+'px'; rg.style.left=RG.x.toFixed(1)+'px'; rg.style.top=RG.y.toFixed(1)+'px'; }
+  else if(rg && rg.parentNode) rg.parentNode.removeChild(rg);
   // la pointe : du cote du joueur touche
   var old=el.querySelector('.tip'); if(old) old.parentNode.removeChild(old);
   var tip=document.createElement('div'); tip.className='tip'; var cx=Math.max(12, Math.min(BW-12, P.x-pos.x)), cy=Math.max(12, Math.min(BH-12, P.y-pos.y));
@@ -11258,6 +11328,10 @@ var hj3d={
     var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
     var t=magnetPick(c, r, fc, fr, px/(HJ3D.k||1)); onCell(t.c, t.r); return true; },
   drag:function(phase, c, r){ if(PERF_TEST) return false; return hj3dDrag(phase, c, r); },
+  hold:function(fc, fr, px){   // v747 : un doigt TENU sur la glace 3D (Godot, ~0,5 s sans glisser) = la bulle des actions vers ce joueur ; faux : rien de nouveau (le relachement fait le toucher)
+    if(PERF_TEST) return false;
+    var c=Math.floor(fc), r=Math.floor(fr); if(!(c>=0 && c<COLS && r>=0 && r<ROWS)) return false;
+    return holdOpen(c, r); },
   perf:function(js){ try{ var d=JSON.parse(js); if(!d || typeof d!=='object') return false; HJ3D.perf=d; HJ3D.perfAt=Date.now(); return true; }catch(e){ return false; } },   // v663 : le rapport de performance de la 3D (toutes les 2 s)
   cell:function(o){ return cellMsg(o); },   // v737 : le cellulaire -- la main est arrivee (les 4 coins de l'ecran du telephone), en mouvement, ou redescendue
   office:function(o){ return offMsg(o); },   // v608 : le bureau -- arrivee a un objet (ses 4 coins a l'ecran) ou glissement (obj null)
@@ -11278,6 +11352,25 @@ function wireRouteDrag(){
   if(_routeWired) return;
   var grid=document.getElementById('grid'); if(!grid) return;
   _routeWired=true;
+  // v747 : TENIR le doigt (souris tenue / doigt pose) ~HOLD_MS sans bouger sur un autre joueur = la bulle des actions vers lui (holdOpen) ; la 3D passe par hj3d.hold
+  function holdCancel(){ if(S._holdTm2){ clearTimeout(S._holdTm2); S._holdTm2=null; } S._holdWait=null; }
+  grid.addEventListener('pointerdown', function(e){
+    holdCancel(); S._holdSwallow=false;
+    if(e.button!=null && e.button>0) return;
+    var hel=(e.target && e.target.closest) ? e.target.closest('.cell') : null, hc=null;
+    if(hel && hel.parentNode===grid){ var hx=Array.prototype.indexOf.call(grid.children, hel); if(hx>=0) hc={c:hx%COLS, r:Math.floor(hx/COLS)}; }
+    if(!hc) hc=gridCellFromXY(e.clientX, e.clientY);
+    if(!hc || !orbitSubject()) return;
+    S._holdWait={x:e.clientX, y:e.clientY, c:hc.c, r:hc.r};
+    S._holdTm2=setTimeout(function(){ S._holdTm2=null; var w=S._holdWait; S._holdWait=null; if(w && holdOpen(w.c, w.r)) S._holdSwallow=true; }, HOLD_MS);
+  });
+  grid.addEventListener('pointermove', function(e){
+    var w=S._holdWait; if(!w) return;
+    var _gr=grid.getBoundingClientRect(), _cpx=isVRink() ? _gr.width/ROWS : _gr.width/COLS, _th=Math.max(DRAG_PX, 0.6*(_cpx||0));
+    if(Math.abs(e.clientX-w.x)>=_th || Math.abs(e.clientY-w.y)>=_th) holdCancel();   // un doigt qui glisse : un glisser, pas un doigt tenu
+  });
+  grid.addEventListener('pointerup', holdCancel);
+  grid.addEventListener('pointercancel', holdCancel);
   grid.addEventListener('pointerdown', function(e){
     if(e.button!=null && e.button>0) return;
     if(!isHumanAttackPlan() && !isHumanAmbush() && !isHumanLoose()) return;   // v415 : on dessine aussi en rondelle libre
@@ -16996,7 +17089,7 @@ glResumeAfterReload();   // v640 : rechargee apres la perte de la 3D -> le match
 <script src="godot/index.js"></script>
 <script>
 (function(){   // v476 : chargeur de la glace 3D (Godot). Echec (pas de WebGL 2...) -> la 2D reprend (hj3dFail).
-  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":5057120,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
+  var cfg={"args":["--audio-driver","Dummy"],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"godot/index","experimentalVK":false,"fileSizes":{"godot/index.pck":5060096,"godot/index.wasm":39514754},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"godot/index.pck"}, started=false;
   window.hj3dBoot=function(){
     if(started) return; started=true;
     if(!window.Engine || !Engine.isWebGLAvailable(2)){ hj3dFail('WebGL 2 not available'); return; }
