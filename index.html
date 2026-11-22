@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v745</title>
+<title>Deck 3D v746</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -974,21 +974,25 @@ body:not(.vrink) .thumbx{display:none !important;}
 .vrink #defbar .perkbtn{min-height:34px;font-size:11px;padding:3px 4px;line-height:1.15;white-space:normal;}
 .vrink .controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));}
 .vrink button.act{min-height:48px;font-size:13px;line-height:1.15;white-space:normal;padding:6px;border-radius:12px;}
-/* v745 : les actions du joueur touche sont des PASTILLES autour de lui sur la glace (#orbit) ; en bas il ne reste que le plan, Annuler, Mirror et GO.
-   Les boutons d'action restent dans la page (cachees) : la pastille les touche. #perkbar (Card, One-timer, Redirect) passe aussi en pastilles ;
-   les ordres de l'embuscade (#defbar.orbit) aussi ; la liste des dekes (#dekeList) et les barres d'equipe (Back up / Forecheck, coach) restent. */
+/* v746 : UNE petite BULLE a cote du joueur touche (#abub) remplace les pastilles de la v745 : une liste empilee, les 4 actions au plus haut %
+   (la plus haute en haut), « More » pour les autres. En bas il ne reste que le plan, Annuler, Mirror et GO. Les boutons d'action restent dans
+   la page (caches) : la bulle les touche. #perkbar (Card, One-timer, Redirect) y passe aussi ; les ordres de l'embuscade (#defbar.abubd) aussi ;
+   la liste des dekes (#dekeList) et les barres d'equipe (Back up / Forecheck, coach) restent. */
 .vrink .controls{display:none !important;}
 .vrink #perkbar{display:none !important;}
-.vrink #defbar.orbit .perkbtn{display:none !important;}
-.orbit{position:absolute;left:0;top:0;right:0;bottom:0;z-index:46;pointer-events:none;}
-.orb{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:3px solid #fff;box-shadow:0 3px 9px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:0;margin:0;pointer-events:auto;cursor:pointer;color:#fff;font-family:var(--pxu);font-weight:800;line-height:1;touch-action:manipulation;box-sizing:border-box;}
-.orb i{font-style:normal;font-size:17px;line-height:1;}
-.orb b{display:block;font-size:8px;letter-spacing:.02em;line-height:1.05;text-align:center;white-space:pre-line;margin-top:1px;}
-.orb small{position:absolute;right:-6px;top:-6px;min-width:22px;box-sizing:border-box;padding:2px 3px;border-radius:9px;background:#0a1521;color:#fff;border:1.5px solid #fff;font-size:9px;font-weight:800;line-height:1;text-align:center;}
-.orb.on{box-shadow:0 0 0 3px #ffd23e,0 3px 9px rgba(0,0,0,.6);}
-.orb:focus-visible{outline:3px solid #ffd34d;outline-offset:2px;}
-.orb.tuthl{box-shadow:0 0 0 4px #ffd23e,0 0 14px #ffd23e;}
+.vrink #defbar.abubd .perkbtn{display:none !important;}
+.abub{position:absolute;z-index:46;box-sizing:border-box;padding:5px;border:2px solid #ffd23e;border-radius:10px;background:rgba(10,21,33,.84);box-shadow:0 4px 12px rgba(0,0,0,.55);
+  display:flex;flex-direction:column;gap:4px;pointer-events:auto;}
+.abub .ab{flex:0 0 auto;width:100%;display:flex;align-items:center;gap:5px;padding:0 6px;margin:0;border:1px solid rgba(255,255,255,.75);border-radius:7px;box-sizing:border-box;
+  font-family:var(--pxu);font-weight:800;font-size:11px;line-height:1;cursor:pointer;touch-action:manipulation;text-align:left;}
+.abub .ab i{font-style:normal;font-size:14px;width:18px;text-align:center;flex:0 0 18px;}
+.abub .ab b{flex:1 1 auto;min-width:0;overflow:hidden;font-weight:800;white-space:nowrap;letter-spacing:0;font-size:9px;}
+.abub .ab small{flex:0 0 auto;margin-left:auto;padding:2px 3px;border-radius:5px;background:rgba(0,0,0,.38);color:#fff;font-size:9px;font-weight:800;}
+.abub .ab.on{box-shadow:0 0 0 2px #ffd23e;}
+.abub .ab.more{background:transparent;color:#dbe8f5;border:1px dashed #9fb6cd;justify-content:center;}
+.abub .ab:focus-visible{outline:3px solid #ffd34d;outline-offset:1px;}
+.abub .ab.tuthl{box-shadow:0 0 0 3px #ffd23e,0 0 12px #ffd23e;}
+.abub .tip{position:absolute;width:0;height:0;pointer-events:none;}
 .tbtop{flex-direction:column;gap:6px;flex:0 0 auto;}
 .tbhint{font-family:var(--pxu);font-size:13px;font-weight:700;color:#9fb6cd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:16px;}
 .tbhint.tbloose{white-space:normal;color:#ffd166;font-size:14px;line-height:1.3;}   /* v413 : consigne de rondelle libre, en entier */
@@ -1528,7 +1532,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v745';
+var GAME_VERSION='v746';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -10812,8 +10816,9 @@ function orbitSubject(){
 // les actions du moment = les boutons d'avant qui sont montres (meme ordre que le panneau d'avant)
 function orbitSources(sub){
   var out=[];
-  function add(el, key, ref){ var K=ORB_K[key]; if(!K) return; var txt=(el.textContent||'').replace(/\s+/g,' ').trim(), m=/(\d+)\s*%/.exec(txt);
-    out.push({key:key, ref:ref, pct:m?m[1]:null, on:/✓|cancel|tap receiver/i.test(txt) || el.classList.contains('on'), word:(key==='dump' && /Clear/.test(txt))?'CLEAR':K[1], title:txt, tk:tutBtnKey(el)}); }
+  function add(el, key, ref){ var K=ORB_K[key]; if(!K) return; var txt=(el.textContent||'').replace(/\s+/g,' ').trim(), m=/(\d+)\s*%/.exec(txt), pc=m?m[1]:null;
+    if(key==='deke' && pc===null && !sub.def){ var dm=dekeMenu(sub.p), best=-1; for(var q=0;q<dm.length;q++){ if(dm[q].pct!=null && dm[q].pct>best) best=dm[q].pct; } if(best>=0) pc=String(best); }   // v746 : le Deke montre la meilleure chance de sa liste de feintes
+    out.push({key:key, ref:ref, pct:pc,on:/✓|cancel|tap receiver/i.test(txt) || el.classList.contains('on'), word:(key==='dump' && /Clear/.test(txt))?'CLEAR':K[1], title:txt, tk:tutBtnKey(el)}); }
   if(sub.def){
     var DB=document.querySelectorAll('#defbar button.perkbtn');
     for(var i=0;i<DB.length;i++){ var oc=DB[i].getAttribute('onclick')||''; if(/confirmDefCommit|undoDefPick|defSlideDone|finalizeDefPick\(null\)|forecheck|backup/.test(oc)) continue;
@@ -10832,50 +10837,87 @@ function orbitFire(ref){   // toucher la pastille = toucher le bouton d'avant (r
   else el=document.querySelectorAll(ref.t==='perk' ? '#perkbar button.perkbtn' : '#defbar button.perkbtn')[ref.i];
   if(el && !el.disabled) el.click();
 }
-// la place des pastilles : des anneaux autour du joueur (le 1er assez loin pour ne pas le cacher) ; on garde les places qui restent dans
-// l'ecran, loin des autres joueurs, d'abord les plus proches, du cote de la glace ; tout tient (plus d'anneaux si la bande en coupe)
-function orbitSlots(P, n, W, H, D, cp, others){
-  var pad=D/2+3, R0=Math.min(D*2.2, Math.max(D*1.15, cp*1.1+D/2)), cand=[], pref=Math.atan2(H/2-P.y, W/2-P.x), TAU=Math.PI*2;
-  for(var ri=0; ri<5; ri++){ var R=R0+ri*D*0.95, m=Math.max(4, Math.floor(TAU*R/(D+4)));
-    for(var k=0;k<m;k++){ var a=-Math.PI/2+TAU*k/m, x=P.x+R*Math.cos(a), y=P.y+R*Math.sin(a);
-      if(x<pad || x>W-pad || y<pad || y>H-pad) continue;
-      var ov=0; for(var q=0;q<others.length;q++){ if(Math.hypot(others[q].x-x, others[q].y-y)<D*0.5+30) ov++; }   /* un autre joueur (et son % de passe) reste visible : on prefere un anneau plus loin */
-      var da=Math.abs(Math.atan2(Math.sin(a-pref), Math.cos(a-pref)));
-      cand.push({x:x, y:y, a:a, cost:ri*1000+ov*1500+da*30}); } }
-  cand.sort(function(u,v){ return u.cost-v.cost; });
-  var got=[];
-  for(var i=0;i<cand.length && got.length<n;i++){ var ok=true; for(var g=0;g<got.length;g++){ if(Math.hypot(got[g].x-cand[i].x, got[g].y-cand[i].y)<D+2){ ok=false; break; } } if(ok) got.push(cand[i]); }
-  for(var f=0; got.length<n; f++){ got.push({x:Math.min(W-pad, pad+f*(D+3)), y:pad, a:0}); }   // dernier recours : une rangee en haut
-  got.sort(function(u,v){ return ((u.a+Math.PI/2+TAU)%TAU)-((v.a+Math.PI/2+TAU)%TAU); });   // dans le sens des aiguilles, en partant du haut
-  return got;
+// v746 : l'ORDRE de la bulle -- le plus haut % en haut ; une action armee (cochee) reste tout en haut ; sans % apres celles qui en ont, dans
+// l'ordre de la table ORB_PRI (la passe soulevee et le tir d'abord : ce qu'il fait souvent)
+var ORB_PRI=['shoot','slap','saucer','dump','drop','flip','bank','bankgo','deke','onetimer','redirect','wrap','cycle','call','poke','lift','check','block','sblock','protect','protnet','mark','brake','card'];
+function orbitSorted(src){
+  var L=src.map(function(s, i){ var pr=ORB_PRI.indexOf(s.key); return {s:s, i:i, pr:pr<0?99:pr, sc:s.on ? 1000 : (s.pct!==null && s.pct!==undefined ? parseInt(s.pct, 10) : -1)}; });
+  L.sort(function(a, b){ return (b.sc-a.sc) || (a.pr-b.pr) || (a.i-b.i); });
+  return L.map(function(x){ return x.s; });
 }
-function orbitClear(){ var el=document.getElementById('orbit'); if(el && el.parentNode) el.parentNode.removeChild(el); }
-function orbitDefFlag(){   // la barre de l'embuscade cache ses ordres quand ils sont en pastilles (meme condition que la pastille)
-  var db=document.getElementById('defbar'); if(!db) return; var s=orbitSubject(); db.classList.toggle('orbit', !!(s && s.def)); }
+// v746 : la PLACE de la bulle (bw x bh) -- aucun joueur des deux equipes (ni son fantome), ni la rondelle, ni le joueur touche en dessous ;
+// elle reste dans l'ecran de la glace. On essaie des places autour (dessous d'abord, dessus, cotes, en biais), de plus en plus loin, et on
+// prend la plus proche qui ne recouvre rien ; sinon le bord de la glace (gauche ou droite), le plus loin des joueurs.
+// obst : des rectangles {x0,y0,x1,y1} ; cen : les centres des joueurs
+function orbitHit(x0, y0, x1, y1, obst){ for(var i=0;i<obst.length;i++){ var o=obst[i]; if(x0<o.x1 && x1>o.x0 && y0<o.y1 && y1>o.y0) return true; } return false; }
+function orbitPlace(P, bw, bh, W, H, obst, cen){
+  var m=2, best=null, A=[0, 22.5, -22.5, 45, -45, 67.5, -67.5, 90, -90, 112.5, -112.5, 135, -135, 157.5, -157.5, 180];   // 0 = vers le bas de l'ecran
+  for(var k=0;k<A.length;k++){ var a=A[k]*Math.PI/180, dx=Math.sin(a), dy=Math.cos(a);
+    for(var d=14; d<=300; d+=6){ var cx=P.x+dx*d, cy=P.y+dy*d, x0=cx-bw/2, y0=cy-bh/2, x1=x0+bw, y1=y0+bh;
+      if(x0<m || y0<m || x1>W-m || y1>H-m) continue;
+      if(orbitHit(x0, y0, x1, y1, obst)) continue;
+      var cost=d+Math.abs(A[k])*0.15; if(!best || cost<best.cost) best={x:x0, y:y0, cost:cost};
+      break; } }
+  if(best) return {x:best.x, y:best.y, edge:false};
+  var e=null;
+  for(var sd=0; sd<2; sd++){ var ex=sd===0 ? m : W-bw-m;
+    for(var ey=m; ey<=Math.max(m, H-bh-m); ey+=6){ var ov=0, md=1e9;
+      for(var i=0;i<obst.length;i++){ var o=obst[i]; if(ex<o.x1 && ex+bw>o.x0 && ey<o.y1 && ey+bh>o.y0) ov++; }
+      for(var j=0;j<cen.length;j++){ var qx=Math.max(ex-cen[j].x, 0, cen[j].x-(ex+bw)), qy=Math.max(ey-cen[j].y, 0, cen[j].y-(ey+bh)); md=Math.min(md, Math.hypot(qx, qy)); }
+      if(!e || ov<e.ov || (ov===e.ov && md>e.md)) e={x:ex, y:ey, ov:ov, md:md}; } }
+  return {x:e ? e.x : m, y:e ? e.y : m, edge:true};
+}
+function orbitClear(){ var el=document.getElementById('abub'); if(el && el.parentNode) el.parentNode.removeChild(el); }
+function orbitDefFlag(){   // la barre de l'embuscade cache ses ordres quand ils sont dans la bulle (meme condition que la bulle)
+  var db=document.getElementById('defbar'); if(!db) return; var s=orbitSubject(); db.classList.toggle('abubd', !!(s && s.def)); }
 function renderOrbit(){
   var bw=document.querySelector('.boardwrap'); if(!bw) return;
   orbitDefFlag();
   var sub=orbitSubject(), id=sub ? sub.p.id : null;
-  if(S._orbitSeen!==id){ S._orbitSeen=id; S._orbitShut=null; }   // un autre joueur (ou plus personne) : le rond se rouvre
+  if(S._orbitSeen!==id){ S._orbitSeen=id; S._orbitShut=null; S._orbitMore=false; }   // un autre joueur (ou plus personne) : la bulle se rouvre, repliee
   if(!sub || S._orbitShut===id){ orbitClear(); return; }
-  var src=orbitSources(sub); if(!src.length){ orbitClear(); return; }
+  var all=orbitSources(sub); if(!all.length){ orbitClear(); return; }
+  var list=orbitSorted(all), many=list.length>4, open=many && !!S._orbitMore, vis=many && !open ? list.slice(0, 4) : list;
+  var nRows=vis.length+(many ? 1 : 0);
   var B=bw.getBoundingClientRect(), W=B.width||bw.clientWidth||390, H=B.height||bw.clientHeight||560;
+  var BW=146, GAP=4, PADB=14, RH=30; while(RH>22 && nRows*(RH+GAP)-GAP+PADB>H-6) RH-=2;   // la bulle allongee tient dans l'ecran : des lignes plus basses, jamais de defilement
   var gp=(S.planning && !sub.def) ? ghostOf(sub.p) : {c:sub.p.c, r:sub.p.r};
   var P=screenOfCell(gp.c, gp.r, 1.0) || {x:W/2, y:H/2}, cp=cellPx(gp.c, gp.r);
-  var others=[]; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.id===sub.p.id || !hasPos(q)) continue; var sq=screenOfCell(q.c, q.r, 1.0); if(sq) others.push(sq); }
-  var D=src.length>10 ? 46 : 54, slots=orbitSlots(P, src.length, W, H, D, cp, others);
-  var key=id+'|'+D+'|'+src.map(function(s){ return s.key+(s.on?'*':'')+(s.pct||'')+s.word; }).join(',');
-  var el=document.getElementById('orbit');
-  if(!el || el.getAttribute('data-k')!==key){   // les actions ont change : on refait les pastilles (sinon on les deplace seulement : un doigt pose reste sur son bouton)
-    orbitClear(); el=document.createElement('div'); el.id='orbit'; el.className='orbit'; el.setAttribute('data-k', key); bw.appendChild(el);
-    src.forEach(function(s){ var K=ORB_K[s.key], b=document.createElement('button'); b.type='button'; b.className='orb'+(s.on?' on':''); b.setAttribute('data-k', s.key); if(s.tk) b.setAttribute('data-orbk', s.tk);
-      b.style.background=K[2]; b.style.color=K[3]; b.style.width=D+'px'; b.style.height=D+'px'; b.title=s.title; b.setAttribute('aria-label', s.title);
+  // ce qu'elle ne doit pas cacher : les joueurs des deux equipes (leur fantome aussi : une cible de passe), la rondelle, le joueur touche
+  var hw=Math.max(16, cp*0.6), hu=Math.max(28, cp*1.1), hd=Math.max(14, cp*0.5), obst=[], cen=[];
+  function box(pt, pad){ pad=pad||0; obst.push({x0:pt.x-hw-pad, y0:pt.y-hu-pad, x1:pt.x+hw+pad, y1:pt.y+hd+pad}); cen.push(pt); }
+  box(P, 4); var rp=screenOfCell(sub.p.c, sub.p.r, 1.0); if(rp && (rp.x!==P.x || rp.y!==P.y)) box(rp, 0);   /* le vrai joueur aussi quand c'est son fantome qui est la */
+  for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(!q.onIce || q.id===sub.p.id || !hasPos(q)) continue;
+    var sq=screenOfCell(q.c, q.r, 1.0); if(sq) box(sq, 0);
+    var gq=(S.planning && S.ghost) ? S.ghost[q.id] : null; if(gq && (gq.c!==q.c || gq.r!==q.r)){ var sg=screenOfCell(gq.c, gq.r, 1.0); if(sg) box(sg, 0); } }
+  if(S.puckLoose){ var pk=screenOfCell(S.puckLoose.c, S.puckLoose.r, 0.2); if(pk){ obst.push({x0:pk.x-14, y0:pk.y-14, x1:pk.x+14, y1:pk.y+14}); cen.push(pk); } }
+  var pos, BH;   // aucune place libre : on essaie des lignes plus basses (jusqu'a 22 px) avant le bord de la glace
+  for(;;){ BH=nRows*(RH+GAP)-GAP+PADB; pos=orbitPlace(P, BW, BH, W, H, obst, cen); if(!pos.edge || RH<=22) break; RH-=2; }
+  var key=id+'|'+RH+'|'+(open?1:0)+'|'+vis.map(function(s){ return s.key+(s.on?'*':'')+(s.pct||'')+s.word; }).join(',')+'|'+list.length;
+  var el=document.getElementById('abub');
+  if(!el || el.getAttribute('data-k')!==key){   // les actions ont change : on refait la bulle (sinon on la deplace seulement : un doigt pose reste sur son bouton)
+    orbitClear(); el=document.createElement('div'); el.id='abub'; el.className='abub'; el.setAttribute('data-k', key); bw.appendChild(el);
+    vis.forEach(function(s){ var K=ORB_K[s.key], b=document.createElement('button'); b.type='button'; b.className='ab'+(s.on?' on':''); b.setAttribute('data-k', s.key); if(s.tk) b.setAttribute('data-orbk', s.tk);
+      b.style.background=K[2]; b.style.color=K[3]; b.style.height=RH+'px'; b.title=s.title; b.setAttribute('aria-label', s.title);
       var ic=document.createElement('i'); ic.textContent=K[0]; b.appendChild(ic);
-      var wd=document.createElement('b'); wd.textContent=s.word; b.appendChild(wd);
+      var wd=document.createElement('b'); wd.textContent=s.word.replace(/\n/g, ' ').replace('BLOCK PASS', 'BLK PASS').replace('BLOCK SHOT', 'BLK SHOT').replace('BANK & GO', 'BANK&GO');   /* mots courts : la bulle reste etroite */ b.appendChild(wd);
       if(s.pct){ var sm=document.createElement('small'); sm.textContent=s.pct+'%'; b.appendChild(sm); }
       b.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); orbitFire(s.ref); };
-      el.appendChild(b); }); }
-  var bs=el.children; for(var j=0;j<bs.length;j++){ bs[j].style.left=slots[j].x.toFixed(1)+'px'; bs[j].style.top=slots[j].y.toFixed(1)+'px'; }
+      el.appendChild(b); });
+    if(many){ var mb=document.createElement('button'); mb.type='button'; mb.className='ab more'; mb.setAttribute('data-k', open ? 'less' : 'more'); mb.style.height=RH+'px';
+      mb.textContent=open ? 'Less ▴' : 'More ▾ ('+(list.length-4)+')';
+      mb.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); S._orbitMore=!open; renderOrbit(); };
+      el.appendChild(mb); } }
+  el.style.width=BW+'px'; el.style.height=BH+'px'; el.style.left=pos.x.toFixed(1)+'px'; el.style.top=pos.y.toFixed(1)+'px';
+  // la pointe : du cote du joueur touche
+  var old=el.querySelector('.tip'); if(old) old.parentNode.removeChild(old);
+  var tip=document.createElement('div'); tip.className='tip'; var cx=Math.max(12, Math.min(BW-12, P.x-pos.x)), cy=Math.max(12, Math.min(BH-12, P.y-pos.y));
+  var dxo=Math.max(pos.x-P.x, 0, P.x-(pos.x+BW)), dyo=Math.max(pos.y-P.y, 0, P.y-(pos.y+BH));
+  if(dyo>=dxo){ if(P.y<pos.y){ tip.style.cssText='left:'+(cx-7)+'px;top:-10px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:8px solid #ffd23e;'; }
+    else { tip.style.cssText='left:'+(cx-7)+'px;bottom:-10px;border-left:7px solid transparent;border-right:7px solid transparent;border-top:8px solid #ffd23e;'; } }
+  else { if(P.x<pos.x){ tip.style.cssText='top:'+(cy-7)+'px;left:-10px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:8px solid #ffd23e;'; }
+    else { tip.style.cssText='top:'+(cy-7)+'px;right:-10px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:8px solid #ffd23e;'; } }
+  el.appendChild(tip);
 }
 // toucher ailleurs : le rond se ferme (le joueur reste choisi) ; retoucher ce joueur le rouvre (sans pivoter cette fois-la)
 function orbitTapBefore(c, r){
@@ -11221,7 +11263,7 @@ var hj3d={
   office:function(o){ return offMsg(o); },   // v608 : le bureau -- arrivee a un objet (ses 4 coins a l'ecran) ou glissement (obj null)
   ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
-  cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); if(document.getElementById('orbit')) renderOrbit(); return true; },   // v745 : le rond suit la camera   // v494 : la camera 3D (les bulles se placent sur la 3D)
+  cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); if(document.getElementById('abub')) renderOrbit(); return true; },   // v746 : la bulle se replace quand la camera bouge   // v494 : la camera 3D (les bulles se placent sur la 3D)
   free:function(on, c0, c1, r0, r1){ HJ3D.free=on ? {c0:+c0, c1:+c1, r0:+r0, r1:+r1} : null; renderVMap(); return true; },   // v620 : la vue libre de la 3D (pincer, deux doigts, molette, clic droit) -- le cadre jaune de la mini-carte la montre
   aim:function(t){   // v479 : toucher une cible du filet 3D = toucher le bouton 2D du meme coin
     if(S.so && S.so.run && S.so.run.phase==='choose' && SO_TARGETS.indexOf(t)>=0){ soPick(t); return true; }   // v541 : la fusillade
