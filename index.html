@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v751</title>
+<title>Deck 3D v752</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1566,7 +1566,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v751';
+var GAME_VERSION='v752';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9743,9 +9743,24 @@ function lnApplyUnits(team, fi, di){   // Forwards n / Defense n : un trio et / 
   if(fi!=null) last.f=fi; if(di!=null) last.d=di;
   lnCommit(team, f.concat(d), 'U'); return true; }
 function lnApplySpecial(team, id){ var list=lnSpPlayers(team, id); if(!list.length) return false; lnCommit(team, lnLineupFrom(team, list, id==='pk1' || id==='pk2'), id); return true; }
+// v752 : l'ordi (et le pilote) utilise ses lignes Game state selon le score et le temps (ses choix, docs/PROJECT-NOTES.md « Decision — v752 »)
+var LN_GS_REST=60, LN_GS_MID2=90;   // il met la ligne si ses 5 ont au moins 60 % de souffle en moyenne ; 2e periode : a partir de 1:30 au chrono
+function lnGsRule(gap, period, clock, ot){   // PURE : quelle ligne Game state (late / lead / chase) ou null ; gap = buts de l'equipe - buts de l'adversaire
+  if(ot) return 'late';   // la prolongation : pas d'ecart, Late game
+  if(gap===0) return period>=3 ? 'late' : null;
+  if(Math.abs(gap)>2) return null;   // 3 buts d'ecart ou plus : ses lignes normales
+  if(gap<0) return (period>=3 || (period===2 && clock<=LN_GS_MID2)) ? 'chase' : null;   // Need a goal : des la mi-2e
+  return period>=3 ? 'lead' : null; }   // Protect the lead : la 3e seulement
+function lnGsWant(team){
+  if(typeof S==='undefined' || !S || !S.score || !lnWanted() || lnMode(team)!=='gs') return null;   // une penalite : PP / PK (v750)
+  var id=lnGsRule(S.score[team]-S.score[lnOther(team)], S.period, S.clock, !!S.overtime); if(!id) return null;
+  if(S.overtime && S._otLine && S._otLine[team] && S._otLine[team].join(',')===(S.lineup[team]||[]).join(',')) return null;   // sa ligne Overtime est encore la : Late game seulement apres
+  return id; }
+function lnGsRested(team, id){ var l=lnSpPlayers(team, id); return l.length>0 && lnRest(l)>=LN_GS_REST; }
 function lnAiChoose(team, seek){   // l'ordi pose sa ligne ; renvoie vrai si elle a change
-  var before=(S.lineup[team]||[]).join(','), mode=lnMode(team);
+  var before=(S.lineup[team]||[]).join(','), mode=lnMode(team), gs=(mode==='gs') ? lnGsWant(team) : null;
   if(mode==='pp') lnApplySpecial(team, 'pp1'); else if(mode==='pk') lnApplySpecial(team, 'pk1');
+  else if(gs && lnGsRested(team, gs)) lnApplySpecial(team, gs);   // v752 : sa ligne Game state, reposee, passe avant le match-up
   else { var Fg=lnGroups(team, 'F'), Dg=lnGroups(team, 'D'),
       fu=Fg.map(function(g){ return g ? {ovr:lnAvg(g, overall), off:lnAvg(g, function(p){ return (p.tir||0)+(p.passe||0)+(p.maniement||0); }), rest:lnRest(g)} : null; }),
       du=Dg.map(function(g){ return g ? {ovr:lnAvg(g, overall), rest:lnRest(g)} : null; });
@@ -9771,7 +9786,7 @@ function lnOvertimeLine(team){ var T=lnCareerT(team); if(T && T.lines && team===
 function lnPeriodStart(){ S.needDraft=false; if(S.tut) return; S._lnU=null;
   S._lnSkipDeploy=lnDefaultRoster() && !S.overtime && ['A', 'B'].every(function(t){ return !(S.lineup[t]||[]).some(Boolean); });   // les 2 equipes d'origine au tout debut : leur ligne 1 est deja sur la glace (startPieces), les roles se posent a READY (comme l'ancien ecran)
   ['A', 'B'].forEach(function(t){ var cur=S.lineup[t]||[], first=!cur.some(Boolean);
-    if(S.overtime){ lnSetLineup(t, lnOvertimeLine(t), 'U'); S.lnLast=S.lnLast||{}; S.lnLast[t]={f:0, d:0}; }
+    if(S.overtime){ lnSetLineup(t, lnOvertimeLine(t), 'U'); S.lnLast=S.lnLast||{}; S.lnLast[t]={f:0, d:0}; (S._otLine=S._otLine||{})[t]=S.lineup[t].slice(); }   // v752 : _otLine = sa ligne Overtime (Late game seulement quand elle n'est plus la)
     else if(first){ lnSetLineup(t, lnFirstUnits(t), 'U'); S.lnLast=S.lnLast||{}; S.lnLast[t]={f:0, d:0}; }
     else lnSetLineup(t, lnFixSlots(t, cur), (S.lnMode && S.lnMode[t]) || 'U'); }); }
 // le panneau
@@ -9959,13 +9974,20 @@ function chgAiMaybe(team){
   S._chgAi=S._chgAi||{}; if(S._chgAi[team]) return false;
   var car=S.puckOwner ? byId(S.puckOwner) : null; if(!car || car.type!=='sk' || !car.onIce) return false;
   if(inOwnZone(team, car.c)) return false;   // la rondelle dans sa zone defensive : il ne change pas
-  var m=S.lnMode && S.lnMode[team]; if(lnMode(team)!=='gs' || (m && m!=='U')) return false;   // 5 c 5, sans ligne speciale
-  var on=chgOnIce(team), fi=null, di=null, b;
-  if(on.rf!=null && on.rf<SOU.aiLow){ b=chgBest(lnGroups(team, 'F'), on.f); if(b && b.rest>=on.rf+CHG_AI_GAIN) fi=b.i; }
-  if(on.rd!=null && on.rd<SOU.aiLow){ b=chgBest(lnGroups(team, 'D'), on.d); if(b && b.rest>=on.rd+CHG_AI_GAIN) di=b.i; }
-  if(fi==null && di==null) return false;
-  var ids=chgTarget(team, fi, di, null), sw=ids ? chgSwap(team, ids) : null; if(!sw || (!sw.ins.length && !sw.outs.length)) return false;
-  var rec=chgApply(team, {fi:fi, di:di, sp:null}, sw); S.chgRec.ai.push(rec); S._chgAi[team]=1; return true; }
+  if(lnMode(team)!=='gs') return false;   // 5 c 5 (une penalite : PP / PK de la v750)
+  var m=(S.lnMode && S.lnMode[team]) || 'U', on=chgOnIce(team), fi=null, di=null, sp=null, b, want=lnGsWant(team);
+  if(want && m!==want && lnGsRested(team, want)) sp=want;   // v752 : sa ligne Game state (score + temps), reposee et pas encore sur la glace
+  else if(m!=='U'){   // une ligne speciale sur la glace : sous SOU.aiLow de souffle il revient a ses unites normales les plus reposees
+    var oi=(S.lineup[team]||[]).map(function(id){ return id ? byId(id) : null; }).filter(function(q){ return q && q.onIce && q.type==='sk'; });
+    if(!oi.length || lnRest(oi)>=SOU.aiLow) return false;
+    b=chgBest(lnGroups(team, 'F'), []); if(b) fi=b.i; b=chgBest(lnGroups(team, 'D'), []); if(b) di=b.i;
+    if(fi==null && di==null) return false; }
+  else {
+    if(on.rf!=null && on.rf<SOU.aiLow){ b=chgBest(lnGroups(team, 'F'), on.f); if(b && b.rest>=on.rf+CHG_AI_GAIN) fi=b.i; }
+    if(on.rd!=null && on.rd<SOU.aiLow){ b=chgBest(lnGroups(team, 'D'), on.d); if(b && b.rest>=on.rd+CHG_AI_GAIN) di=b.i; }
+    if(fi==null && di==null) return false; }
+  var ids=chgTarget(team, fi, di, sp), sw=ids ? chgSwap(team, ids) : null; if(!sw || (!sw.ins.length && !sw.outs.length)) return false;
+  var rec=chgApply(team, {fi:fi, di:di, sp:sp}, sw); S.chgRec.ai.push(rec); S._chgAi[team]=1; return true; }
 function chgTrimPlan(plan, team){ if(!plan || !S._chgAi || !S._chgAi[team]) return plan;   // une action de moins : son plan garde PLAN_N-1 cases
   var n=0, out=[]; for(var i=0;i<plan.length;i++){ var a=plan[i]; if(!a) continue; if(!a.att){ if(n>=PLAN_N-1) break; n++; } out.push(a); }
   plan.length=0; out.forEach(function(a){ plan.push(a); }); return plan; }
