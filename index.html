@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v749</title>
+<title>Deck 3D v750</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -152,6 +152,21 @@
 .perk-intercepteur,.perk-voleur{background:#b3402f;}
 .perk-vitesse{background:#c98a1a;}
 .perkbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:4px 0 8px;background:#102536;border:1px solid #1d3a52;border-radius:10px;padding:8px 11px;font-size:12px;}
+/* v750 : LE PANNEAU DES LIGNES (a chaque mise au jeu) : en bas de l'ecran, sous la glace (la place du tiroir d'actions), il ne cache rien */
+.lnp{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,430px);box-sizing:border-box;z-index:55;background:#0a1521;border-top:3px solid #16273a;border-radius:16px 16px 0 0;
+  padding:6px 10px calc(7px + env(safe-area-inset-bottom));display:none;flex-direction:column;gap:5px;color:#dbe7f3;font-size:12px;}
+.lnp-opp{background:#102536;border:1px solid #1d3a52;border-radius:8px;padding:4px 7px;line-height:1.3;font-size:10.5px;}
+.lnp-opp b{color:#ffd23e;} .lnp-opp i{font-style:normal;color:#7fe0a8;}
+.lnp-row{display:flex;align-items:center;gap:8px;}
+.lnp-lbl{flex:0 0 62px;font-size:9px;letter-spacing:.06em;color:#8fa6bd;font-weight:700;line-height:1.15;}
+.lnp-btns{flex:1 1 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+.lnp-btns button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:33px;padding:2px 4px;border:2px solid #2e4a63;border-radius:9px;background:#16273a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;}
+.lnp-btns button small{font-size:10px;font-weight:700;color:#7fe0a8;} .lnp-btns button small.orange{color:#ffb36b;} .lnp-btns button small.red{color:#ff6b6b;}
+.lnp-btns button.on{background:#1a8f86;border-color:#8ff0e6;}
+.lnp-btns button.pp{background:#5a3aa8;border-color:#8a6ad8;} .lnp-btns button.pp.on{background:#7a4ccf;border-color:#d2bcff;}
+.lnp-btns button.pk{background:#8a3a3a;border-color:#c06a6a;} .lnp-btns button.pk.on{background:#b84a4a;border-color:#ffc0c0;}
+.lnp-btns button:disabled{opacity:.4;}
+.lnp-ready{margin-top:1px;min-height:40px;border:0;border-radius:12px;background:#ffc83a;color:#201400;font-size:16px;font-weight:800;letter-spacing:.08em;cursor:pointer;}
 .pawn.onetimer{box-shadow:0 0 0 3px #ff8c1a,0 0 12px rgba(255,140,26,.85);animation:otpulse .85s ease-in-out infinite;}
 @keyframes otpulse{0%,100%{box-shadow:0 0 0 3px #ff8c1a,0 0 9px rgba(255,140,26,.7);}50%{box-shadow:0 0 0 4px #ffb057,0 0 17px rgba(255,140,26,.98);}}
 .perkbtn.ot{background:#d1631a;}
@@ -1242,6 +1257,7 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov whistle" id="whistleOverlay"><div class="wcard"><div class="wicon" id="wIcon">⛔</div><div class="wbig" id="wBig">OFFSIDE</div><div class="wsub" id="wSub">Neutral zone faceoff</div></div></div>
 
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
+<div class="lnp" id="lnPanel" style="display:none"><div class="lnp-opp" id="lnOpp"></div><div class="lnp-row"><span class="lnp-lbl">FORWARDS</span><span class="lnp-btns" id="lnRowF"></span></div><div class="lnp-row"><span class="lnp-lbl">DEFENSE</span><span class="lnp-btns" id="lnRowD"></span></div><div class="lnp-row"><span class="lnp-lbl" id="lnLblS">GAME STATE</span><span class="lnp-btns" id="lnRowS"></span></div><button type="button" class="lnp-ready" id="lnReady">READY</button></div>
 <div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dlines" id="draftLines" hidden></div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
 <div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm dauto" id="soPickHelp">❔ Moves</button><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
 <div class="ov draft" id="soHelp"><div class="dcard"><div class="dtitle">🥅 Shootout moves</div><div class="dsub">Your turn: <b>draw your shooter's path</b> on the ice — slide your finger from him (or tap where he stops: a straight line). He skates it at the speed you drew it.</div><div class="sohelp-list"><div><b>Where the path ends</b> is where you shoot or deke: 3-4 squares from the net is best. Farther: the goalie has not moved. 2 squares: he may poke the puck away.</div><div><b>Shoot</b>: tap a corner (the buttons, or the targets on the net).</div><div><b>Deke</b>: tap one of the 8 moves — forehand–backhand, backhand–forehand, fake shot, Datsyuk, Forsberg, Nielsen, Kane, between the legs. Each shows its chance.</div><div><b>Kane</b> likes a slow approach: draw your path slowly.</div></div><div class="dsub">The same move twice: the goalie reads it.</div><button class="dconfirm" id="soHelpOk">Got it</button></div></div>
@@ -1536,7 +1552,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v749';
+var GAME_VERSION='v750';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -2229,7 +2245,7 @@ function pressureStat(p){ if(!p || p.type==='g') return 0; var a=(typeof p.age==
 // CONDITIONING (cle `forme`) regle la vitesse : 90 = ~8 plans pour se vider / ~3 pour revenir ; 70 = ~6 / ~4 ; 50 = ~5 / ~5 (courbes lineaires par morceaux entre ces points). Cout d'une unite de vitesse =
 // 100 / (plans pour se vider x ref), ref = 3,5 unites par plan (gagner 3 a 4 puis freiner autant). L'IA : un patineur sous aiLow ne prend plus de vitesse (portee <= son elan) et ne freine plus pour rien.
 // Valeurs de depart, faciles a changer. MESURE (files/622-souffle.mjs) : voir le rapport de la v716.
-var SOU={red:20, half:50, mulMin:0.95, stop:25, maxBase:60, maxPer:0.4, ref:3.25, cruise:0.5, aiLow:35, drain:[[50, 5], [70, 6], [90, 8]], rec:[[50, 5], [70, 4], [90, 3]]};
+var SOU={bench:2, red:20, half:50, mulMin:0.95, stop:25, maxBase:60, maxPer:0.4, ref:3.25, cruise:0.5, aiLow:35, drain:[[50, 5], [70, 6], [90, 8]], rec:[[50, 5], [70, 4], [90, 3]]};
 function souCurve(c, T, lo, hi){ var v;   // lineaire par morceaux entre les points, prolongee par la pente du bout, bornee
   if(c<=T[1][0]) v=T[0][1]+(c-T[0][0])*(T[1][1]-T[0][1])/(T[1][0]-T[0][0]);
   else { var i=2; while(i<T.length-1 && c>T[i][0]) i++; v=T[i-1][1]+(c-T[i-1][0])*(T[i][1]-T[i-1][1])/(T[i][0]-T[i-1][0]); }
@@ -2252,7 +2268,9 @@ function souSkate(q, from, to){ if(!souOn(q)) return;   // un geste de patinage 
   if(to>from) souSpend(q, to-from); else if(to<from && !souRed(q)) souSpend(q, from-to); else q._souSkated=true; }
 function souPlanEnd(){ if(typeof S==='undefined' || !S || !S._souPlan) return; S._souPlan=false;   // la fin d'un plan : qui n'a pas force recupere
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type!=='sk' || !q.onIce) continue; var f=q._souForced, sk=q._souSkated; q._souForced=false; q._souSkated=false;
-    if(f || !souOn(q)) continue; var inc=100/souRecPlans(typeof q.forme==='number' ? q.forme : 70); souSet(q, souOf(q)+(sk ? inc*SOU.cruise : inc)); } }
+    if(f || !souOn(q)) continue; var inc=100/souRecPlans(typeof q.forme==='number' ? q.forme : 70); souSet(q, souOf(q)+(sk ? inc*SOU.cruise : inc)); }
+  for(var j=0;j<S.pieces.length;j++){ var b=S.pieces[j]; if(b.type!=='sk' || b.onIce || b.vacant || !souOn(b)) continue;   // v750 : au banc, le souffle revient 2 x plus vite qu'un joueur au repos sur la glace
+    souSet(b, souOf(b)+SOU.bench*100/souRecPlans(typeof b.forme==='number' ? b.forme : 70)); } }
 function souWhistle(){ if(typeof S==='undefined' || !S || S.so || S.tut) return;   // un arret de jeu : un bon coup de souffle
   for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.type==='sk') souSet(q, souOf(q)+SOU.stop); } }
 function souLevel(v){ return v<SOU.red ? 'red' : (v<SOU.half ? 'orange' : 'green'); }
@@ -2833,6 +2851,7 @@ function newGame(firstTeam){
   document.getElementById('shotOverlay').classList.remove('show');
   document.getElementById('gameoverOverlay').classList.remove('show');
   document.getElementById('whistleOverlay').classList.remove('show');
+  lnHidePanel();   // v750 : le panneau des lignes de l'ancienne partie
   if(PG.on){ PG.on=false; PG.done=null; _hide('pgOverlay'); document.body.classList.remove('pregame'); hj3dFit(); if(hj3dActive()) hj3dSend('pg', {off:1}); }   // v720 : une nouvelle partie ferme la presentation d'avant-match
   if(PG_J.A || PG_J.B){ PG_J={}; applyTeamLooks(); }   // v720 : le match suivant revient aux chandails par defaut
   clearTrails();
@@ -9438,7 +9457,7 @@ function deployLineup(){
   if(CAREER_MATCH) careerOnIce();   // v489 : la fatigue au debut de la periode
   if(S.puckOwner){ var _po=byId(S.puckOwner); if(!_po || !_po.onIce) S.puckOwner=null; }   // v515 : pas de porteur hors de la glace (l'ancien, avant la mise au jeu)
 }
-function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; gkStartRun(); S.down={}; brkRestock();   /* v736 : le sifflet : un baton neuf a tous */   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
+function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; S._lnReset=!!reset && !!S.needDraft;   /* v750 : le debut d'une periode (S.needDraft), pas la mise au jeu qui suit un but (reset aussi) */ gkStartRun(); S.down={}; brkRestock();   /* v736 : le sifflet : un baton neuf a tous */   /* v679 : la mise au jeu les releve */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
   if(periodClockOut()){ endPeriod(); return; }   // v442 : 0:00 au tableau -> pas de mise au jeu, fin de periode
   matchSave('fo', [dotC, dotR, !!reset]);   // v499 : moment calme -- la reprise rejoue cette mise au jeu
   if(S.pen){ var _pt=penWhistle(); if(_pt && !reset){ var _pd=penZoneDot(_pt, dotR); dotC=_pd.c; dotR=_pd.r; } penRestoreGoalies(); penRelease(); }   // v445 : un arret de jeu siffle la differee (mise au jeu dans sa zone)
@@ -9448,9 +9467,10 @@ function startFaceoffRPS(dotC,dotR,reset){ if(S.so) return; gkStartRun(); S.down
   cineExit();   // CINE : mise au jeu = phase de CHOIX -> la camera remonte
   if(reset){ S.pieces=applyPerks(startPieces());
     computeAllDekes();
-    if(S.needDraft){ openDraft(dotC,dotR); return; }
-    deployLineup();
+    if(S.needDraft) lnPeriodStart(); else S._lnSkipDeploy=false;   // v750 : plus d'ecran d'alignement ; les lignes restent comme elles etaient (la 1re periode et la prolongation les posent) ; le panneau des lignes s'ouvre a la mise au jeu (lnOpen)
+    if(!S._lnSkipDeploy) deployLineup();
   }
+  if(lnWanted()){ lnOpen(dotC,dotR); return; }   // v750 : a CHAQUE mise au jeu, le panneau des lignes (visiteur d'abord, local en dernier) ; READY lance proceedFaceoff
   proceedFaceoff(dotC,dotR);
 }
 function proceedFaceoff(dotC,dotR){ if(S.so) return; S.gkWin=false; S.gkChgWait=false; gkChgRefresh();   /* v691 : la fenetre du changement de gardien se ferme */   /* v536 : pas de mise au jeu pendant la fusillade (une mise au jeu en attente s'eteint) */
@@ -9585,6 +9605,7 @@ function renderDraftCards(){
   document.getElementById('draftConfirm').disabled=!full;
 }
 function confirmDraft(){
+  if(typeof S!=='undefined' && S && S._lnOpen){ lnReady(); return; }   // v750 : « Confirm » = READY du panneau des lignes (l'ancien ecran n'existe plus)
   var order=['C','AG','AD','DG','DD'];
   if(!order.every(function(r){ return !!S.draftRoles[r]; })) return;
   var pick=order.map(function(r){ return S.draftRoles[r]; });
@@ -9595,6 +9616,190 @@ function confirmDraft(){
   document.getElementById('draftOverlay').classList.remove('show');
   var ctx=S.draftCtx||{dotC:CTR_C_CELL,dotR:CTR_R}; proceedFaceoff(ctx.dotC,ctx.dotR);
 }
+// ===== v750 (ses choix, docs/PROJECT-NOTES.md « Decision — v750 ») : LES LIGNES A LA MISE AU JEU + LE DERNIER CHANGEMENT =====
+// L'ecran d'alignement de debut de periode disparait (plus de « ligne jouee », tout joueur habille peut jouer toute la partie). A CHAQUE mise au jeu
+// (debut de periode compris) un panneau (#lnPanel) : le cadre de l'adversaire (ses 5 joueurs : poste, nom, cote + la moyenne du trio et de la paire),
+// FORWARDS 1 2 3, DEFENSE 1 2 3 (le souffle moyen), GAME STATE (Late game / Protect / Need a goal) ou, pendant une penalite, POWER PLAY 1 2 /
+// PENALTY KILL 1 2, puis READY. Toucher un bouton = ces joueurs sont tout de suite sur la glace aux places de la mise au jeu ; rien ne change sans toucher,
+// sauf une penalite (le coach met PP 1 / PK 1 tout seul, les 2 equipes). Le VISITEUR choisit d'abord, le LOCAL voit et choisit en dernier (carriere : le
+// calendrier ; Play / Quick Play : pile ou face au premier panneau, dit au journal). L'ORDI : visiteur = son trio et sa paire les plus reposes ; local = il
+// cherche le match-up (lnAiPickUnits, fonction pure : contre ton meilleur trio sa meilleure paire, contre un trio faible son trio le plus offensif ;
+// plus il est fort, plus souvent -- lnSeekP ; jamais une unite sous 50 % de souffle si une autre est mieux). Le pilote automatique choisit pour lui
+// comme l'ordi visiteur. Le jeu attend (S.needDraft + S._lnOpen, comme l'ancien ecran) ; S.lineup[team] = 5 ids (C AG AD DG DD) reste l'etat des lignes.
+var LN_ARRIVE_MS=700, LN_REST_MIN=50, LN_REST_TOL=2;
+function lnOther(t){ return t==='A' ? 'B' : 'A'; }
+function lnDefaultRoster(){ return !CAREER_MATCH && !PLAY_LG; }   // les 2 equipes d'origine (startPieces) : ni carriere, ni Play avec les equipes de la ligue
+function lnWanted(){ return typeof S!=='undefined' && !!S && !S.so && !S.tut && !S.soPractice && !tutPractice(); }
+function lnInj(p){ return !!(CAREER_MATCH && CAREER_LOG && CAREER_LOG.inj && CAREER_LOG.inj[p.id]); }
+function lnOk(p, team){ return !!p && p.type==='sk' && p.team===team && !p.vacant && !penInBox(p.id) && !lnInj(p); }   // peut etre mis sur la glace (ni vacant, ni puni, ni blesse)
+function lnPool(team){ return teamSkaters(team).filter(function(p){ return lnOk(p, team); }); }
+function lnByOvr(a, b){ return (overall(b)-overall(a)) || (a.id<b.id ? -1 : 1); }
+function lnAvg(list, f){ if(!list.length) return 0; var s=0; list.forEach(function(p){ s+=f(p); }); return s/list.length; }
+function lnRest(g){ return lnAvg(g, function(p){ return souOf(p); }); }   // le souffle moyen d'une unite
+function lnCareerT(team){ if(!CAREER_MATCH || !CAREER) return null; return CAREER.teams[team===HUMAN_TEAM ? CAREER_MATCH.my : CAREER_MATCH.opp] || null; }
+function lnPieceOfUid(team, uid){ if(uid==null) return null; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.team===team && q.type==='sk' && q.uid===uid && !q.vacant) return q; } return null; }
+function lnHome(){   // qui est local : carriere = le calendrier ; Play / Quick Play = pile ou face, une fois, au premier panneau (dit au journal)
+  if(CAREER_MATCH) return CAREER_MATCH.home===CAREER_MATCH.my ? HUMAN_TEAM : AI_TEAM;
+  if(!S.homeTeam){ if(PLAY_LG){ S.homeTeam=(Math.random()<0.5) ? HUMAN_TEAM : AI_TEAM; pushLog('Coin toss: '+TEAM_ABBR[S.homeTeam]+' is home.'); }   // Play / Quick Play (les equipes de la ligue)
+    else S.homeTeam=HUMAN_TEAM; }   // les 2 equipes d'origine (le depart de la page, les batteries) : rien au hasard
+  return S.homeTeam; }
+// les unites : 3 trios (C AG AD) et 3 paires (DG DD). Mon club en carriere : mes lignes du bureau ; sinon (l'ordi, Play) le rang par cote, fixe pour le match.
+function lnRank(team){ S._lnU=S._lnU||{}; var c=S._lnU[team]; if(c) return c;
+  var all=teamSkaters(team).filter(function(p){ return !p.vacant && !lnInj(p); }), F=all.filter(function(p){ return p.pos==='F'; }).sort(lnByOvr), D=all.filter(function(p){ return p.pos==='D'; }).sort(lnByOvr), f=[], d=[], ids=function(a){ return a.map(function(p){ return p.id; }); };
+  var byLine=lnDefaultRoster();   // le roster d'origine (les 2 equipes de depart) : ses lignes 1-3 (celles qui y sont sur la glace au depart) ; sinon le rang par cote
+  for(var i=0;i<3;i++){ var a=byLine ? F.filter(function(p){ return p.line===i+1; }) : F.slice(3*i, 3*i+3), b=byLine ? D.filter(function(p){ return p.line===i+1; }) : D.slice(2*i, 2*i+2); f.push(a.length===3 ? ids(spotArrange(a, DRAFT_FSLOTS)) : null); d.push(b.length===2 ? ids(spotArrange(b, DRAFT_DSLOTS)) : null); }
+  return (S._lnU[team]={F:f, D:d}); }
+function lnGroups(team, pos){   // [3 unites] : des pieces (un absent est remplace : le reserviste, sinon le meilleur du poste) ; null si on n'arrive pas a la completer
+  var n=pos==='F' ? 3 : 2, T=lnCareerT(team), mine=!!(T && T.lines && team===HUMAN_TEAM), raw, x=null;
+  if(mine){ raw=[0, 1, 2].map(function(i){ var a=T.lines.s[i]; return (pos==='F' ? a.slice(0, 3) : a.slice(3, 5)).map(function(u){ return lnPieceOfUid(team, u); }); }); x=lnPieceOfUid(team, T.lines.x); }
+  else { var c=lnRank(team); raw=(pos==='F' ? c.F : c.D).map(function(g){ return g ? g.map(function(id){ return byId(id); }) : []; }); }
+  var used={}; raw.forEach(function(g){ g.forEach(function(p){ if(lnOk(p, team)) used[p.id]=1; }); });
+  var pool=lnPool(team).filter(function(p){ return p.pos===pos; }).sort(lnByOvr);
+  return raw.map(function(g){ var cur={}, out=[]; g.forEach(function(p){ if(lnOk(p, team)) cur[p.id]=1; });
+    for(var k=0;k<n;k++){ var p=g[k];
+      if(!lnOk(p, team)){ p=null;
+        if(x && x.pos===pos && lnOk(x, team) && !used[x.id] && !cur[x.id]) p=x;
+        if(!p) p=pool.filter(function(q){ return !used[q.id] && !cur[q.id]; })[0] || pool.filter(function(q){ return !cur[q.id]; })[0] || null;
+        if(p){ used[p.id]=1; cur[p.id]=1; } }
+      out.push(p); }
+    return out.length===n && out.every(Boolean) ? out : null; }); }
+// les lignes speciales (v749) : T.lines.sp (mon club) / T.sp (l'ordi) ; sans table (Play) le coach les remplit des pions (meme regle que lnSpFill)
+function lnSpAuto(team){ var pool=teamSkaters(team).filter(function(p){ return !p.vacant && !lnInj(p); }), one={}, sp={};
+  LN_SP_IDS.forEach(function(id){ var f=LN_SP_KEY[id]; one[id]=pool.slice().sort(function(a, b){ return (f(b)-f(a)) || (a.id<b.id ? -1 : 1); }); });
+  sp.pp1=lnSpPick(one.pp1, 5, []); sp.pp2=lnSpPick(one.pp2, 5, sp.pp1); sp.pk1=lnSpPick(one.pk1, 4, []); sp.pk2=lnSpPick(one.pk2, 4, sp.pk1);
+  sp.late=lnSpPick(one.late, 5, []); sp.lead=lnSpPick(one.lead, 5, []); sp.chase=lnSpPick(one.chase, 5, []);
+  LN_SP_IDS.forEach(function(id){ sp[id]=lnPosOrder(sp[id]).filter(Boolean); }); return sp; }   // v750 : range par poste (le centre a la mise au jeu), comme lnSpFill
+function lnSpPlayers(team, id){ var T=lnCareerT(team), sp=T && lnSpOf(T), n=LN_SP_N[id], base;
+  base=(sp && sp[id]) ? sp[id].map(function(u){ return lnPieceOfUid(team, u); }) : lnSpAuto(team)[id];
+  var out=[]; base.forEach(function(p){ if(lnOk(p, team) && out.indexOf(p)<0) out.push(p); });   // un puni, un blesse : remplace par le meilleur de la ligne
+  if(out.length<n){ var f=LN_SP_KEY[id]; lnPool(team).sort(function(a, b){ return (f(b)-f(a)) || (a.id<b.id ? -1 : 1); }).forEach(function(p){ if(out.length<n && out.indexOf(p)<0) out.push(p); }); }
+  return out.slice(0, n); }
+// qui est en avantage / en desavantage : l'equipe qui a plus de punis est en PK, l'autre en PP ; autant de punis (ou aucun) : l'etat du jeu (Game state)
+function lnMode(team){ var a=penBoxedIds(team).length, b=penBoxedIds(lnOther(team)).length; return a>b ? 'pk' : (b>a ? 'pp' : 'gs'); }
+// la regle de l'ordi (PURE) : F = [{ovr, off, rest}|null] x 3 trios, D = [{ovr, rest}|null] x 3 paires ; oppTop = ton trio sur la glace est ton meilleur ; seek = il cherche le match-up.
+// Sans match-up : le plus repose. Match-up : contre ton meilleur trio sa meilleure paire (cote moyenne), son trio le plus repose ; contre un trio faible son trio le
+// plus offensif (tir + passe + maniement), sa paire la plus reposee. Jamais une unite sous 50 % de souffle si une autre est mieux. « Le plus repose » = a LN_REST_TOL (2 points) pres, puis la plus petite (la plus forte). Renvoie {f, d} (indices, -1 si aucune).
+function lnAiPickUnits(F, D, oppTop, seek){
+  var all=function(a){ var r=[]; a.forEach(function(u, i){ if(u) r.push(i); }); return r; },
+    elig=function(a){ var ok=[]; a.forEach(function(u, i){ if(u && u.rest>=LN_REST_MIN) ok.push(i); }); return ok.length ? ok : all(a); },
+    best=function(a, idx, key){ var bi=-1, bv=-1e9; idx.forEach(function(i){ var v=key(a[i]); if(v>bv){ bv=v; bi=i; } }); return bi; },
+    top=function(a, idx){ var mx=-1e9; idx.forEach(function(i){ mx=Math.max(mx, a[i].rest); }); for(var k=0;k<idx.length;k++){ if(a[idx[k]].rest>=mx-LN_REST_TOL) return idx[k]; } return -1; },   // le plus repose ; a 2 points pres, la plus forte (la plus petite)
+    ovr=function(u){ return u.ovr; }, off=function(u){ return u.off; };
+  if(!seek) return {f:top(F, all(F)), d:top(D, all(D))};
+  if(oppTop) return {f:top(F, elig(F)), d:best(D, elig(D), ovr)};
+  return {f:best(F, elig(F), off), d:top(D, elig(D))}; }
+function lnSeekP(strength){ return Math.max(0.2, Math.min(0.95, strength/100)); }   // un club plus fort cherche plus souvent le match-up : la chance = sa force (cote moyenne de sa meilleure unite)
+function lnStrength(team){ var F=lnGroups(team, 'F').filter(Boolean), D=lnGroups(team, 'D').filter(Boolean); if(!F.length || !D.length) return 60;
+  var bf=Math.max.apply(null, F.map(function(g){ return lnAvg(g, overall); })), bd=Math.max.apply(null, D.map(function(g){ return lnAvg(g, overall); })); return (bf*3+bd*2)/5; }
+function lnOppTop(team){   // le trio de l'adversaire sur la glace est-il son meilleur ? (cote moyenne)
+  var o=lnOther(team), lu=S.lineup[o]||[], fo=lu.slice(0, 3).map(function(id){ return id ? byId(id) : null; }).filter(function(q){ return q && q.onIce && q.pos==='F'; }), g=lnGroups(o, 'F').filter(Boolean);
+  if(!fo.length || !g.length) return false; return lnAvg(fo, overall) >= Math.max.apply(null, g.map(function(x){ return lnAvg(x, overall); }))-0.5; }
+// poser une ligne : 5 ids dans l'ordre C AG AD DG DD. Une ligne speciale prend ses places dans l'ordre ; en inferiorite (k punis) les k places AD, puis AG (penWaitSlots, la regle de la v600)
+// restent VIDES (le puni qui sort du banc reprend la place laissee vide : penLineupBack) ; typed (PK) : les avants aux places d'avants, les defenseurs aux places de defenseurs si possible.
+// Une place que la ligne ne remplit pas : le meilleur du poste.
+function lnWaitSlots(team, ids){ var k=Math.min(2, penBoxedIds(team).filter(function(id){ return ids.indexOf(id)<0; }).length); return k>=2 ? ['AD', 'AG'] : (k===1 ? ['AD'] : []); }
+function lnLineupFrom(team, list, typed){
+  var W=lnWaitSlots(team, []), on=LINEUP_ROLES.filter(function(r){ return W.indexOf(r)<0; }), out={}, used={};
+  var put=function(r, q){ if(q && !out[r] && !used[q.id]){ out[r]=q; used[q.id]=1; } }, left=function(){ return list.filter(function(p){ return !used[p.id]; }); };
+  if(typed){ var F=list.filter(function(p){ return p.pos==='F'; }), D=list.filter(function(p){ return p.pos==='D'; });
+    on.filter(function(r){ return r==='C' || r==='AG' || r==='AD'; }).forEach(function(r, i){ put(r, F[i]); }); on.filter(function(r){ return r==='DG' || r==='DD'; }).forEach(function(r, i){ put(r, D[i]); }); }
+  on.forEach(function(r){ if(!out[r]) put(r, left()[0]); });
+  var pool=lnPool(team).sort(lnByOvr);
+  on.forEach(function(r){ if(out[r]) return; var pos=(r==='DG' || r==='DD') ? 'D' : 'F'; put(r, pool.filter(function(p){ return p.pos===pos && !used[p.id]; })[0] || pool.filter(function(p){ return !used[p.id]; })[0]); });
+  return LINEUP_ROLES.map(function(r){ return out[r] ? out[r].id : null; }); }
+function lnIdsOf(ids){ return ids.map(function(p){ return p ? (typeof p==='string' ? p : p.id) : null; }); }
+function lnSetLineup(team, ids, mode){ S.lineup[team]=lnIdsOf(ids); (S.lnMode=S.lnMode||{})[team]=mode||'U'; }
+function lnCommit(team, ids, mode){ ids=lnIdsOf(ids); lnWaitSlots(team, ids).forEach(function(r){ ids[LINEUP_ROLES.indexOf(r)]=null; });   // en inferiorite : les places du puni restent vides
+  var same=(S.lineup[team]||[]).join(',')===ids.join(','), c=S.lnCtx;
+  lnSetLineup(team, ids, mode); if(same) return;   // la meme ligne : rien ne bouge
+  S._lnSkipDeploy=false; deployLineup(); if(c) repositionForFaceoff(c.dotC, c.dotR); }   // sur la glace tout de suite, aux places de la mise au jeu
+function lnApplyUnits(team, fi, di){   // Forwards n / Defense n : un trio et / ou une paire ; l'autre moitie reste (si elle est bien un 5 c 5) sinon la derniere choisie
+  if(fi==null && di==null) return false;
+  var lu=(S.lineup[team]||[]).slice(); while(lu.length<5) lu.push(null);
+  var cur=lu.map(function(id){ return id ? byId(id) : null; }), last=((S.lnLast=S.lnLast||{})[team]=S.lnLast[team]||{f:0, d:0}), u=!S.lnMode || !S.lnMode[team] || S.lnMode[team]==='U';
+  var Fg=lnGroups(team, 'F'), Dg=lnGroups(team, 'D'), fOk=u && cur.slice(0, 3).every(function(q){ return q && q.pos==='F'; }), dOk=u && cur.slice(3, 5).every(function(q){ return q && q.pos==='D'; });
+  var f=fi!=null ? Fg[fi] : (fOk ? cur.slice(0, 3) : Fg[last.f]), d=di!=null ? Dg[di] : (dOk ? cur.slice(3, 5) : Dg[last.d]);
+  if(!f || !d) return false;
+  if(fi!=null) last.f=fi; if(di!=null) last.d=di;
+  lnCommit(team, f.concat(d), 'U'); return true; }
+function lnApplySpecial(team, id){ var list=lnSpPlayers(team, id); if(!list.length) return false; lnCommit(team, lnLineupFrom(team, list, id==='pk1' || id==='pk2'), id); return true; }
+function lnAiChoose(team, seek){   // l'ordi pose sa ligne ; renvoie vrai si elle a change
+  var before=(S.lineup[team]||[]).join(','), mode=lnMode(team);
+  if(mode==='pp') lnApplySpecial(team, 'pp1'); else if(mode==='pk') lnApplySpecial(team, 'pk1');
+  else { var Fg=lnGroups(team, 'F'), Dg=lnGroups(team, 'D'),
+      fu=Fg.map(function(g){ return g ? {ovr:lnAvg(g, overall), off:lnAvg(g, function(p){ return (p.tir||0)+(p.passe||0)+(p.maniement||0); }), rest:lnRest(g)} : null; }),
+      du=Dg.map(function(g){ return g ? {ovr:lnAvg(g, overall), rest:lnRest(g)} : null; });
+    var go=!!seek && Math.random()<lnSeekP(lnStrength(team)), r=lnAiPickUnits(fu, du, go ? lnOppTop(team) : false, go);
+    lnApplyUnits(team, r.f>=0 ? r.f : null, r.d>=0 ? r.d : null); }
+  return before!==(S.lineup[team]||[]).join(','); }
+function lnAutoHuman(){ if(S.overtime && S._lnReset && lnMode(HUMAN_TEAM)==='gs') return; lnAiChoose(HUMAN_TEAM, false); }   // le pilote automatique : comme l'ordi visiteur ; au debut de la prolongation il garde la ligne Overtime
+function lnAutoBoth(home){ [lnOther(home), home].forEach(function(t){ if(t===HUMAN_TEAM) lnAutoHuman(); else lnAiChoose(t, t===home); }); }
+// une penalite toute neuve : le coach met PP 1 (ou PK 1) tout seul, les 2 equipes (une seule fois par penalite : b._ln) ; la fin d'une penalite ne change rien
+function lnPenAutoAll(){ var P=S.pen; if(!P || !P.box || !P.box.length) return; var fresh=P.box.filter(function(b){ return !b._ln; }); if(!fresh.length) return;
+  [HUMAN_TEAM, AI_TEAM].forEach(function(t){ var m=lnMode(t); if(m==='gs') return;
+    if(fresh.some(function(b){ return m==='pk' ? b.team===t : b.team===lnOther(t); })) lnApplySpecial(t, m==='pk' ? 'pk1' : 'pp1'); });
+  P.box.forEach(function(b){ b._ln=true; }); }
+// le debut d'une periode : les lignes restent comme elles etaient (un blesse, un parti : remplace) ; la 1re periode : la ligne 1 ; la prolongation : la ligne Overtime (comme PP 1)
+function lnFixSlots(team, slots){   // un absent : le meilleur du poste (un puni garde sa place)
+  var pieces=slots.map(function(x){ return !x ? null : (typeof x==='string' ? byId(x) : x); }), used={}; pieces.forEach(function(p){ if(p && (lnOk(p, team) || penInBox(p.id))) used[p.id]=1; });
+  var pool=lnPool(team).sort(lnByOvr);
+  return pieces.map(function(p, i){ if(p && (lnOk(p, team) || penInBox(p.id))) return p; if(!p && penBoxedIds(team).length) return null;   // une place laissee vide pour un puni le reste
+    var pos=i<3 ? 'F' : 'D';
+    var q=pool.filter(function(z){ return z.pos===pos && !used[z.id]; })[0] || pool.filter(function(z){ return !used[z.id]; })[0] || null; if(q) used[q.id]=1; return q; }); }
+function lnFirstUnits(team){ var F=lnGroups(team, 'F').filter(Boolean)[0], D=lnGroups(team, 'D').filter(Boolean)[0]; return lnFixSlots(team, (F||[]).concat(D||[])); }
+function lnOvertimeLine(team){ var T=lnCareerT(team); if(T && T.lines && team===HUMAN_TEAM && T.lines.s[3]) return lnFixSlots(team, T.lines.s[3].map(function(u){ return lnPieceOfUid(team, u); })); return lnFirstUnits(team); }
+function lnPeriodStart(){ S.needDraft=false; if(S.tut) return; S._lnU=null;
+  S._lnSkipDeploy=lnDefaultRoster() && !S.overtime && ['A', 'B'].every(function(t){ return !(S.lineup[t]||[]).some(Boolean); });   // les 2 equipes d'origine au tout debut : leur ligne 1 est deja sur la glace (startPieces), les roles se posent a READY (comme l'ancien ecran)
+  ['A', 'B'].forEach(function(t){ var cur=S.lineup[t]||[], first=!cur.some(Boolean);
+    if(S.overtime){ lnSetLineup(t, lnOvertimeLine(t), 'U'); S.lnLast=S.lnLast||{}; S.lnLast[t]={f:0, d:0}; }
+    else if(first){ lnSetLineup(t, lnFirstUnits(t), 'U'); S.lnLast=S.lnLast||{}; S.lnLast[t]={f:0, d:0}; }
+    else lnSetLineup(t, lnFixSlots(t, cur), (S.lnMode && S.lnMode[t]) || 'U'); }); }
+// le panneau
+function lnOnIce(team){ var lu=S.lineup[team]||[]; return S.pieces.filter(function(q){ return q.team===team && q.type==='sk' && q.onIce; }).sort(function(a, b){ var i=lu.indexOf(a.id), j=lu.indexOf(b.id); return (i<0 ? 9 : i)-(j<0 ? 9 : j); }); }
+function lnSlotLabel(team, q){ var i=(S.lineup[team]||[]).indexOf(q.id); return SPOT_SHORT[LINEUP_ROLES[i>=0 ? i : (q.pos==='D' ? 3 : 0)]]; }
+function lnOppHtml(){ var H=HUMAN_TEAM, A=AI_TEAM, home=lnHome(), abv=careerEsc(TEAM_ABBR[A]), onI=lnOnIce(A), lu=S.lineup[A]||[], m=lnMode(A);
+  var lbl=function(q){ return '<span>'+lnSlotLabel(A, q)+' '+careerEsc(q.name)+' '+overall(q)+'</span>'; }, avg=function(l){ return ' <i>('+Math.round(lnAvg(l, overall))+')</i>'; };
+  var head=(home===H) ? '<b>You change last.</b> '+abv+' on ice: ' : '<b>'+abv+' changes last.</b> On ice now: ';
+  if(m!=='gs') return head+onI.map(lbl).join(' · ')+avg(onI);   // en PP / PK : leurs joueurs sur la glace et la moyenne de tous
+  var f=onI.filter(function(q){ return lu.indexOf(q.id)<3; }), d=onI.filter(function(q){ return lu.indexOf(q.id)>=3; });
+  return head+f.map(lbl).join(' · ')+avg(f)+' · '+d.map(lbl).join(' · ')+avg(d); }
+function lnBtn(id, kind, val, cls, inner, dis){ return '<button type="button" id="'+id+'" class="'+cls+'" data-ln="'+kind+'" data-v="'+val+'"'+(dis ? ' disabled' : '')+'>'+inner+'</button>'; }
+function lnRender(){ var el=document.getElementById('lnPanel'); if(!el || typeof S==='undefined' || !S) return;
+  var H=HUMAN_TEAM, lu=S.lineup[H]||[], mode=lnMode(H), cur=(S.lnMode && S.lnMode[H]) || 'U', Fg=lnGroups(H, 'F'), Dg=lnGroups(H, 'D');
+  var ids=function(g){ return g.map(function(p){ return p.id; }); }, setEq=function(a, b){ return a.length===b.length && a.every(function(x){ return b.indexOf(x)>=0; }); };
+  var pct=function(g){ var v=Math.round(lnRest(g)); return '<small class="'+(souLevel(v)==='green' ? '' : souLevel(v))+'">'+v+'%</small>'; };
+  var rowF=Fg.map(function(g, i){ var on=cur==='U' && !!g && setEq(lu.slice(0, 3), ids(g)); return lnBtn('lnF'+(i+1), 'F', i, 'lnb'+(on ? ' on' : ''), '<b>'+(i+1)+'</b>'+(g ? pct(g) : ''), !g); }).join('');
+  var rowD=Dg.map(function(g, i){ var on=cur==='U' && !!g && setEq(lu.slice(3, 5), ids(g)); return lnBtn('lnD'+(i+1), 'D', i, 'lnb'+(on ? ' on' : ''), '<b>'+(i+1)+'</b>'+(g ? pct(g) : ''), !g); }).join('');
+  var rowS, lbl;
+  if(mode==='pp' || mode==='pk'){ lbl=mode==='pp' ? 'POWER PLAY' : 'PENALTY KILL'; var u=mode==='pp' ? ['pp1', 'pp2'] : ['pk1', 'pk2'];
+    rowS=u.map(function(id, i){ return lnBtn('lnS-'+id, 'S', id, mode+(cur===id ? ' on' : ''), (mode==='pp' ? 'PP ' : 'PK ')+(i+1), false); }).join(''); }
+  else { lbl='GAME STATE'; rowS=[['late', 'Late game'], ['lead', 'Protect'], ['chase', 'Need a goal']].map(function(x){ return lnBtn('lnS-'+x[0], 'S', x[0], 'lnb'+(cur===x[0] ? ' on' : ''), x[1], false); }).join(''); }
+  document.getElementById('lnOpp').innerHTML=lnOppHtml(); document.getElementById('lnRowF').innerHTML=rowF; document.getElementById('lnRowD').innerHTML=rowD;
+  document.getElementById('lnRowS').innerHTML=rowS; document.getElementById('lnLblS').textContent=lbl;
+  var bs=el.querySelectorAll('button[data-ln]'); for(var i=0;i<bs.length;i++){ (function(b){ b.onclick=function(){ lnTap(b.getAttribute('data-ln'), b.getAttribute('data-v')); }; })(bs[i]); }
+  var rd=document.getElementById('lnReady'); if(rd) rd.onclick=lnReady; }
+function lnTap(kind, v){ if(typeof S==='undefined' || !S || !S._lnOpen) return;
+  if(kind==='F') lnApplyUnits(HUMAN_TEAM, +v, null); else if(kind==='D') lnApplyUnits(HUMAN_TEAM, null, +v); else lnApplySpecial(HUMAN_TEAM, v);
+  render(); lnRender(); }
+function lnShowPanel(){ var e=document.getElementById('lnPanel'); if(e) e.style.display='flex'; }
+function lnHidePanel(){ var e=document.getElementById('lnPanel'); if(e) e.style.display='none'; }
+function lnClose(){ if(typeof S!=='undefined' && S){ S._lnOpen=false; S._draftOpen=false; S._lnSkipDeploy=false; } lnHidePanel(); }
+function lnOpen(dotC, dotR){   // le panneau s'ouvre : le visiteur choisit d'abord (l'ordi visiteur a deja posé sa ligne si je suis le local)
+  var home=lnHome(), legacy=!!S._lnReset && !!S._lnSkipDeploy;   // reset : le panneau du debut d'une periode ; legacy : les 2 equipes d'origine au tout debut (rien ne bouge avant READY, comme l'ancien ecran)
+  S.lnCtx={dotC:dotC, dotR:dotR, reset:!!S._lnReset}; if(!legacy){ S.puckOwner=null; S.puckLoose=null; }
+  lnPenAutoAll();
+  if(S.autoSim){ lnAutoBoth(home); S._lnOpen=false; S.needDraft=false; S._draftOpen=false; proceedFaceoff(dotC, dotR); return; }   // le pilote : pas de panneau
+  if(home===HUMAN_TEAM) lnAiChoose(AI_TEAM, false);
+  S.needDraft=true; S._draftOpen=true; S._lnOpen=true;
+  if(!legacy) repositionForFaceoff(dotC, dotR);
+  render(); lnRender(); lnShowPanel(); }
+function lnReady(){   // READY : si je suis le visiteur, l'ordi local change maintenant (on voit ses joueurs arriver), puis la mise au jeu
+  if(typeof S==='undefined' || !S || !S._lnOpen || !S.needDraft) return;
+  var s0=S, ctx=S.lnCtx, home=lnHome(); S._lnOpen=false; lnHidePanel();
+  if(S._lnSkipDeploy){ S._lnSkipDeploy=false; deployLineup(); }   // les roles (C, AG, AD, DG, DD) se posent maintenant (leur ligne 1 etait deja sur la glace)
+  var go=function(){ if(S!==s0 || !S.needDraft) return; S.needDraft=false; S._draftOpen=false; proceedFaceoff(ctx.dotC, ctx.dotR); };
+  if(home===AI_TEAM && lnAiChoose(AI_TEAM, true)){ render(); if(!(ctx && ctx.reset)){ setTimeout(go, LN_ARRIVE_MS); return; } }   // on voit ses joueurs arriver ; au debut d'une periode, le couloir / le discours / la mise en place le montrent deja
+  go(); }
 function nearestSkater(team,c,r){ var best=null,bd=1e9; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce&&q.type==='sk'&&q.team===team){ var dd=Math.abs(q.c-c)+Math.abs(q.r-r); if(dd<bd){bd=dd;best=q;} } } return best; }
 function pieceAtExcept(c,r,id){ var p=pieceAt(c,r); return (p&&p.id!==id)?p:null; }
 function clearDot(c,r,exceptId){ if(!pieceAtExcept(c,r,exceptId)) return {c:c,r:r}; for(var rad=1;rad<=5;rad++){ for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){ var x=c+dc,y=r+dr; if(x>=0&&x<COLS&&y>=0&&y<ROWS&&!pieceAtExcept(x,y,exceptId)) return {c:x,r:y}; } } return {c:c,r:r}; }
@@ -9983,7 +10188,7 @@ function soEnd(w){ var so=S.so, cur=so.cur, last=cur && cur.team===w && so.marks
 // v538 : LA PRATIQUE FUSILLADE (le concepteur : « un mode pratique, fusillade, pour que je puisse voir le tout ») -- une vraie
 // fusillade contre l'IA tout de suite, sans match ; a la fin : Again / Menu
 function soPracticeStart(){ _hide('mainMenu'); _hide('settingsPanel'); _hide('gameoverOverlay');
-  newGame('A'); autoStratDraft(); autoFillDraft(); _hide('draftOverlay'); S.needDraft=false; S.soPractice=true;
+  newGame('A'); autoStratDraft(); autoFillDraft(); _hide('draftOverlay'); S.needDraft=false; lnClose(); S.soPractice=true;
   S.period=3; S.overtime=true; S.clock=0; shootoutStart(); }
 function soOverButtons(practice){ ['btnNewGame', 'btnExportMatchEnd', 'btnSendMatchEnd'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display=practice ? 'none' : ''; });
   ['btnSoAgain', 'btnSoMenu'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display=practice ? '' : 'none'; });
@@ -11192,6 +11397,7 @@ function hj3dSnapshot(slides){
     players.push(pl); }   /* v577 : sa position (mes joueurs) */   /* v565 : son elan (la 3D ne freine qu'a 0) */   /* v529 : la recette */
   var tip=routeTip(), focus=vFocusCol();
   if(focus==null && S.faceoff && S.faceoff.dotC!=null) focus=S.faceoff.dotC;   // v477 : pendant une mise au jeu, la camera 3D va au point de mise au jeu
+  if(focus==null && S._lnOpen && S.lnCtx && S.lnCtx.dotC!=null) focus=S.lnCtx.dotC;   // v750 : pendant le panneau des lignes aussi (on voit les joueurs aux places de la mise au jeu)
   return { v:1, cols:COLS, rows:ROWS, human:HUMAN_TEAM, teams:careerSnapColors(), vrink:isVRink(), zoom:!!(_vfit && _vfit.zoom), focus:focus,
     dragging:!!(S._pdown && S._pdown.dragging), animRate:ANIM_RATE, phase:hj3dPhase(), players:players, clock:S.clock, periodSecs:PERIOD_SECS,   /* v528 : la glace s'use pendant la periode */
     puck:S.puckOwner ? {owner:S.puckOwner} : (S.puckLoose ? {loose:[S.puckLoose.c, S.puckLoose.r]} : {}),
@@ -11495,7 +11701,7 @@ document.getElementById('draftAuto').onclick=autoFillDraft;
 function _show(id){ var e=document.getElementById(id); if(e) e.classList.add('show'); }
 function _hide(id){ var e=document.getElementById(id); if(e) e.classList.remove('show'); if(id==='careerOverlay' && typeof OFF!=='undefined' && OFF) offLeave(); }   // v608 : on sort du bureau avec l'ecran de carriere
 function showMainMenu(){ _hide('settingsPanel'); _show('mainMenu'); matchSaveMenu(); }   // v499 : « Resume match » s'il y a une partie sauvegardee
-function draftIsOpen(){ var d=document.getElementById('draftOverlay'); return !!(d && d.classList.contains('show')); }
+function draftIsOpen(){ if(typeof S!=='undefined' && S && S._lnOpen) return true;   /* v750 : le panneau des lignes remplace l'ecran d'alignement */ var d=document.getElementById('draftOverlay'); return !!(d && d.classList.contains('show')); }
 function autoStratDraft(){   // choisit 3 stratégies (2 off + 1 def) pour le joueur puis confirme, et ferme l'écran stratégies
   var offs=STRAT_POOL.filter(function(x){return STRATS[x].side==='off';});
   var defs=STRAT_POOL.filter(function(x){return STRATS[x].side==='def';});
@@ -11735,8 +11941,8 @@ function playPick(k){
   if(k===PLAY_UI.a){ PLAY_UI.msg='Pick a different team for your opponent.'; careerRender(); return; }
   playStart(PLAY_UI.a, k, PLAY_UI.mode); }
 function playStart(a, b, mode){ var pl=playMake(a, b); if(!pl) return; PLAY_NEXT=pl; TIPS_ARMED=true; _hide('careerOverlay'); _hide('mainMenu'); _hide('settingsPanel'); newGame('A'); MSAVE_ON=true; S.pgArm=true;
-  if(mode==='quick'){ autoStratDraft(); autoFillDraft(); confirmDraft(); return; }   // Quick Play : les lignes se font seules (comme avant)
-  tipTrigger('draft'); tipFlush(); }
+  if(mode==='quick'){ autoStratDraft(); return; }   // v750 : Quick Play passe aussi par le panneau des lignes (avant : les lignes se faisaient seules)
+  }
 // ---- couleurs des equipes (2D) : feuille de style + images des joueurs recolorees ; la 3D les lit dans l'instantane ----
 function hexRgb(h){ var n=parseInt(h.slice(1), 16); return [(n>>16)&255, (n>>8)&255, n&255]; }
 function rgbHex(c){ return '#'+c.map(function(v){ v=Math.max(0, Math.min(255, Math.round(v))); return (v<16?'0':'')+v.toString(16); }).join(''); }
@@ -11939,12 +12145,31 @@ function lnSpUids(a, n){ var u=a.map(function(p){ return p.uid; }); while(u.leng
 function lnSpFill(T, pool){ var sp={}, one={}; LN_SP_IDS.forEach(function(id){ one[id]=lnSpSort(pool, id); });
   sp.pp1=lnSpPick(one.pp1, 5, []); sp.pp2=lnSpPick(one.pp2, 5, sp.pp1); sp.pk1=lnSpPick(one.pk1, 4, []); sp.pk2=lnSpPick(one.pk2, 4, sp.pk1);
   sp.late=lnSpPick(one.late, 5, []); sp.lead=lnSpPick(one.lead, 5, []); sp.chase=lnSpPick(one.chase, 5, []);
-  LN_SP_IDS.forEach(function(id){ sp[id]=lnSpUids(sp[id], LN_SP_N[id]); }); return sp; }
+  LN_SP_IDS.forEach(function(id){ sp[id]=lnSpByPos(T, lnSpUids(sp[id], LN_SP_N[id])); }); if(T && T.lines) T.lines.spo=1; return sp; }
+// v750 (son choix « le coach range par poste ») : les memes joueurs, chacun a la place de la mise au jeu de son poste si elle est libre
+// (C, AG, AD, DG, DD), puis les avants qui restent aux places d'avant, les defenseurs aux places de defense, le reste dans l'ordre.
+// Une ligne de 4 (PK) : les avants d'abord, puis les defenseurs (2 + 2 a la mise au jeu).
+function lnSpByPos(T, u){ return lnPosOrder(u.map(function(x){ return x!=null ? careerPlayerByUid(T, x) : null; })).map(function(p){ return p ? p.uid : null; }); }
+function lnPosOrder(ps){ var n=ps.length, out=[], R=LINEUP_ROLES;   // des joueurs (ou pieces) -> le meme tableau range par poste
+  var rk=function(p){ var i=R.indexOf(spotOf(p)); return i<0 ? (p.pos==='D' ? 3 : 0) : i; };
+  if(n!==5){ var o=ps.map(function(p, i){ return {p:p, i:i}; }).sort(function(a, b){ return ((a.p ? rk(a.p) : 9)-(b.p ? rk(b.p) : 9)) || (a.i-b.i); });
+    return o.map(function(x){ return x.p; }); }
+  for(var k=0;k<5;k++) out.push(undefined); var left=[];
+  ps.forEach(function(p){ if(!p) return; var s=R.indexOf(spotOf(p)); if(s>=0 && out[s]===undefined) out[s]=p; else left.push(p); });
+  left.sort(function(a, b){ return (a.pos==='D' ? 1 : 0)-(b.pos==='D' ? 1 : 0); });
+  left.forEach(function(p){ var want=p.pos==='D' ? [3, 4, 0, 1, 2] : [0, 1, 2, 3, 4]; for(var j=0;j<5;j++){ if(out[want[j]]===undefined){ out[want[j]]=p; return; } } });
+  return out.map(function(x){ return x===undefined ? null : x; }); }
+function lnSpTidy(T){ var sp=lnSpOf(T), mine=!!T.lines, coach=null; if(!sp || (mine && T.lines.spo)) return;   // son club : une seule fois (T.lines.spo), une ligne du coach d'avant la v750 est rangee par poste, une ligne qu'il a changee ne bouge pas ; l'ordi : toujours (idempotent)
+  LN_SP_IDS.forEach(function(id){ var a=sp[id]; if(!Array.isArray(a)) return;
+    if(mine){ if(!coach) coach=lnSpFill(T, lnSpPool(T)); var c=coach[id].filter(function(x){ return x!=null; }), m=a.filter(function(x){ return x!=null; });
+      if(c.length!==m.length || m.some(function(x){ return c.indexOf(x)<0; })) return; }
+    sp[id]=lnSpByPos(T, a); });
+  if(mine) T.lines.spo=1; }
 function lnSpPool(T){ return T.lines ? T.skaters.filter(function(p){ return !p.inj && careerLuDressed(T, p.uid); }) : careerDressPick(T, null); }   // mon club : les habilles ; l'ordi : ses 16
 function lnSpSet(T, sp){ if(T.lines){ T.lines.sp=sp; delete T.sp; } else T.sp=sp; }
 function lnSpInit(T){ if(!lnSpOf(T)) lnSpSet(T, lnSpFill(T, lnSpPool(T))); }
 function lnSpFix(T){   // idempotent : un blesse, un parti, un non-habille (mon club) ou un double laisse sa place au meilleur de la ligne (meme regle)
-  var sp=lnSpOf(T); if(!sp){ lnSpInit(T); return; } var pool=null;
+  var sp=lnSpOf(T); if(!sp){ lnSpInit(T); return; } var pool=null; lnSpTidy(T);   // v750 : une fois, les lignes du coach rangees par poste
   LN_SP_IDS.forEach(function(id){ var a=sp[id]; if(!Array.isArray(a)) a=sp[id]=[]; while(a.length<LN_SP_N[id]) a.push(null); a.length=LN_SP_N[id];
     for(var k=0;k<a.length;k++){ var u=a[k], p=u!=null ? careerPlayerByUid(T, u) : null;
       if(p && !p.inj && T.skaters.indexOf(p)>=0 && a.indexOf(u)===k && (!T.lines || careerLuDressed(T, u))) continue;
@@ -16855,7 +17080,7 @@ function tutStart(id, free){
   var L=tutFind(id); if(!L) return;   // v481
   _hide('tutMenu'); _hide('mainMenu'); _hide('settingsPanel');
   var _ta=TIPS_ARMED; TIPS_ARMED=false; newGame(HUMAN_TEAM); TIPS_ARMED=_ta; _tipQ=[]; _hide('tipOverlay');   // une partie neuve, puis le mode tutoriel par-dessus (pas de draft) ; v456 : pas de conseil au demarrage d'une lecon
-  _hide('draftOverlay'); _hide('faceoffOverlay'); S.needDraft=false;
+  _hide('draftOverlay'); _hide('faceoffOverlay'); S.needDraft=false; lnClose();   // v750 : le panneau des lignes s'etait ouvert avec la partie neuve : pas en lecon
   S.tut={id:id, step:0, phase:'guided', plans:0, freePlans:0, ambushes:0, ex:0, hold:null, nudges:0};
   L.setup(S);
   if(free) tutBeginFree(L); else { tutSkip(L); if(S.tut.step>=L.steps.length) tutBeginFree(L); else if(L.steps[S.tut.step].enter) L.steps[S.tut.step].enter(S); }   // v460 : skip
@@ -16960,7 +17185,7 @@ function tipCalm(){
   if(typeof S==='undefined' || !S || S.tut || S.autoSim || S.animating || S.gameEnded || S.paused || S.aiming || S.celebrating) return false;
   var ov=['mainMenu','settingsPanel','tutMenu','camPanel','pauseOverlay','diceOverlay','shotOverlay','gameoverOverlay','whistleOverlay','faceoffOverlay','tipOverlay'];
   for(var i=0;i<ov.length;i++){ var e=document.getElementById(ov[i]); if(e && e.classList.contains('show')) return false; }
-  var dr=document.getElementById('draftOverlay'); if(dr && dr.classList.contains('show')) return true;   // le draft est un moment calme
+  var dr=document.getElementById('draftOverlay'); if((dr && dr.classList.contains('show')) || S._lnOpen) return true;   // le draft (v750 : le panneau des lignes) est un moment calme
   return !!(S.planning || S.defCommit || isHumanLoose());
 }
 function tipFlush(){
@@ -16981,6 +17206,7 @@ var AI_TIMER=setInterval(function(){
   if(!AI_ON || !S) return;
   if(S.gameEnded || S.animating || S.faceoff || S.aiming || S.defCommit) return;
   var _dov=document.getElementById('draftOverlay'); if(_dov && _dov.classList.contains('show')) return;
+  if(S._lnOpen) return;   // v750 : le panneau des lignes attend READY (comme l'ancien ecran d'alignement)
   if(S.turn!==AI_TEAM) return;
   var _own=S.puckOwner?byId(S.puckOwner):null;
   if(_own && _own.team===AI_TEAM && S.gestes>0){
@@ -17014,6 +17240,7 @@ function simChoiceOpen(title, what, go){   // l'entracte : « ▶ Play the 2nd �
   _show('simChoice'); simBannerSync(); }
 function simChoiceDone(sim){ var c=SIM_CHOICE; if(!c) return; SIM_CHOICE=null; _hide('simChoice'); setAutoSim(sim); c.go(); }
 function simDraft(){   // le trio de la periode : ses lignes (openDraft les a placees) ; un poste vide : le meilleur disponible du poste
+  if(S._lnOpen){ lnAutoHuman(); lnReady(); return; }   // v750 : le panneau des lignes : le pilote choisit comme l'ordi visiteur
   var order=['C','AG','AD','DG','DD'], full=function(){ return !!S.draftRoles && order.every(function(r){ return !!S.draftRoles[r]; }); };
   if(!full()) autoFillDraft();
   if(!full() && S.draftRoles){ var av=availFor(HUMAN_TEAM), taken={}; order.forEach(function(r){ if(S.draftRoles[r]) taken[S.draftRoles[r]]=1; });
@@ -17070,7 +17297,7 @@ function simTakeOver(){   // « 🎮 Take over » : mon equipe m'est rendue ; la
       if(run.phase==='draw') soPadShow('Draw your path', 'Slide from '+byId(run.id).name+' on the ice — or tap where he stops');
       else if(run.phase==='choose') soMovesOpen(run); }
     return; }
-  if(S.needDraft && S._draftOpen){ renderDraftCards(); _show('draftOverlay'); return; }
+  if(S.needDraft && S._draftOpen){ if(S._lnOpen){ lnRender(); lnShowPanel(); return; } renderDraftCards(); _show('draftOverlay'); return; }   // v750 : le panneau des lignes se rouvre
   if(S.defCommit){ S.planClock=goalieHolding() ? GK_SECS : PLAN_SECS; S.planBeep=0; setHint('AMBUSH: tap one of your players, then a square (slide) OR post him on Body check / Block the pass. The mirror partner follows (highlighted square).'); }
   else if(S.planning){ S.planClock=goalieHolding() ? GK_SECS : PLAN_SECS; S.planBeep=0; setHint('PLAN: pick a player, then a square — or Shoot / Pass. Up to 3 actions.'); }
   else if(S.puckLoose && !S.puckOwner && S.turn===HUMAN_TEAM) setHint('Loose puck — go get it!');
@@ -17090,7 +17317,7 @@ var MSAVE_KEY='hjMatchSave', MSAVE_ON=false, RA_NEXT=null;
 var MSAVE_FRESH={animating:false, paused:false, stop:false, currentSeq:null, seqDef:null, planResume:null, planNext:null, planStop:null, stepDone:null, aiPlan:null,
   planning:false, atkPlan:[], ghost:{}, planClock:null, planBeep:0, defCommit:null, aiming:null, aimClock:null, aimBeep:0, gkClock:null, gkBeep:0,
   sel:null, slides:{}, moves:[], passT:[], duelT:[], bankT:[], dumpT:[], pokeT:[], battle:null, battleOn:null, faceoff:null, lunge:null, slide:null,
-  autoSim:false, _draftOpen:false, celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null, tunnelOn:null};
+  autoSim:false, _draftOpen:false, _lnOpen:false, celebrating:false, cheer:null, bonus:null, _ending:false, _endingExch:false, _pdown:null, rcvPop:null, speechOpen:null, tunnelOn:null};
 function mmMsg(t){ var e=document.getElementById('mmMsg'); if(e){ e.textContent=t||''; e.style.display=t?'':'none'; } }
 function matchSave(kind, args){
   if(!MSAVE_ON || !S || S.tut || tutPractice()) return;
