@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v747</title>
+<title>Deck 3D v748</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1536,7 +1536,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v747';
+var GAME_VERSION='v748';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -12764,7 +12764,7 @@ function careerAwards(c){ var o={}; CAREER_DIVS.forEach(function(d){ o[d]={pts:c
 // 1er jour de la saison au dernier jour de ronde (finDays) ; les billets a chaque match a DOMICILE (ligue et coupes, joue ou simule) ; les primes a la fin (rang), a la montee, par coupe gagnee.
 // Le salaire n'est PAS sauvegarde : il se calcule de la note et de l'age du joueur (il suit le joueur). c.fm = qui gere l'argent ('ai' | 'me') ; c.fq = la question attend sa reponse.
 // v734 : le choix fm n'a pas encore d'effet (ses decisions arrivent en v735).
-var FIN_TV={1:30e6, 2:12e6, 3:5e6, 4:2e6}, FIN_TIX={1:1.2e6, 2:5e5, 3:2e5, 4:8e4}, FIN_PRICE={1:85, 2:45, 3:25, 4:12}, FIN_COST={1:5e6, 2:2.5e6, 3:1e6, 4:4e5};
+var FIN_TV={1:45e6, 2:18e6, 3:7.5e6, 4:3e6}, FIN_TIX={1:1.8e6, 2:7.5e5, 3:3e5, 4:1.2e5},FIN_PRICE={1:85, 2:45, 3:25, 4:12}, FIN_COST={1:5e6, 2:2.5e6, 3:1e6, 4:4e5};
 var FIN_RANK=[0.10, 0.07, 0.05, 0.03, 0.02, 0.01];   // la prime de fin de saison, selon le rang dans la division : une part de SA tele (le 7e et apres : rien)
 var FIN_UP=0.10;   // la montee : 10 % de la tele de la nouvelle division (3 M$ en D1)
 var FIN_CUPW=[0.002, 0.004, 0.006, 0.008, 0.012, 0.018];   // Coupe de la ligue : par tour gagne (les 6 tours), une part de la tele du club : toute la coupe = 5 %
@@ -12778,7 +12778,7 @@ var FIN_SAL={s:750000, k:0.16, knee:84, k2:0.08, ref:80, min:60000, young:0.75, 
 var FIN_LVN=['Very low', 'Low', 'Normal', 'High', 'Very high'], FIN_POSTS=[['tk', 'Tickets'], ['eq', 'Equipment'], ['md', 'Medical'], ['rc', 'Recovery'], ['tr', 'Travel']];
 var FIN_COSTX=[0.25, 0.5, 1, 2, 3], FIN_PRICEX=[0.6, 0.8, 1, 1.25, 1.5], FIN_FANX=[1.08, 1.04, 1, 0.92, 0.82], FIN_BREAK=[1.5, 0.75, 0.25, 0.1, 0], FIN_MEDX=[1.5, 1.25, 1, 0.85, 0.7], FIN_RECD=[-5, -3, 0, 2, 4], FIN_TRAV=[-8, -4, -2, 0, 2];
 var FIN_LOAN={max:0.5, rate:0.08, terms:[13, 26, 52], ai:52};   // jusqu'a 50 % de la tele de la division ; 3 / 6 / 12 mois de paiements du lundi
-var FIN_AI={rich:0.5, tight:0.10};   // l'ordi : riche = la prevision (sur Normal) > 50 % de la masse salariale ; serre = < 10 % ; dans le rouge = solde ou prevision < 0
+var FIN_AI={rich:1.2, tight:0.10};   // v748 : rich 0,5 -> 1,2 (la tele et les billets +50 % : la prevision monte, le meme melange qu'avant : ~65 % de clubs High, ~35 % Normal, aucun serre ; mesure sur 5 graines)   // l'ordi : riche = la prevision (sur Normal) > 50 % de la masse salariale ; serre = < 10 % ; dans le rouge = solde ou prevision < 0
 function finLv(T, i){ var l=T && T.fin && T.fin.l; return (l && l[i]>=0 && l[i]<=4) ? l[i] : 2; }
 function finClubCost(c, key, lv){ var dv=careerDivOf(c, key), T=c.teams[key], s=0; for(var i=1;i<5;i++) s+=FIN_COST[dv]/4*FIN_COSTX[lv ? lv[i] : finLv(T, i)]; return s; }   // les frais de la saison de ce club (4 postes)
 function finRecDay(T, gk){ var d=FIN_RECD[finLv(T, 3)]; return gk ? CAREER_EN.gDay+Math.round(d*CAREER_EN.gDay/CAREER_EN.day) : CAREER_EN.day+d; }   // l'energie regagnee par jour : 10 / 12 / 15 / 17 / 19 (gardiens : en proportion)
@@ -12830,7 +12830,7 @@ function finSellable(T, p){   // le plancher : toujours un alignement complet (1
 function finBuyer(c, key, p){ var amt=finSalary(p), best=null;   // le club le plus riche (hors le sien et le vendeur) qui peut payer et a la place
   Object.keys(c.teams).forEach(function(k){ if(k===key || k===c.my) return; var B=c.teams[k], F=B.fin; if(!F || F.b<amt) return;
     if(finIsG(p) ? faGoalies(B).length>=FA_MAX_G : B.skaters.length>=FA_MAX_SK) return;
-    if(finCapPay(B)+amt>finCapOf(c, k)) return;   // v738 : l'acheteur reste sous son plafond
+    if(finCapPay(B)+amt>finCapOf(c, k) || !finStarOk(c, k, [], [p])) return;   // v738 : l'acheteur reste sous son plafond (v748 : et a 4 vedettes au plus)
     if(!best || F.b>c.teams[best].fin.b || (F.b===c.teams[best].fin.b && k<best)) best=k; });
   return best; }
 function finForcedSale(c, key){ var T=c.teams[key], F=T.fin, list=finTop(T, 99).filter(function(e){ return !e.p.ln; }), i, p, bk;   // les plus cheres d'abord : la 1re qui passe le plancher et qui a un acheteur
@@ -12866,7 +12866,7 @@ function finPayroll(T){ var s=0; finPlayers(T).forEach(function(p){ s+=finSalary
 // (blessure prevue de 28 jours ou plus, drapeau p.inj.lt pose a la blessure) ne compte pas pendant son absence ; a son retour il faut etre sous le plafond (bandeau + boutons bloques pour lui, l'IA libere le moins utile).
 // p.pri = les 6 priorites dans l'ordre (money / win / ice / sec / loyal / city), tirees selon l'age ; p.fam = {st : single | married | kids, md : likes | fine | move, n : enfants} qui change rarement (chaque lundi).
 // Prix demande d'une prolongation = la formule x famille (veut partir +25 %, aime la ville -10 %) x priorite (Loyalty -10 %, Money +10 %). Fin de saison : ctSeasonEnd.
-var FIN_CAP={1:36e6, 2:16e6, 3:7.5e6, 4:2.7e6}, CT_LTIR=28, CT_FAM={md:0.012, st:0.003};
+var FIN_CAP={1:54e6, 2:24e6, 3:11.25e6, 4:4.05e6},CT_LTIR=28, CT_FAM={md:0.012, st:0.003};
 var CT_PRI=['money', 'win', 'ice', 'sec', 'loyal', 'city'], CT_PRIN={money:['💰', 'Money'], win:['🏆', 'Win'], ice:['⏱', 'Ice time'], sec:['🔒', 'Security'], loyal:['🤝', 'Loyalty'], city:['🏠', 'City / family']};
 var CT_PRIW={young:{ice:4, money:3.2, win:2, city:1.5, sec:1, loyal:1}, mid:{money:4, win:3.2, ice:2, city:1.5, sec:1.5, loyal:1.5}, old:{win:4, sec:3.2, loyal:3, money:2, city:1.5, ice:0.8}};   // le poids de chaque priorite selon l'age (au carre : un tirage sans remise)
 var CT_ASK={move:1.25, likes:0.9, loyal:0.9, money:1.1};
@@ -12896,6 +12896,13 @@ function ctNtAi(c, key, R){ var d=careerDivOf(c, key); if(d>=4 || R()>=AG_X.ntAi
 function trNtBlock(c, p, destKey){ var nt=p.ct && p.ct.nt; if(!nt || !nt.length) return 0; var d=careerDivOf(c, destKey); return nt.indexOf(d)>=0 ? d : 0; }   // la division qui bloque (0 : rien ne bloque)
 function finLtir(p){ var i=p && p.inj; return !!i && (i.lt!=null ? !!i.lt : i.left>=CT_LTIR); }   // le blesse longue duree (le drapeau est pose a la blessure : il le reste quand les jours baissent)
 function finCapOf(c, key){ return FIN_CAP[careerDivOf(c, key)]; }
+// v748 : « garder 4 au plus » -- un club de l'ORDI qui a deja 4 patineurs a 90+ de note n'en prend pas un 5e (agent libre, marche, echange, pret, Future considerations) ; une prolongation d'un joueur deja la reste permise ; le club du joueur humain n'est PAS limite. UN seul endroit : finStarOk.
+var FIN_STAR={max:4, at:90};
+function finStarOk(c, key, out, inn){ if(key===c.my) return true; var T=c.teams[key]; if(!T) return true;
+  var isS=function(p){ return p && !finIsG(p) && overall(p)>=FIN_STAR.at; }, n=T.skaters.filter(isS).length;
+  (out||[]).forEach(function(p){ if(T.skaters.indexOf(p)>=0 && isS(p)) n--; });
+  (inn||[]).forEach(function(p){ if(T.skaters.indexOf(p)<0 && isS(p)) n++; });
+  return n<=FIN_STAR.max || !(inn||[]).some(function(p){ return T.skaters.indexOf(p)<0 && isS(p); }); }   // 5e vedette seulement si elle ARRIVE (un club deja au-dessus, par ses propres joueurs, ne bloque pas le reste)
 function finCapPay(T){ var s=0; finPlayers(T).forEach(function(p){ if(!finLtir(p)) s+=finSalary(p)*lnPart(T, p); }); lnOut(T).forEach(function(p){ if(!finLtir(p)) s+=finSalary(p)*(1-p.ln.sh); }); return s; }   // ce qui compte contre le plafond (v742 : un prete compte pour sa part dans les deux clubs)
 function finCapSpace(c, key){ return finCapOf(c, key)-finCapPay(c.teams[key]); }
 function lnFull(c){ var T=c.teams[c.my]; return !!c.lnR && (T.skaters.length>FA_MAX_SK || faGoalies(T).length>FA_MAX_G); }   // v742 : un prete est revenu et l'effectif est plein (c.lnR : pose au retour)
@@ -12930,7 +12937,7 @@ function ctRefill(c, key){ var T=c.teams[key], cap=finCapOf(c, key), n=0;   // u
   var need=function(){ var F=T.skaters.filter(function(p){ return p.pos==='F'; }).length, D=T.skaters.filter(function(p){ return p.pos==='D'; }).length, G=faGoalies(T).length;
     return G<2 ? 'G' : (F<11 ? 'F' : (D<7 ? 'D' : (T.skaters.length<18 ? 'F' : null))); };
   var pos; while((pos=need()) && n++<40){ var best=null, holes=Math.max(1, 18-T.skaters.length)+Math.max(0, 2-faGoalies(T).length)-(pos==='G' ? 0 : 0), resv=FIN_SAL.min*(holes-1);   // il reste `holes` trous : chaque signature laisse 60 K$ pour chacun des autres
-    (c.fa||[]).forEach(function(q){ if(q.gone===key) return; if((pos==='G') !== (q.pos==='G')) return; if(pos!=='G' && q.pos!==pos) return; if(finCapPay(T)+finSalF(q)+resv>cap) return; if(!best || faRating(q)>faRating(best)) best=q; });
+    (c.fa||[]).forEach(function(q){ if(q.gone===key) return; if((pos==='G') !== (q.pos==='G')) return; if(pos!=='G' && q.pos!==pos) return; if(finCapPay(T)+finSalF(q)+resv>cap || !finStarOk(c, key, [], [q])) return; if(!best || faRating(q)>faRating(best)) best=q; });
     if(!best){ var R=careerRng((c.seed||20261008)+7381+n+(c.season||1)*13); best=faMake(c, R, pos==='G' ? 'goalie' : 'depth'); if(pos!=='G'){ best.pos=pos; }
       if(finCapPay(T)+finSalF(best)>cap) break;   // pas de place sous le plafond meme pour le moins cher : le trou reste (le plafond d'abord)
       c.fa.push(best); }
@@ -13068,7 +13075,7 @@ function agEndNote(c){ var T=c.teams[c.my]; if(c.phase!=='regular' || c.ag3===c.
 function agAiNeed(T){ var hurt=T.skaters.filter(function(q){ return q.inj; }); if(hurt.length && T.skaters.length<FA_MAX_SK) return hurt[0].pos; return faGoalies(T).length<FA_MAX_G ? 'G' : null; }   // le besoin d'un club de l'IA : un poste de blesse (avec de la place), un gardien manquant
 function agAiOffers(c){ c.fo={}; var R=careerRng((c.seed||20261021)+7391+(c.season||1)*89+(c.date||0)), Rrl=careerRng((c.seed||20261122)+7423+(c.season||1)*59+(c.date||0));   // chaque lundi : les clubs de l'IA avec un besoin et la place sous le plafond font UNE offre (le meilleur agent libre au poste), decidee le lundi suivant
   Object.keys(c.teams).sort().forEach(function(k){ if(k===c.my) return; var T=c.teams[k], pos=agAiNeed(T); if(!pos) return; var space=finCapOf(c, k)-finCapPay(T), best=null;
-    (c.fa||[]).forEach(function(q){ if(q.pos!==pos || q.gone===k) return; if(Math.round(finAsk(q)*AG_X.aiLo/10000)*10000>space) return; if(!best || faRating(q)>faRating(best)) best=q; });
+    (c.fa||[]).forEach(function(q){ if(q.pos!==pos || q.gone===k || !finStarOk(c, k, [], [q])) return; if(Math.round(finAsk(q)*AG_X.aiLo/10000)*10000>space) return; if(!best || faRating(q)>faRating(best)) best=q; });
     if(!best) return; var s=Math.round(finAsk(best)*(AG_X.aiLo+(AG_X.aiHi-AG_X.aiLo)*R())/10000)*10000; s=Math.max(60000, Math.min(s, Math.floor(space/10000)*10000));
     var rl=ctRlAi(c, k, Rrl), o={k:k, s:s, y:ctDur(best.age||26, R), pm:{ice:R()<0.25 ? 1 : 0, cup:(agCupOk(c, k) && R()<0.4) ? 1 : 0, nt:R()<0.15 ? 1 : 0}};
     if(rl){ o.rl=rl; o.s=Math.max(60000, Math.min(Math.round(s*(1+rlExtra(best))/10000)*10000, Math.floor(space/10000)*10000)); }   // v742 : la clause de relegation, au prix +5 % (sous la place qu'il a)
@@ -13077,7 +13084,7 @@ function agMarket(c){   // le lundi : chaque agent libre qui a des offres choisi
   (c.fa||[]).slice().forEach(function(p){ var offs=((c.fo && c.fo[p.uid])||[]).slice(), mine=c.fao && c.fao[p.uid]; if(mine) offs.unshift({k:c.my, s:mine.s, y:mine.y, pm:mine.pm, nt:mine.nt, rl:mine.rl, me:1}); if(!offs.length) return;
     offs.forEach(function(o){ o.v=agValue(c, p, o, o.k).v; }); offs.sort(function(a, b){ return b.v-a.v; });
     var done=false; offs.forEach(function(o){ if(done) return; var T=c.teams[o.k], isG=p.pos==='G';
-      if(isG ? faGoalies(T).length>=FA_MAX_G : T.skaters.length>=FA_MAX_SK) return; if(finCapPay(T)+o.s>finCapOf(c, o.k)) return;
+      if(isG ? faGoalies(T).length>=FA_MAX_G : T.skaters.length>=FA_MAX_SK) return; if(finCapPay(T)+o.s>finCapOf(c, o.k)) return; if(!finStarOk(c, o.k, [], [p])) return;   // v748 : pas de 5e vedette chez l'ordi
       p.ct=ctRlSet(ctNtSet({s:o.s, y:o.y}, o.nt), o.rl); if(!o.me){ var ntai=ctNtAi(c, o.k, careerRng((c.seed||20261121)+7411+(p.uid||0)*3+(c.season||1)*17+(c.date||0))); if(ntai) p.ct.nt=ntai; }   // v741 : un club de l'IA : ~15 % des signatures ont une clause
       faJoin(c, T, p, isG ? (T.goalie ? 'goalie2' : 'goalie') : undefined); done=true;
       if(o.me){ p.pm=agPmKeep(o.pm); finAgentMsg(c, p.name+' signs with you! '+agTerms(o)+'.', p.uid); }
@@ -13137,7 +13144,7 @@ function trSide(c, key, out, inn, cashOut){   // un club apres l'echange : out =
   inn.forEach(function(p){ if(!finLtir(p)) pay+=finSalary(p); if(finIsG(p)) g.push(p); else sk.push(p); });
   var nF=sk.filter(function(p){ return p.pos==='F'; }).length, nD=sk.filter(function(p){ return p.pos==='D'; }).length, r={key:key, pay:pay, cap:cap, sk:sk.length, g:g.length, nF:nF, nD:nD};
   r.capOk=pay<=cap; r.skOk=sk.length<=FA_MAX_SK; r.gOk=g.length<=FA_MAX_G; r.floorOk=sk.length>=DRESS_N && nF>=9 && nD>=6 && g.length>=1; r.cashOk=cashOut<=0 || (!!F && F.b>=cashOut);
-  r.ok=r.capOk && r.skOk && r.gOk && r.floorOk && r.cashOk; return r; }
+  r.starOk=finStarOk(c, key, out, inn); r.ok=r.capOk && r.skOk && r.gOk && r.floorOk && r.cashOk && r.starOk; return r; }   // v748 : au plus 4 vedettes (90+) chez l'ordi
 function trCheck(c, S){   // la proposition est-elle permise ? {ok, errs, me, th} (le plafond, l'effectif, le plancher des DEUX clubs, No trade, la date limite, l'argent)
   var A=c.teams[c.my], B=c.teams[S.b], errs=[], out=[], inn=[], cash=S.cash||0;
   if(!faOpen(c)) errs.push('The trade deadline has passed.');
@@ -13146,7 +13153,7 @@ function trCheck(c, S){   // la proposition est-elle permise ? {ok, errs, me, th
   if(!out.length && !inn.length) errs.push('Pick at least one player.'); if(out.length>TR_X.max || inn.length>TR_X.max) errs.push('At most 3 players on each side.');
   var me=trSide(c, c.my, out, inn, cash), th=trSide(c, S.b, inn, out, -cash);
   if(!me.capOk) errs.push('Over your cap: '+finFmt(me.pay)+' / '+finFmt(me.cap)+'.'); if(!me.skOk) errs.push('Your roster would be '+me.sk+' / '+FA_MAX_SK+'.'); if(!me.gOk) errs.push('You would have '+me.g+' goalies.'); if(!me.floorOk) errs.push('Your lineup would be incomplete.'); if(!me.cashOk) errs.push('Not enough cash.');
-  if(!th.capOk) errs.push(B.city+' would be over the cap.'); if(!th.skOk || !th.gOk) errs.push(B.city+'\'s roster would be full.'); if(!th.floorOk) errs.push(B.city+' would be short of players.'); if(!th.cashOk) errs.push(B.city+' cannot pay that.');
+  if(!th.capOk) errs.push(B.city+' would be over the cap.'); if(!th.skOk || !th.gOk) errs.push(B.city+'\'s roster would be full.'); if(!th.floorOk) errs.push(B.city+' would be short of players.'); if(!th.cashOk) errs.push(B.city+' cannot pay that.'); if(!th.starOk) errs.push(B.city+' already has '+FIN_STAR.max+' players rated '+FIN_STAR.at+'+.');
   return {ok:!errs.length, errs:errs, me:me, th:th}; }
 function trPosTxt(c, key, p){ return finPosTxt(c.teams[key], p); }
 function trText(c, S){ var B=c.teams[S.b], A=c.teams[c.my], g=S.get.map(function(u){ var p=careerPlayerByUid(B, u); return p ? p.name : '?'; }), v=S.give.map(function(u){ var p=careerPlayerByUid(A, u); return p ? p.name : '?'; });   // « Novak for Pinard + Lemire + $250K »
@@ -13292,7 +13299,7 @@ function lnCan(c, hk, tk, p, L){   // un pret est-il permis ? (p : le joueur ; h
   if(!faOpen(c)) errs.push('The trade deadline has passed.');
   if(!p){ errs.push('Pick a player.'); return errs; }
   if(p.pm && p.pm.nt) errs.push(p.name+' has a No trade.'); var nd=trNtBlock(c, p, tk); if(nd) errs.push(p.name+': no trade to D'+nd+'.');
-  if(p.ln) errs.push(p.name+' is on loan.'); if(p.inj) errs.push(p.name+' is injured.');
+  if(p.ln) errs.push(p.name+' is on loan.'); if(p.inj) errs.push(p.name+' is injured.'); if(!finStarOk(c, tk, [], [p])) errs.push(T1.city+' already has '+FIN_STAR.max+' players rated '+FIN_STAR.at+'+.');   // v748
   if(!finSellable(H, p)) errs.push(mine ? 'Your lineup would be incomplete.' : H.city+' would be short of players.');
   var sal=finSalary(p), isG=finIsG(p);
   if(!finLtir(p) && finCapPay(T1)+sal*L.sh>finCapOf(c, tk)+1e-9) errs.push(tm ? 'Over your cap.' : T1.city+' would be over the cap.');
