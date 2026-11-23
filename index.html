@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v750</title>
+<title>Deck 3D v751</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1026,6 +1026,20 @@ body:not(.vrink) .thumbx{display:none !important;}
 .tbslot .tbchip.A{background:#2f5e8c;} .tbslot .tbchip.B{background:#9a3c4f;}
 .tbslot.empty .tbchip{border:2px dashed #2a4262;background:none;}
 .tbslot .tbw{white-space:normal;overflow:hidden;min-width:0;font-size:12px;line-height:1.1;max-height:2.3em;overflow-wrap:anywhere;}   /* v396 : « Skate + Shoot » sur 2 lignes */
+/* v751 : la rangee CHANGE sous les cases du plan */
+.tbslot.chg{border-color:#7fd8cf;} .tbslot .tbchgi{color:#ffd23e;font-size:16px;font-weight:800;line-height:1;flex:0 0 auto;}
+.chgrow{display:flex;flex-direction:column;gap:4px;}
+.chghd{display:flex;align-items:center;gap:6px;min-height:16px;font-family:var(--pxd);font-size:9px;color:#9fb6cd;}
+.chgw{letter-spacing:.06em;font-weight:800;color:#9fb6cd;} .chgw.low{color:#ffb36b;} .chgc{color:#bfeae4;}
+.chgtag{background:#c0392b;color:#fff;border-radius:4px;padding:1px 6px;font-family:var(--pxu);font-size:11px;font-weight:800;}
+.chgbs,.chgmenu{display:flex;gap:5px;align-items:stretch;}
+.chgsp{flex:0 0 8px;}
+.chgb{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:36px;padding:1px 2px;border:2px solid #2e4a63;border-radius:9px;background:#16273a;color:#fff;font-family:var(--pxu);font-size:12px;font-weight:700;cursor:pointer;}
+.chgb small{font-size:10px;font-weight:700;color:#7fe0a8;} .chgb small.orange{color:#ffb36b;} .chgb small.red{color:#ff6b6b;}
+.chgb.on{border-color:#4a5d73;background:#202c3a;color:#9aa4b2;} .chgb.sel{background:#1a8f86;border-color:#8ff0e6;color:#fff;}
+.chgb.rec{border-color:#ffb36b;box-shadow:0 0 0 2px #ffb36b;}
+.chgb.pp{background:#5a3aa8;border-color:#8a6ad8;} .chgb.pk{background:#8a3a3a;border-color:#c06a6a;}
+.chgb:disabled{opacity:.45;cursor:default;}
 .tbgo{gap:8px;flex:0 0 auto;margin-top:auto;position:sticky;bottom:0;background:#0a1521;padding-top:4px;align-items:stretch;}
 .tbgo button{font-family:var(--pxu);border-radius:14px;cursor:pointer;min-height:50px;}
 .tbundo,.tbmirror{border:1px solid #2a4262;background:#182c45;color:#e9f2fb;font-size:12px;font-weight:700;padding:0 10px;}
@@ -1552,7 +1566,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v750';
+var GAME_VERSION='v751';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -5677,6 +5691,7 @@ function ghostBusy(c,r,exceptId){
   return null;
 }
 function planLabel(a){
+  if(a.kind==='chg') return 'Change '+chgLabel();   // v751
   var p=byId(a.id); var nm=p?p.name:'?';
   if(a.kind==='move')  return nm+(a.viaC!=null?(' -> '+a.viaC+','+a.viaR):'')+' -> '+(a.toC)+','+(a.toR);
   if(a.kind==='bank')  return nm+' banks it to '+(byId(a.target)?byId(a.target).name:'?');   // v457
@@ -5844,6 +5859,7 @@ function landSpot(p, tc, tr, taken){
 }
 function resolvePlan(){
   if(!S.planning) return;
+  S.atkPlan=S.atkPlan.filter(function(a){ return a.kind!=='chg'; }); chgRelease(true);   // v751 : le changement se fait au GO (sa case est comptee, pas jouee)
   if(S.tut) tutOnPlan(S.atkPlan);   // v451 : compteurs de lecon
   S.planning=false; S.planClock=null; S.ghost={}; clearSel(); renderPlanBar();
   cineEnter();   // CINE 2.5D : la camera plonge des le debut de la resolution et tient
@@ -5987,7 +6003,8 @@ function planUndo(){
   if(!S.planning) return;
   if(freshSel()){ S.dangle=false; S.armedFeint=null; clearSel(); setSel(null); return; }
   if(!S.atkPlan.length) return;
-  var a=S.atkPlan.pop(); if(a.cont){ var _cp=byId(a.id); if(_cp) _cp.route=null; }   // v410 : Undo sur une suite annule le trace
+  var a=S.atkPlan.pop(); if(a.kind==='chg'){ chgRevertHuman(); clearSel(); render(); renderPlanBar(); return; }   // v751 : Undo enleve le changement (les nouveaux repartent au banc, les sortants reviennent)
+  if(a.cont){ var _cp=byId(a.id); if(_cp) _cp.route=null; }   // v410 : Undo sur une suite annule le trace
   if(a.kind==='move'){ delete S.ghost[a.id];
     var _um=mirrorPartnerOf(byId(a.id)); if(_um && S.ghost[_um.id] && S.ghost[_um.id].mirror) delete S.ghost[_um.id]; }   // v392 : le miroir suit l'annulation (sinon le partenaire resterait « deja joue »)
   if(a.kind==='pass' || a.kind==='bank') delete S.ghost['PUCK'];   // v457
@@ -6017,6 +6034,7 @@ function tbSlot(i, id, what, st){
   var p=id?byId(id):null;
   return '<div class="tbslot '+st+'"><span class="tbn">'+(i+1)+'</span>'+(p?'<span class="tbchip '+p.team+'">'+tbEsc(p.label)+'</span>':'<span class="tbchip"></span>')+'<span class="tbw">'+tbEsc(what)+'</span></div>';
 }
+function tbChgSlot(i, what){ return '<div class="tbslot done chg"><span class="tbn">'+(i+1)+'</span><span class="tbchgi">&#8644;</span><span class="tbw">'+tbEsc(what)+'</span></div>'; }   // v751 : la case du changement
 function tbTimerFrac(){ var tot=(S.defCommit||goalieHolding())?((goalieHolding()&&!S.defCommit)?GK_SECS:PLAN_SECS):PLAN_SECS; var t=(S.planClock==null)?tot:S.planClock; return Math.max(0,Math.min(1,t/tot)); }
 function updateThumbTimer(){
   var g=document.getElementById('tbGo'); if(!g || g.style.display==='none') return;
@@ -6056,22 +6074,23 @@ function renderThumbBar(){
   var done=[], maxn, curId=null, i;
   if(atk){ maxn=PLAN_N;
     for(i=0;i<S.atkPlan.length;i++){ var _pa=S.atkPlan[i];
+      if(_pa.kind==='chg'){ done.push({chg:true, what:chgLabel()}); continue; }   // v751 : le changement, une case comme les autres
       if(_pa.att){ for(var _j=done.length-1;_j>=0;_j--){ if(done[_j].id===_pa.id){ done[_j].what+=' + '+tbAtkVerb(_pa); break; } } }   // v396 : jeu attache = meme case
       else done.push({id:_pa.id, what:tbAtkVerb(_pa)}); }
     if(S.sel && !planActed(S.sel)){ var sp=byId(S.sel); if(sp && sp.team===HUMAN_TEAM){
       if(planHasId(S.sel)){ for(var _k=done.length-1;_k>=0;_k--){ if(done[_k].id===S.sel){ done[_k].what+=' + ?'; done[_k].pending=true; break; } } }   // il peut encore attacher son jeu
       else curId=S.sel; } } }
-  else { maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); for(i=0;i<dc.picks.length;i++) done.push({id:dc.picks[i].defId, what:tbDefVerb(dc.picks[i])}); curId=dc.selDef||null;
+  else { maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); for(i=0;i<dc.picks.length;i++) done.push(dc.picks[i].kind==='chg' ? {chg:true, what:chgLabel()} : {id:dc.picks[i].defId, what:tbDefVerb(dc.picks[i])}); curId=dc.selDef||null;
     var _lp=dc.picks[dc.picks.length-1]; if(curId && _lp && _lp.defId===curId) curId=null; }   /* il complete encore SA glissade (« and then? ») : pas une 2e case */
   var h=(atk && penCanPull(HUMAN_TEAM) ? '<button class="tbpull" onclick="pullGoalie(HUMAN_TEAM)">Pull goalie — extra attacker</button>' : '')   /* v455 : le 6e attaquant aussi sur telephone */
     +(atk && zoneOutOK() ? '<button class="tbpull tbzone" onclick="zoneOutGo()">Get out of the zone</button>' : '')   /* v578 */
     +(atk?'<div class="tbhint">'+tbEsc(hint)+'</div>':'')+'<div class="tbslots">';   /* en defense, la barre d'embuscade donne deja la consigne */
   for(i=0;i<Math.max(maxn,done.length);i++){
-    if(i<done.length) h+=tbSlot(i, done[i].id, done[i].what, done[i].pending?'cur':'done');
+    if(i<done.length) h+=(done[i].chg ? tbChgSlot(i, done[i].what) : tbSlot(i, done[i].id, done[i].what, done[i].pending?'cur':'done'));
     else if(i===done.length && curId) h+=tbSlot(i, curId, '?', 'cur');
     else h+=tbSlot(i, null, '', 'empty');
   }
-  top.innerHTML=h+'</div>'; top.style.display='flex';
+  top.innerHTML=h+'</div>'+chgRowHtml(); top.style.display='flex';   // v751 : la rangee CHANGE sous les cases du plan
   var n=atk?planCount():dc.picks.length;   /* v396 : les jeux attaches ne comptent pas */
   var _canUndo=n || (atk ? freshSel() : !!(dc.selDef && !dc.pendingMove));   // v407 : Undo annule aussi une selection fraiche
   var g='<button class="tbundo" aria-label="Undo" onclick="'+(atk?'planUndo()':'undoDefPick()')+'"'+(_canUndo?'':' disabled')+'>&#8630;</button>';
@@ -6190,6 +6209,7 @@ function startExchange(){
   S.gestes=3; S.carrierMoved=false; S.hiddenDef=[]; S.defRevealIdx=0; S.defOrders=[]; S._protSeen={};
   S._exStart={}; S.pieces.forEach(function(q){ if(q.onIce && q.type==='sk') S._exStart[q.id]={c:q.c, r:q.r}; });   // v642 : ou etait chacun au debut de l'echange (qui ARRIVE dans un couloir de passe)
   momDecay();   // v554 : le momentum revient vers le neutre a chaque tour
+  S._chgAi={}; chgAiMaybe(AI_TEAM);   // v751 : l'ordi change en plein jeu (son unite essoufflee), au cout d'une action de son plan / de ses ordres
   var _atk=S.puckOwner?byId(S.puckOwner).team:null;
   var _reset=(_atk && S.rebStreak>=2 && !S.tut); if(_reset) S.rebStreak=0;   // v459 : pas pendant une lecon
   if(_atk===AI_TEAM){ if(_reset) announceReset(HUMAN_TEAM);
@@ -6197,8 +6217,8 @@ function startExchange(){
     if(S.activeStrat && S.activeStrat.team===AI_TEAM){ S.aiPlan=null; openDefCommit(); clearSel(); render(); return; }   // strategie IA en cours : TU poses ta defense (elle bouge en meme temps, resolue au Confirm)
     var _aiOff=aiMaybeStrategy(AI_TEAM);
     if(_aiOff){ callStrategy(AI_TEAM,_aiOff); pushLog('<b>'+TEAM_NAME[AI_TEAM]+'</b> call a strategy: '+STRATS[_aiOff].name+'.'); S.aiPlan=null; openDefCommit(); clearSel(); render(); return; }
-    S._faceoffFresh=false; S.aiPlan=S.tut?tutAiAttack():aiBuildPlan();   /* v451 : lecon -- attaque IA ecrite d'avance */ openDefCommit(); clearSel(); render(); return; }
-  if(_atk===HUMAN_TEAM){ if(_reset){ announceReset(AI_TEAM); S.hiddenDef=aiDefResetPicks(); if(goalieHolding()) S.hiddenDef=S.hiddenDef.slice(0,1);   /* v462 : ton gardien -> un seul coup */ S.defRevealIdx=0; } else commitHiddenDefense(); startPlan(); return; }   // v459 (ecart 9) : le repli se joue vraiment   // le flag _faceoffFresh reste vrai ce 1er tour : le coach bar ne s'offre pas encore, il se leve a endExchange
+    S._faceoffFresh=false; S.aiPlan=S.tut?tutAiAttack():aiBuildPlan(); chgTrimPlan(S.aiPlan, AI_TEAM);   /* v451 : lecon -- attaque IA ecrite d'avance */ /* v751 : s'il a change, une action de moins */ openDefCommit(); clearSel(); render(); return; }
+  if(_atk===HUMAN_TEAM){ if(_reset){ announceReset(AI_TEAM); S.hiddenDef=aiDefResetPicks(); if(goalieHolding()) S.hiddenDef=S.hiddenDef.slice(0,1);   /* v462 : ton gardien -> un seul coup */ S.defRevealIdx=0; } else commitHiddenDefense(); chgTrimDef(AI_TEAM); startPlan(); return; }   /* v751 : s'il a change, une action de moins */   // v459 (ecart 9) : le repli se joue vraiment   // le flag _faceoffFresh reste vrai ce 1er tour : le coach bar ne s'offre pas encore, il se leve a endExchange
   commitHiddenDefense();   // v459 : (pas de porteur -> jamais de repli ; la branche morte est retiree)
   clearSel(); render(); }
 function endExchange(){ S._lateDef=null; S._exStart=null; if(S._stratDef && S._stratDef.fc) S._stratDef=null;   /* v700 : la pression du Forecheck ne dure que ce tour */   /* v642 : hors echange, personne n'« arrive » (le % du plan) */   // v524
@@ -6251,7 +6271,7 @@ function groupPicks(tg, flag, val){   // v700 : partage Back up / Forecheck -- c
 }
 function backupOK(){ var dc=S.defCommit; return !!(dc && !dc.markMode && backupSituation(HUMAN_TEAM)); }
 function backupGo(){   // le bouton : les 3 coups remplacent ceux deja choisis ; tu vois les fantomes, puis Confirm
-  if(!backupOK()) return; var dc=S.defCommit;
+  if(!backupOK()) return; chgDropPending(); var dc=S.defCommit;   // v751 : un changement deja pose s'en va (les coups sont remplaces)
   for(var i=0;i<dc.picks.length;i++){ if(dc.picks[i].cont){ var q=byId(dc.picks[i].defId); if(q) q.route=null; } }   // un trace deja pose s'efface
   dc.picks=backupPicks(HUMAN_TEAM); dc.backup=true; dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; dc.markMode=false;
   S.moves=[]; S.ghost={}; render(); renderDefBar();
@@ -6326,7 +6346,7 @@ function forecheckOK(){ var dc=S.defCommit; return !!(dc && !dc.markMode && !dc.
 function forecheckMenu(){ if(!forecheckOK()) return; S.defCommit.fcMenu=true; renderDefBar(); }
 function forecheckCancel(){ if(S.defCommit){ S.defCommit.fcMenu=false; renderDefBar(); } }
 function forecheckGo(shape){   // comme backupGo : les coups remplacent ceux deja choisis ; tu vois les fantomes, puis Confirm
-  if(!forecheckOK()) return; var dc=S.defCommit;
+  if(!forecheckOK()) return; chgDropPending(); var dc=S.defCommit;   // v751
   for(var i=0;i<dc.picks.length;i++){ if(dc.picks[i].cont){ var q=byId(dc.picks[i].defId); if(q) q.route=null; } }
   dc.picks=forecheckPicks(HUMAN_TEAM, shape); dc.forecheck=shape; dc.fcMenu=false; dc.backup=false; dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; dc.markMode=false;
   S.moves=[]; S.ghost={}; render(); renderDefBar();
@@ -6459,7 +6479,7 @@ function finalizeDefPick(order){
 }
 function undoDefPick(){ var dc=S.defCommit; if(!dc) return; if(dc.forecheck || dc.fcMenu){ dc.forecheck=false; dc.fcMenu=false; dc.picks=[]; dc.selDef=null; S.moves=[]; render(); renderDefBar(); return; }   /* v700 : Undo apres Forecheck -> defense vide */ if(dc.backup){ dc.backup=false; dc.picks=[]; dc.selDef=null; S.moves=[]; render(); renderDefBar(); return; }   /* v622 : Undo apres Back up -> defense vide */ if(dc.extend){ dc.extend=false; S.moves=[]; render(); renderDefBar(); return; } if(dc.pendingMove){ dc.pendingMove=null; dc.selDef=null; S.moves=[]; render(); renderDefBar(); return; }
   var _lp=dc.picks[dc.picks.length-1]; if(dc.selDef && !(_lp && _lp.defId===dc.selDef)){ dc.selDef=null; dc.markMode=false; S.moves=[]; render(); renderDefBar(); return; }   // v407 : defenseur choisi sans rien faire -> Undo le deselectionne (le choix precedent reste)
-  var _pp=dc.picks.pop(); if(_pp && _pp.cont){ var _pq=byId(_pp.defId); if(_pq) _pq.route=null; }   // v410 : Undo sur une suite annule le trace
+  var _pp=dc.picks.pop(); if(_pp && _pp.kind==='chg') chgRevertHuman();   /* v751 : Undo enleve le changement */ if(_pp && _pp.cont){ var _pq=byId(_pp.defId); if(_pq) _pq.route=null; }   // v410 : Undo sur une suite annule le trace
   dc.selDef=null; S.moves=[]; render(); renderDefBar(); }
 function defOrderPick(order){ var dc=S.defCommit; if(!dc||!dc.selDef) return; if(dc.picks.length>=3) return; if((order==='poke' || order==='lift') && brkNo(byId(dc.selDef))) return;   /* v736 */ dc.picks.push({defId:dc.selDef, kind:'order', order:order}); dc.selDef=null; S.moves=[]; render(); renderDefBar(); defAutoConfirm(); }
 /* ===== MARQUAGE HOMME-A-HOMME ===== */
@@ -6590,10 +6610,10 @@ function blockOrderCheck(p,t){
   return null;
 }
 function confirmDefCommit(force){ var dc=S.defCommit; if(!dc) return;
-  var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); if(!force && dc.picks.length<maxn) return; if(S.tut) S.tut.ambushes=(S.tut.ambushes||0)+1;   /* v451 */ S.hiddenDef=[]; S.defOrders=[]; for(var _pi=0;_pi<dc.picks.length;_pi++){ var _pk=dc.picks[_pi]; if(_pk.kind==='order'){ S.defOrders.push({defId:_pk.defId, order:_pk.order, markId:_pk.markId||null, used:false}); } else { var _hd={defId:_pk.defId, toC:_pk.toC, toR:_pk.toR, order:_pk.order||null, path:_pk.path||null}; if(_pk.mate) _hd.mate={defId:_pk.mate.defId, toC:_pk.mate.toC, toR:_pk.mate.toR}; if(_pk.backup) _hd.backup=true; if(_pk.forecheck) _hd.forecheck=_pk.forecheck; S.hiddenDef.push(_hd); } }   /* v622 : Back up -- le partenaire de ce temps */
+  var maxn=Math.min(PLAN_N, onIceSkaters(HUMAN_TEAM).length); if(!force && dc.picks.length<maxn) return; if(S.tut) S.tut.ambushes=(S.tut.ambushes||0)+1;   /* v451 */ chgRelease(true); var _chgN=0;   /* v751 : le changement se fait au GO de la defense */ S.hiddenDef=[]; S.defOrders=[]; for(var _pi=0;_pi<dc.picks.length;_pi++){ var _pk=dc.picks[_pi]; if(_pk.kind==='chg'){ _chgN++; continue; } if(_pk.kind==='order'){ S.defOrders.push({defId:_pk.defId, order:_pk.order, markId:_pk.markId||null, used:false}); } else { var _hd={defId:_pk.defId, toC:_pk.toC, toR:_pk.toR, order:_pk.order||null, path:_pk.path||null}; if(_pk.mate) _hd.mate={defId:_pk.mate.defId, toC:_pk.mate.toC, toR:_pk.mate.toR}; if(_pk.backup) _hd.backup=true; if(_pk.forecheck) _hd.forecheck=_pk.forecheck; S.hiddenDef.push(_hd); } }   /* v622 : Back up -- le partenaire de ce temps */
   if(dc.backup) pushLog('<b>Back up!</b> Your players head back on defense.');   // v622
   if(dc.forecheck){ pushLog('<b>Forecheck!</b> Your forwards press high ('+(dc.forecheck==='212'?'2-1-2':'1-2-2')+').'); S._stratDef={team:HUMAN_TEAM, kind:'pressure', fc:true}; }   // v700 : pression x1,5 ce tour seulement (endExchange l'efface)
-  if(S.hiddenDef.length<PLAN_N && !S.tut) pushLog('<span style="color:#9fb6cd">'+(force==='time' ? 'Time up — only ' : 'Only ')+S.hiddenDef.length+' defensive move'+(S.hiddenDef.length===1?' was':'s were')+' set.</span>');
+  if(S.hiddenDef.length+_chgN<PLAN_N && !S.tut) pushLog('<span style="color:#9fb6cd">'+(force==='time' ? 'Time up — only ' : 'Only ')+S.hiddenDef.length+' defensive move'+(S.hiddenDef.length===1?' was':'s were')+' set.</span>');
   S.defRevealIdx=0; S.defCommit=null; S.planClock=null; S.moves=[]; S.ghost={}; clearSel();
   if(S.activeStrat && S.activeStrat.team===AI_TEAM){   // l'IA joue sa strategie : TA defense (hiddenDef) bouge en meme temps via stratDefMove
     render(); setHint('The '+TEAM_NAME[AI_TEAM]+' run their strategy — your ambush moves too.');
@@ -9800,6 +9820,156 @@ function lnReady(){   // READY : si je suis le visiteur, l'ordi local change mai
   var go=function(){ if(S!==s0 || !S.needDraft) return; S.needDraft=false; S._draftOpen=false; proceedFaceoff(ctx.dotC, ctx.dotR); };
   if(home===AI_TEAM && lnAiChoose(AI_TEAM, true)){ render(); if(!(ctx && ctx.reset)){ setTimeout(go, LN_ARRIVE_MS); return; } }   // on voit ses joueurs arriver ; au debut d'une periode, le couloir / le discours / la mise en place le montrent deja
   go(); }
+// ===== v751 (ses choix, docs/PROJECT-NOTES.md « Decision — v751 ») : LES CHANGEMENTS DE LIGNES EN PLEIN JEU =====
+// Pendant son plan (attaque ET defense), sous les cases du plan : une rangee CHANGE (F1 F2 F3 . D1 D2 D3 + « ... » : Game state, PP, PK). On change n'importe quand,
+// fatigue ou non ; sous 50 % de souffle (SOU.half) le mot CHANGE devient orange (« Forwards 1: 38% ») et l'unite la plus reposee a un contour orange : un rappel, rien d'automatique.
+// COUT : UNE case du plan (attaque : un geste ; defense : un ordre) -- une entree factice { id:'CHG', kind:'chg' } dans S.atkPlan / un coup { defId:'CHG', kind:'chg' } dans
+// dc.picks : elle compte comme n'importe quelle case (limite PLAN_N, annulation par ordre inverse) ; F2 puis D2 dans le meme plan = la meme case (on la refait). Le
+// changement se POSE tout de suite en logique (S.chgRec.human : les sortants hors glace, `_hold` ; les nouveaux a la porte du banc, arretes, `_in`, donc choisissables et
+// deplacables dans le MEME plan) ; au GO (chgRelease) : les sortants filent a la porte et sortent, les nouveaux sautent la bande. Le PORTEUR reste (le nouveau de sa place reste au banc).
+// Une unite dont un joueur est deja dans le plan (id ou cible) ne change pas : annule-le d'abord. L'ORDI : au debut de l'echange (chgAiMaybe), son trio ou sa paire sur la glace
+// sous SOU.aiLow, la rondelle pas dans sa zone defensive, 5 c 5 sans ligne speciale -> l'unite la plus reposee (au moins 10 points de plus) ; il y perd UNE action
+// (chgTrimPlan / chgTrimDef). Le pilote automatique (Watch sim) fait pareil pour mon equipe.
+var CHG_AI_GAIN=10;
+var CHG_SP_NAME={pp1:'PP 1', pp2:'PP 2', pk1:'PK 1', pk2:'PK 2', late:'Late game', lead:'Protect', chase:'Need a goal'};
+function chgDoor(){ return {c:endsCol(CTR_C_CELL), r:benchRow()}; }   // la porte du banc : la ligne rouge, cote banc
+function chgBeyond(){ return benchRow()===0 ? -1 : ROWS; }          // la rangee d'en face, derriere la bande (d'ou ils sautent / ou ils vont)
+function chgHuman(){ return (typeof S!=='undefined' && S && S.chgRec && S.chgRec.human) || null; }
+function chgAvail(){ var dc=S.defCommit;
+  if(typeof S==='undefined' || !S || S.autoSim || S.gameEnded || S.bonus || S.paused || !lnWanted() || S._lnOpen || S.faceoff || S.so) return false;
+  if(!(S.planning || dc)) return false;
+  if(dc && (dc.backup || dc.forecheck || dc.fcMenu)) return false;
+  if(goalieHolding()) return false;
+  return (S.lineup[HUMAN_TEAM]||[]).some(Boolean); }
+function chgFree(){ var dc=S.defCommit; return dc ? dc.picks.length<PLAN_N : planCount()<planLimit(); }
+function chgIds(g){ return g.map(function(p){ return p.id; }); }
+function chgSetEq(a, b){ return a.length===b.length && a.every(function(x){ return b.indexOf(x)>=0; }); }
+function chgLabelOf(rec){ if(!rec) return ''; if(rec.sp) return CHG_SP_NAME[rec.sp]||rec.sp; var a=[]; if(rec.fi!=null) a.push('F'+(rec.fi+1)); if(rec.di!=null) a.push('D'+(rec.di+1)); return a.join(' + '); }
+function chgLabel(){ return chgLabelOf(chgHuman()); }
+function chgOnIce(team){ var lu=S.lineup[team]||[], pick=function(a, pos){ return a.map(function(id){ return id ? byId(id) : null; }).filter(function(q){ return q && q.onIce && q.type==='sk' && q.pos===pos; }); },
+    f=pick(lu.slice(0, 3), 'F'), d=pick(lu.slice(3, 5), 'D'); return {f:f, d:d, rf:f.length ? lnRest(f) : null, rd:d.length ? lnRest(d) : null}; }
+function chgUnitIdx(G, on){ var ids=chgIds(on); for(var i=0;i<G.length;i++){ if(G[i] && chgSetEq(chgIds(G[i]), ids)) return i; } return -1; }
+function chgBest(G, on){ var ids=chgIds(on), best=-1, bv=-1, bo=-1;   // l'unite la plus reposee (a egalite la plus forte) autre que celle sur la glace
+  G.forEach(function(g, i){ if(!g || chgSetEq(chgIds(g), ids)) return; var r=lnRest(g), o=lnAvg(g, overall); if(r>bv+0.001 || (Math.abs(r-bv)<=0.001 && o>bo)){ best=i; bv=r; bo=o; } });
+  return best>=0 ? {i:best, rest:bv} : null; }
+function chgNeed(){   // le rappel : {F:{idx, rest, best}|null, D:..., label}
+  var H=HUMAN_TEAM, on=chgOnIce(H), Fg=lnGroups(H, 'F'), Dg=lnGroups(H, 'D'), out={F:null, D:null, label:''}, w=null;
+  if(on.rf!=null && on.rf<SOU.half){ var bf=chgBest(Fg, on.f); out.F={idx:chgUnitIdx(Fg, on.f), rest:on.rf, best:bf ? bf.i : null}; w={k:'Forwards', o:out.F}; }
+  if(on.rd!=null && on.rd<SOU.half){ var bd=chgBest(Dg, on.d); out.D={idx:chgUnitIdx(Dg, on.d), rest:on.rd, best:bd ? bd.i : null}; if(!w || on.rd<w.o.rest) w={k:'Defense', o:out.D}; }
+  if(w) out.label=w.k+(w.o.idx>=0 ? ' '+(w.o.idx+1) : '')+': '+Math.round(w.o.rest)+'%';
+  return out; }
+// les 5 ids (C AG AD DG DD) d'un choix : un trio et / ou une paire (l'autre moitie reste si elle est bien un 5 c 5, sinon la derniere choisie) ou une ligne speciale ; sans rien poser
+function chgTarget(team, fi, di, sp){
+  if(sp){ var list=lnSpPlayers(team, sp); if(!list.length) return null; return lnLineupFrom(team, list, sp==='pk1' || sp==='pk2'); }
+  var lu=(S.lineup[team]||[]).slice(); while(lu.length<5) lu.push(null);
+  var cur=lu.map(function(id){ return id ? byId(id) : null; }), last=(S.lnLast && S.lnLast[team]) || {f:0, d:0}, u=!S.lnMode || !S.lnMode[team] || S.lnMode[team]==='U';
+  var Fg=lnGroups(team, 'F'), Dg=lnGroups(team, 'D'), fOk=u && cur.slice(0, 3).every(function(q){ return q && q.pos==='F'; }), dOk=u && cur.slice(3, 5).every(function(q){ return q && q.pos==='D'; });
+  var f=fi!=null ? Fg[fi] : (fOk ? cur.slice(0, 3) : Fg[last.f]), d=di!=null ? Dg[di] : (dOk ? cur.slice(3, 5) : Dg[last.d]);
+  if(!f || !d) return null; return lnIdsOf(f.concat(d)); }
+// ce que ce 5 change sur la glace : le porteur reste a sa place (celui qui devait la prendre reste au banc)
+function chgSwap(team, ids){
+  ids=lnIdsOf(ids); lnWaitSlots(team, ids).forEach(function(r){ ids[LINEUP_ROLES.indexOf(r)]=null; });
+  var cur=(S.lineup[team]||[]).slice(); while(cur.length<5) cur.push(null);
+  var car=S.puckOwner ? byId(S.puckOwner) : null; if(car && (car.team!==team || car.type!=='sk' || !car.onIce)) car=null;
+  if(car){ var ci=cur.indexOf(car.id), k=ids.indexOf(car.id); if(ci>=0){ if(k>=0 && k!==ci) ids[k]=ids[ci]; ids[ci]=car.id; } }
+  var inS={}; ids.forEach(function(id){ if(id) inS[id]=1; });
+  var ins=[], outs=[];
+  ids.forEach(function(id){ var q=id ? byId(id) : null; if(q && !q.onIce && lnOk(q, team) && !penWaiting(q.id)) ins.push(q); });
+  cur.forEach(function(id){ var q=id ? byId(id) : null; if(q && q.onIce && q.type==='sk' && !inS[id]) outs.push(q); });
+  return {ids:ids, ins:ins, outs:outs}; }
+function chgApply(team, meta, sw){
+  var base={lineup:(S.lineup[team]||[]).slice(), mode:(S.lnMode && S.lnMode[team]) || null, last:(S.lnLast && S.lnLast[team]) ? {f:S.lnLast[team].f, d:S.lnLast[team].d} : null, roles:{}};
+  sw.ins.concat(sw.outs).forEach(function(q){ base.roles[q.id]=q.role; });
+  sw.ids.forEach(function(id){ var q=id ? byId(id) : null; if(q && base.roles[q.id]===undefined) base.roles[q.id]=q.role; });
+  var rec={team:team, fi:meta.fi, di:meta.di, sp:meta.sp, ids:sw.ids.slice(), ins:sw.ins.map(function(q){ return q.id; }), outs:sw.outs.map(function(q){ return q.id; }), base:base}, door=chgDoor();
+  sw.outs.forEach(function(q){ q.onIce=false; q._hold=true; });
+  sw.ins.forEach(function(q){ var sp=clearDot(door.c, door.r, q.id); q.c=sp.c; q.r=sp.r; q.onIce=true; q._in=true; q.mom=0; q.speed=0; q.vel=null; q.route=null; q.facing={dc:dir(team), dr:0}; });
+  S.lineup[team]=sw.ids.slice(); (S.lnMode=S.lnMode||{})[team]=meta.sp || 'U';
+  if(meta.fi!=null || meta.di!=null){ S.lnLast=S.lnLast||{}; var L=S.lnLast[team]=S.lnLast[team]||{f:0, d:0}; if(meta.fi!=null) L.f=meta.fi; if(meta.di!=null) L.d=meta.di; }
+  sw.ids.forEach(function(id, k){ var q=id ? byId(id) : null; if(q) q.role=LINEUP_ROLES[k]||null; });
+  if(CAREER_MATCH) careerOnIce();   // ses attributs du jour (fatigue, rouille) des son entree
+  if(!S.chgRec) S.chgRec={human:null, ai:[]};
+  return rec; }
+function chgRevert(rec){ if(!rec) return; var team=rec.team, b=rec.base;
+  rec.ins.forEach(function(id){ var q=byId(id); if(q){ q.onIce=false; q._in=false; } });
+  rec.outs.forEach(function(id){ var q=byId(id); if(q){ q.onIce=true; q._hold=false; } });
+  S.lineup[team]=b.lineup.slice();
+  if(S.lnMode){ if(b.mode) S.lnMode[team]=b.mode; else delete S.lnMode[team]; }
+  if(S.lnLast){ if(b.last) S.lnLast[team]={f:b.last.f, d:b.last.d}; else delete S.lnLast[team]; }
+  for(var id in b.roles){ var q2=byId(id); if(q2) q2.role=b.roles[id]; }
+  var R=S.chgRec; if(R){ if(R.human===rec) R.human=null; else { var k=(R.ai||[]).indexOf(rec); if(k>=0) R.ai.splice(k, 1); } } }
+function chgRevertHuman(){ var r=chgHuman(); if(!r) return; chgRevert(r); S.chgMenu=false; }
+function chgDropPending(){ var r=chgHuman(); if(!r) return; chgRevertHuman(); if(S.atkPlan) S.atkPlan=S.atkPlan.filter(function(a){ return a.kind!=='chg'; }); if(S.defCommit) S.defCommit.picks=S.defCommit.picks.filter(function(k){ return k.kind!=='chg'; }); }   // un Back up / Forecheck remplace les coups : le changement s'en va aussi
+function chgUsedBy(ids){   // des joueurs deja pris dans le plan (action, cible d'une passe, embuscade, marquage) : ils ne peuvent pas changer
+  var set={}; ids.forEach(function(id){ set[id]=1; }); var dc=S.defCommit, hit=[];
+  var mark=function(id){ if(id && set[id] && hit.indexOf(id)<0) hit.push(id); };
+  (S.atkPlan||[]).forEach(function(a){ if(a.kind==='chg') return; mark(a.id); mark(a.target); });
+  if(S.ghost) for(var g in S.ghost) mark(g);
+  if(dc){ dc.picks.forEach(function(k){ if(k.kind==='chg') return; mark(k.defId); mark(k.markId); if(k.mate) mark(k.mate.defId); }); mark(dc.selDef); }
+  return hit; }
+function chgTap(kind, v){
+  if(!chgAvail()) return;
+  var H=HUMAN_TEAM, old=chgHuman(), dc=S.defCommit, fi=old ? old.fi : null, di=old ? old.di : null, sp=old ? old.sp : null;
+  if(kind==='F'){ fi=+v; sp=null; } else if(kind==='D'){ di=+v; sp=null; } else { sp=v; fi=null; di=null; }
+  if(!old && !chgFree()){ setHint('No action left in this plan — undo one to change players.'); renderThumbBar(); return; }
+  var hit=old ? chgUsedBy(old.ins) : [];
+  if(hit.length){ setHint('Undo '+byId(hit[0]).name+'\x27s action first — then change.'); return; }
+  if(dc){ dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; dc.markMode=false; S.moves=[]; } else clearSel();
+  var oldMeta=old ? {fi:old.fi, di:old.di, sp:old.sp} : null, oldSw=old ? {ids:old.ids.slice(), ins:old.ins.map(byId), outs:old.outs.map(byId)} : null;
+  if(old) chgRevert(old);   // on refait le calcul depuis la glace d'avant
+  var ids=chgTarget(H, fi, di, sp), sw=ids ? chgSwap(H, ids) : null, bad=null;
+  if(!sw || (!sw.ins.length && !sw.outs.length)) bad='No change possible there.';
+  else { var u=chgUsedBy(sw.outs.map(function(q){ return q.id; })); if(u.length) bad='Undo '+byId(u[0]).name+'\x27s action first — then change.'; }
+  if(bad){ if(old){ var r0=chgApply(H, oldMeta, oldSw); S.chgRec.human=r0; } setHint(bad); render(); return; }
+  var rec=chgApply(H, {fi:fi, di:di, sp:sp}, sw); S.chgRec.human=rec; S.chgMenu=false;
+  if(!old){ if(dc) dc.picks.push({defId:'CHG', kind:'chg'}); else S.atkPlan.push({id:'CHG', kind:'chg'}); }
+  setHint('Change set: '+chgLabelOf(rec)+'. The new players wait at the bench door — give them a move, or press GO.');
+  render();
+  if(dc){ renderDefBar(); defAutoConfirm(); }
+  else { renderPlanBar(); if(planCount()>=planLimit() && !planWaitsForPlay()){ setHint('Plan complete — resolving...'); setTimeout(function(){ if(S.planning && planCount()>=planLimit() && !planWaitsForPlay()) resolvePlan(); }, 350); } } }
+function chgMenuToggle(){ if(!chgAvail()) return; S.chgMenu=!S.chgMenu; renderThumbBar(); }
+function chgSlide(q, from, to){ var L=Math.hypot(to.c-from.c, to.r-from.r), ms=Math.max(SKATE_MS_MIN, SKATE_MS_CELL*L)/ANIM_RATE;
+  if(!S.slides) S.slides={}; S.slides[q.id]={dx:from.c-to.c, dy:from.r-to.r, ms:ms}; matchEv('skate', {id:q.id, pts:[[from.c, from.r],[to.c, to.r]]}); return ms; }
+function chgLeaving(q){ return !!q && (q._lv||0)>Date.now(); }
+// le GO : les sortants filent a la porte et sortent (restent sur la scene 3D le temps du trajet), les nouveaux sautent la bande a la porte (anim : avec la glissade)
+function chgRelease(anim){ var R=S.chgRec; if(!R) return; S.chgRec=null; S.chgMenu=false;
+  var recs=(R.human ? [R.human] : []).concat(R.ai||[]), door=chgDoor();
+  recs.forEach(function(rec){ var ins=rec.ins.map(byId).filter(Boolean), outs=rec.outs.map(byId).filter(Boolean), oset={};
+    outs.forEach(function(q){ oset[q.id]=1; q._hold=false;
+      if(anim && hasPos(q)){ var from={c:q.c, r:q.r}; q.c=door.c; q.r=door.r; var ms=chgSlide(q, from, door); q._lv=Date.now()+ms; (function(z, t){ setTimeout(function(){ z._lv=0; if(S && S.pieces) render(); }, t*ANIM_RATE+90); })(q, ms); } });
+    ins.forEach(function(q){ q._in=false; if(anim) chgSlide(q, {c:door.c, r:chgBeyond()}, {c:q.c, r:q.r}); });
+    S.defOrders=(S.defOrders||[]).filter(function(o){ return !(o.markId && oset[o.markId]); });
+    if(ins.length || outs.length) pushLog('<b>'+TEAM_NAME[rec.team]+'</b> change ('+chgLabelOf(rec)+') — '+(ins.length ? ins.map(function(q){ return '<b>'+q.name+'</b>'; }).join(', ')+' jump'+(ins.length>1 ? '' : 's')+' on the ice' : '')+(ins.length && outs.length ? ', ' : '')+(outs.length ? outs.map(function(q){ return q.name; }).join(', ')+' go'+(outs.length>1 ? '' : 'es')+' to the bench' : '')+'.'); });
+  S._chgGo=true; }
+function chgRowHtml(){
+  if(!chgAvail()) return '';
+  var H=HUMAN_TEAM, rec=chgHuman(), lu=S.lineup[H]||[], mode=lnMode(H), cur=(S.lnMode && S.lnMode[H]) || 'U', Fg=lnGroups(H, 'F'), Dg=lnGroups(H, 'D'), need=chgNeed(), free=!!rec || chgFree();
+  var pct=function(g){ var v=Math.round(lnRest(g)); return '<small class="'+(souLevel(v)==='green' ? '' : souLevel(v))+'">'+v+'%</small>'; };
+  var unit=function(kind, g, i, onIds, selI, bestI){ var eq=cur==='U' && !!g && chgSetEq(onIds, chgIds(g)), sel=selI===i;
+    return '<button type="button" id="chg'+kind+(i+1)+'" class="chgb'+(eq ? ' on' : '')+(sel ? ' sel' : '')+(bestI===i ? ' rec' : '')+'" onclick="chgTap(\''+kind+'\','+i+')"'+((!g || eq || !free) ? ' disabled' : '')+'><b>'+kind+(i+1)+'</b>'+(g ? pct(g) : '')+'</button>'; };
+  var rowF=Fg.map(function(g, i){ return unit('F', g, i, lu.slice(0, 3), rec ? rec.fi : null, need.F ? need.F.best : null); }).join(''), rowD=Dg.map(function(g, i){ return unit('D', g, i, lu.slice(3, 5), rec ? rec.di : null, need.D ? need.D.best : null); }).join('');
+  var sps=(mode==='pp') ? ['pp1', 'pp2'] : (mode==='pk' ? ['pk1', 'pk2'] : ['late', 'lead', 'chase']);
+  var menu=S.chgMenu ? '<div class="chgmenu">'+sps.map(function(id){ return '<button type="button" id="chgS-'+id+'" class="chgb'+((rec && rec.sp===id) ? ' sel' : '')+(cur===id ? ' on' : '')+(mode==='pp' ? ' pp' : (mode==='pk' ? ' pk' : ''))+'" onclick="chgTap(\'S\',\''+id+'\')"'+(!free ? ' disabled' : '')+'>'+CHG_SP_NAME[id]+'</button>'; }).join('')+'</div>' : '';
+  return '<div class="chgrow"><div class="chghd"><span class="chgw'+(need.label ? ' low' : '')+'">CHANGE</span>'+(rec ? '<span class="chgc">1 action</span>' : '')+(need.label ? '<span class="chgtag">'+tbEsc(need.label)+'</span>' : '')+'</div>'
+    +'<div class="chgbs">'+rowF+'<i class="chgsp"></i>'+rowD+'<button type="button" id="chgMore" class="chgb chgmore'+(S.chgMenu ? ' sel' : '')+'" onclick="chgMenuToggle()">&middot;&middot;&middot;</button></div>'+menu+'</div>'; }
+// --- l'ordi (et le pilote automatique) ---
+function chgAiMaybe(team){
+  if(typeof S==='undefined' || !S || S.tut || S.so || S.bonus || S.gameEnded || !lnWanted()) return false;
+  if(team===HUMAN_TEAM && !S.autoSim) return false;
+  S._chgAi=S._chgAi||{}; if(S._chgAi[team]) return false;
+  var car=S.puckOwner ? byId(S.puckOwner) : null; if(!car || car.type!=='sk' || !car.onIce) return false;
+  if(inOwnZone(team, car.c)) return false;   // la rondelle dans sa zone defensive : il ne change pas
+  var m=S.lnMode && S.lnMode[team]; if(lnMode(team)!=='gs' || (m && m!=='U')) return false;   // 5 c 5, sans ligne speciale
+  var on=chgOnIce(team), fi=null, di=null, b;
+  if(on.rf!=null && on.rf<SOU.aiLow){ b=chgBest(lnGroups(team, 'F'), on.f); if(b && b.rest>=on.rf+CHG_AI_GAIN) fi=b.i; }
+  if(on.rd!=null && on.rd<SOU.aiLow){ b=chgBest(lnGroups(team, 'D'), on.d); if(b && b.rest>=on.rd+CHG_AI_GAIN) di=b.i; }
+  if(fi==null && di==null) return false;
+  var ids=chgTarget(team, fi, di, null), sw=ids ? chgSwap(team, ids) : null; if(!sw || (!sw.ins.length && !sw.outs.length)) return false;
+  var rec=chgApply(team, {fi:fi, di:di, sp:null}, sw); S.chgRec.ai.push(rec); S._chgAi[team]=1; return true; }
+function chgTrimPlan(plan, team){ if(!plan || !S._chgAi || !S._chgAi[team]) return plan;   // une action de moins : son plan garde PLAN_N-1 cases
+  var n=0, out=[]; for(var i=0;i<plan.length;i++){ var a=plan[i]; if(!a) continue; if(!a.att){ if(n>=PLAN_N-1) break; n++; } out.push(a); }
+  plan.length=0; out.forEach(function(a){ plan.push(a); }); return plan; }
+function chgTrimDef(team){ if(!S._chgAi || !S._chgAi[team]) return; var h=S.hiddenDef||[], hun=(S.defOrders||[]).filter(function(o){ return o.hunt; }).length; while(h.length && h.length+hun>PLAN_N-1) h.pop(); }
 function nearestSkater(team,c,r){ var best=null,bd=1e9; for(var i=0;i<S.pieces.length;i++){ var q=S.pieces[i]; if(q.onIce&&q.type==='sk'&&q.team===team){ var dd=Math.abs(q.c-c)+Math.abs(q.r-r); if(dd<bd){bd=dd;best=q;} } } return best; }
 function pieceAtExcept(c,r,id){ var p=pieceAt(c,r); return (p&&p.id!==id)?p:null; }
 function clearDot(c,r,exceptId){ if(!pieceAtExcept(c,r,exceptId)) return {c:c,r:r}; for(var rad=1;rad<=5;rad++){ for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){ var x=c+dc,y=r+dr; if(x>=0&&x<COLS&&y>=0&&y<ROWS&&!pieceAtExcept(x,y,exceptId)) return {c:x,r:y}; } } return {c:c,r:r}; }
@@ -10883,6 +11053,7 @@ function render(){
   var _sl3d=S.slides; S.slides={};   // v476 : les glissements de ce render partent aussi vers la 3D (hj3dPush, plus bas)
   var _bk=brakeOf(hj3dSlides(_sl3d)); if(_bk) setTimeout(function(){ sfx('brake'); }, realMs(_bk.ms*0.75));   // v572 : le freinage, au dernier quart (la 3D : l'arret et la neige)
   renderRoute(); wireRouteDrag();   // trace par glissement : dessin + branchement des entrees pointeur
+  if(S.chgRec && !S.planning && !S.defCommit) chgRelease(false);   // v751 : un plan abandonne (sifflet, blessure, fin de periode) : le changement pose se regle sans animation
   renderThumbBar();   /* v389 : la case "en cours" suit la selection */
   renderOrbit();   // v745 : les actions du joueur touche, en pastilles autour de lui
   if(_vfit) applyVPan(false);   /* v390 : la vue zoomee suit le jeu */
@@ -11320,7 +11491,7 @@ var HJ3D={ cb:null, last:'', failed:false, k:1, title:(typeof document!=='undefi
 (function(){ var c=(typeof document!=='undefined') && document.getElementById('g3d'); if(c) c.addEventListener('contextmenu', function(e){ e.preventDefault(); }); })();   // v620 : le clic droit sur la 3D deplace la camera (pas de menu du navigateur)
 function hj3dBench(){   // v505 : les joueurs hors glace de chaque equipe (pas au banc des punitions), 10 au plus
   var box={}, out={A:[], B:[]}; ((S.pen && S.pen.box) || []).forEach(function(b){ box[b.id]=1; });
-  S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10 || (INJ_WALK && INJ_WALK.id===q.id)) return;   // v674 : pas le blesse qui s'y rend   // v517 : pas les places vides
+  S.pieces.forEach(function(q){ if(q.type!=='sk' || q.onIce || q.vacant || box[q.id] || !out[q.team] || out[q.team].length>=10 || (INJ_WALK && INJ_WALK.id===q.id) || q._hold || chgLeaving(q)) return;   /* v751 : un sortant s'assoit apres son trajet */   // v674 : pas le blesse qui s'y rend   // v517 : pas les places vides
     out[q.team].push({id:q.id, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), name:q.name||'', look:q.look||''}); });   /* v535 : son look au banc */   /* v660 : ses cm et ses livres */
   return out;
 }
@@ -11384,7 +11555,8 @@ function hj3dSnapshot(slides){
       var o={c:c, r:r, k:el.className}, b=el.querySelector('.oddsbadge'), dn=el.getAttribute('data-dn'), tg=el.getAttribute('data-tag');
       if(b) o.pct=b.textContent; if(dn) o.dn=dn; if(tg) o.tag=tg; cells.push(o); } }
   var players=[];
-  for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if((!q.onIce && !goalieTrav(q)) || !hasPos(q)) continue; var f=facingOf(q);   // v515 : jamais de position indefinie vers la 3D
+  for(var j=0;j<S.pieces.length;j++){ var q=S.pieces[j]; if(q._in && q.onIce){ if(hasPos(q) && !(S.ghost && S.ghost[q.id])){ var _gf=facingOf(q); ghosts.push({id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:_gf.dc, dr:_gf.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q)}); } continue; }   /* v751 : un nouveau a la porte du banc, avant le GO : un fantome seulement */
+    if(((!q.onIce && !q._hold && !chgLeaving(q)) && !goalieTrav(q)) || !hasPos(q)) continue; var f=facingOf(q);   /* v751 : un sortant (avant le GO, ou en route vers la porte) reste en scene */   // v515 : jamais de position indefinie vers la 3D
     var pl={id:q.id, team:q.team, type:q.type, c:q.c, r:q.r, dc:f.dc, dr:f.dr||0, hand:q.hand||null, size:q.size||'M', cm:q.cm||0, lb:playerLb(q), label:q.label||'', name:q.name||'', cls:pawnCls[q.id]||'', look:q.look||'', st:(isDown(q)?'down':'')||stState(q)||(brakeOn(q.id)?'brake':'')||((q.type==='sk' && protNetOf(q.team)===q)?'protect':''), prs:(q.type==='sk' && q.id===S.puckOwner && passRattle(q)>=0.25) ? 1 : 0, mom:brakeOn(q.id)?0:(q.mom||0), role:hj3dRole(q)};
     if(q.type==='sk' && q.team===HUMAN_TEAM && souOn(q)){ pl.sou=Math.round(souOf(q)); pl.sm=souMaxOf(q); }   /* v716 : son souffle (et son max) -> l'anneau sur la glace, mes patineurs seulement */
     var ms=stState(q); if(ms) pl.ms=ms;   /* v681 : l'etat mental seul (stun, angry, conf, panic) -> l'icone 3D ; ni par terre, ni frein, ni Protect net */
@@ -17279,12 +17451,14 @@ function autoSimTick(){
   if(S.needDraft && S._draftOpen){ simDraft(); return; }
   if(S.faceoff) return;   // la mise au jeu se resout seule
   if(S.defCommit){
-    commitHiddenDefense();
+    chgAiMaybe(H);   // v751 : le pilote change aussi (comme l'ordi), au cout d'un ordre
+    commitHiddenDefense(); chgTrimDef(H);
     S.defCommit.picks=(S.hiddenDef||[]).map(function(m){ return {defId:m.defId, kind:'move', toC:m.toC, toR:m.toR, order:m.order||null}; });
     S.hiddenDef=[]; confirmDefCommit(true); return; }
   if(S.planning){
     var bonus=S.bonus ? byId(S.bonus.id) : null;
-    S.atkPlan=simAs(H, function(){ return (bonus ? aiBonusPlan(bonus) : aiBuildPlan()) || []; });
+    if(!bonus) chgAiMaybe(H);   // v751 : le pilote change aussi, au cout d'une action
+    S.atkPlan=simAs(H, function(){ return (bonus ? aiBonusPlan(bonus) : aiBuildPlan()) || []; }); if(!bonus) chgTrimPlan(S.atkPlan, H);
     resolvePlan(); return; }
   if(S.puckLoose && !S.puckOwner && S.turn===H && S.gestes>0){ simAs(H, aiScrambleMove); return; }
 }
