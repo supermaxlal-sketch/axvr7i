@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v752</title>
+<title>Deck 3D v753</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -167,6 +167,15 @@
 .lnp-btns button.pk{background:#8a3a3a;border-color:#c06a6a;} .lnp-btns button.pk.on{background:#b84a4a;border-color:#ffc0c0;}
 .lnp-btns button:disabled{opacity:.4;}
 .lnp-ready{margin-top:1px;min-height:40px;border:0;border-radius:12px;background:#ffc83a;color:#201400;font-size:16px;font-weight:800;letter-spacing:.08em;cursor:pointer;}
+/* v753 : ENTRE LES JEUX -- la barre (consigne + cotes adverses + Call the players / READY) ; le menu (#lnPanel) ne s'ouvre que sur Call the players */
+.lnbar-t{font-size:11px;letter-spacing:.08em;color:#c9d6e4;font-weight:700;} .lnbar-t b{color:#ffd23e;}
+.lnbar-go{display:flex;gap:10px;margin-top:auto;}
+#lnBar{min-height:33vh;z-index:70;}   /* v753 : la barre couvre le bas comme le menu (pas de bande vide au-dessus) ; les boutons restent en bas */
+.lnbar-go button{flex:1 1 0;min-height:56px;border-radius:12px;font-size:15px;font-weight:800;letter-spacing:.08em;cursor:pointer;}
+.lnbar-call{background:#16313f;border:2px solid #7fd0d0;color:#d8f6f6;}
+.lnbar-go .lnp-ready{margin-top:0;}
+.lnp-row.need .lnp-btns button{border-color:#ffb36b;} .lnp-row.need .lnp-lbl{color:#ffb36b;}
+.lnp-close{min-height:36px;border:2px solid #2e4a63;border-radius:12px;background:#16273a;color:#dbe7f3;font-size:14px;font-weight:700;cursor:pointer;}
 .pawn.onetimer{box-shadow:0 0 0 3px #ff8c1a,0 0 12px rgba(255,140,26,.85);animation:otpulse .85s ease-in-out infinite;}
 @keyframes otpulse{0%,100%{box-shadow:0 0 0 3px #ff8c1a,0 0 9px rgba(255,140,26,.7);}50%{box-shadow:0 0 0 4px #ffb057,0 0 17px rgba(255,140,26,.98);}}
 .perkbtn.ot{background:#d1631a;}
@@ -1271,7 +1280,8 @@ body:not(.vrink) .thumbx{display:none !important;}
 <div class="ov whistle" id="whistleOverlay"><div class="wcard"><div class="wicon" id="wIcon">⛔</div><div class="wbig" id="wBig">OFFSIDE</div><div class="wsub" id="wSub">Neutral zone faceoff</div></div></div>
 
 <div class="ov faceoff" id="faceoffOverlay"><div class="focard"><div class="fotitle">🏒 Faceoff</div><div class="folegend">⏪ Pull beats ⏩ Push beats 🔒 Block beats ⏪ Pull</div><div class="foprompt" id="foPrompt"></div><div class="fobtns" id="foBtns"></div><div class="foreveal" id="foReveal"></div></div></div>
-<div class="lnp" id="lnPanel" style="display:none"><div class="lnp-opp" id="lnOpp"></div><div class="lnp-row"><span class="lnp-lbl">FORWARDS</span><span class="lnp-btns" id="lnRowF"></span></div><div class="lnp-row"><span class="lnp-lbl">DEFENSE</span><span class="lnp-btns" id="lnRowD"></span></div><div class="lnp-row"><span class="lnp-lbl" id="lnLblS">GAME STATE</span><span class="lnp-btns" id="lnRowS"></span></div><button type="button" class="lnp-ready" id="lnReady">READY</button></div>
+<div class="lnp" id="lnPanel" style="display:none"><div class="lnp-opp" id="lnOpp"></div><div class="lnp-row" id="lnRowFw"><span class="lnp-lbl" id="lnLblF">FORWARDS</span><span class="lnp-btns" id="lnRowF"></span></div><div class="lnp-row" id="lnRowDw"><span class="lnp-lbl" id="lnLblD">DEFENSE</span><span class="lnp-btns" id="lnRowD"></span></div><div class="lnp-row"><span class="lnp-lbl" id="lnLblS">GAME STATE</span><span class="lnp-btns" id="lnRowS"></span></div><button type="button" class="lnp-close" id="lnCloseBtn">&#10005; Close</button></div>
+<div class="lnp" id="lnBar" style="display:none"><div class="lnbar-t"><b>WHISTLE.</b> Between plays</div><div class="lnp-opp" id="lnBarOpp"></div><div class="lnbar-go"><button type="button" class="lnbar-call" id="lnCall">CALL THE PLAYERS</button><button type="button" class="lnp-ready" id="lnReady">READY</button></div></div>
 <div class="ov draft" id="draftOverlay"><div class="dcard"><div class="dtitle" id="draftTitle">Draft</div><div class="dsub">Assign a player to each slot. Tap a slot, then a player (or tap a player to fill the next open slot).</div><div class="dlines" id="draftLines" hidden></div><div class="dsec"><div class="dseclbl">Positions</div><div class="dslots" id="draftSlots"></div></div><div class="dsec"><div class="dseclbl">Forwards (C / AG / AD)</div><div class="dgrid" id="draftF"></div></div><div class="dsec"><div class="dseclbl">Defense (DG / DD)</div><div class="dgrid" id="draftD"></div></div><button class="dconfirm dauto" id="draftAuto">⚡ Optimal lineup</button><button class="dconfirm" id="draftConfirm" disabled>Confirm lineup</button></div></div>
 <div class="ov draft" id="soPick"><div class="dcard"><div class="dtitle">🥅 Shootout</div><div class="dsub" id="soPickSub"></div><div class="dgrid" id="soPickList"></div><button class="dconfirm dauto" id="soPickHelp">❔ Moves</button><button class="dconfirm" id="soPickGo" disabled>Start</button></div></div>
 <div class="ov draft" id="soHelp"><div class="dcard"><div class="dtitle">🥅 Shootout moves</div><div class="dsub">Your turn: <b>draw your shooter's path</b> on the ice — slide your finger from him (or tap where he stops: a straight line). He skates it at the speed you drew it.</div><div class="sohelp-list"><div><b>Where the path ends</b> is where you shoot or deke: 3-4 squares from the net is best. Farther: the goalie has not moved. 2 squares: he may poke the puck away.</div><div><b>Shoot</b>: tap a corner (the buttons, or the targets on the net).</div><div><b>Deke</b>: tap one of the 8 moves — forehand–backhand, backhand–forehand, fake shot, Datsyuk, Forsberg, Nielsen, Kane, between the legs. Each shows its chance.</div><div><b>Kane</b> likes a slow approach: draw your path slowly.</div></div><div class="dsub">The same move twice: the goalie reads it.</div><button class="dconfirm" id="soHelpOk">Got it</button></div></div>
@@ -1566,7 +1576,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v752';
+var GAME_VERSION='v753';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9732,7 +9742,14 @@ function lnSetLineup(team, ids, mode){ S.lineup[team]=lnIdsOf(ids); (S.lnMode=S.
 function lnCommit(team, ids, mode){ ids=lnIdsOf(ids); lnWaitSlots(team, ids).forEach(function(r){ ids[LINEUP_ROLES.indexOf(r)]=null; });   // en inferiorite : les places du puni restent vides
   var same=(S.lineup[team]||[]).join(',')===ids.join(','), c=S.lnCtx;
   lnSetLineup(team, ids, mode); if(same) return;   // la meme ligne : rien ne bouge
-  S._lnSkipDeploy=false; deployLineup(); if(c) repositionForFaceoff(c.dotC, c.dotR); }   // sur la glace tout de suite, aux places de la mise au jeu
+  S._lnSkipDeploy=false;
+  if(S._lnBetween){   // v753 : entre les jeux : le nouveau prend la place laissee par un sortant, personne ne saute aux places de la mise au jeu
+    var was={}, free=[]; S.pieces.forEach(function(q){ if(q.team===team && q.type==='sk' && q.onIce) was[q.id]=1; });
+    var gone=S.pieces.filter(function(q){ return q.team===team && q.type==='sk' && q.onIce && ids.indexOf(q.id)<0; }).map(function(q){ return {c:q.c, r:q.r}; });
+    deployLineup(); free=gone;
+    S.pieces.forEach(function(q){ if(q.team===team && q.type==='sk' && q.onIce && !was[q.id]){ var f=free.shift()||{c:CTR_C_CELL, r:CTR_R}, d=clearDot(f.c>=0 ? f.c : CTR_C_CELL, f.r>=0 ? f.r : CTR_R, q.id); q.c=d.c; q.r=d.r; q.speed=0; q.mom=0; q.route=null; } });
+    return; }
+  deployLineup(); if(c) repositionForFaceoff(c.dotC, c.dotR); }   // sur la glace tout de suite, aux places de la mise au jeu
 function lnApplyUnits(team, fi, di){   // Forwards n / Defense n : un trio et / ou une paire ; l'autre moitie reste (si elle est bien un 5 c 5) sinon la derniere choisie
   if(fi==null && di==null) return false;
   var lu=(S.lineup[team]||[]).slice(); while(lu.length<5) lu.push(null);
@@ -9809,28 +9826,51 @@ function lnRender(){ var el=document.getElementById('lnPanel'); if(!el || typeof
   if(mode==='pp' || mode==='pk'){ lbl=mode==='pp' ? 'POWER PLAY' : 'PENALTY KILL'; var u=mode==='pp' ? ['pp1', 'pp2'] : ['pk1', 'pk2'];
     rowS=u.map(function(id, i){ return lnBtn('lnS-'+id, 'S', id, mode+(cur===id ? ' on' : ''), (mode==='pp' ? 'PP ' : 'PK ')+(i+1), false); }).join(''); }
   else { lbl='GAME STATE'; rowS=[['late', 'Late game'], ['lead', 'Protect'], ['chase', 'Need a goal']].map(function(x){ return lnBtn('lnS-'+x[0], 'S', x[0], 'lnb'+(cur===x[0] ? ' on' : ''), x[1], false); }).join(''); }
-  document.getElementById('lnOpp').innerHTML=lnOppHtml(); document.getElementById('lnRowF').innerHTML=rowF; document.getElementById('lnRowD').innerHTML=rowD;
+  var _oh=lnOppHtml(); document.getElementById('lnOpp').innerHTML=_oh; var _bo=document.getElementById('lnBarOpp'); if(_bo) _bo.innerHTML=_oh;   // v753 : la barre entre les jeux montre la meme ligne adverse
+  var _pk=S._lnPick||{}, _needF=!!(S._lnMenu && _pk.d && !_pk.f), _needD=!!(S._lnMenu && _pk.f && !_pk.d);   // v753 : un seul des deux choisi : la rangee qui manque a un contour orange (« DEFENSE ? »)
+  document.getElementById('lnRowFw').classList.toggle('need', _needF); document.getElementById('lnRowDw').classList.toggle('need', _needD);
+  document.getElementById('lnLblF').textContent=_needF ? 'FORWARDS ?' : 'FORWARDS'; document.getElementById('lnLblD').textContent=_needD ? 'DEFENSE ?' : 'DEFENSE';
+  document.getElementById('lnRowF').innerHTML=rowF; document.getElementById('lnRowD').innerHTML=rowD;
   document.getElementById('lnRowS').innerHTML=rowS; document.getElementById('lnLblS').textContent=lbl;
   var bs=el.querySelectorAll('button[data-ln]'); for(var i=0;i<bs.length;i++){ (function(b){ b.onclick=function(){ lnTap(b.getAttribute('data-ln'), b.getAttribute('data-v')); }; })(bs[i]); }
-  var rd=document.getElementById('lnReady'); if(rd) rd.onclick=lnReady; }
+  var rd=document.getElementById('lnReady'); if(rd) rd.onclick=lnReady;
+  var cl=document.getElementById('lnCall'); if(cl) cl.onclick=lnMenuOpen; var cb=document.getElementById('lnCloseBtn'); if(cb) cb.onclick=lnMenuClose; }
+// v753 : le menu : un trio ET une paire choisis dans cette ouverture (ou une ligne speciale) -> il se ferme et ca part (lnReady) ; le menu ne s'ouvre que sur Call the players
+function lnBlock(){ return typeof S!=='undefined' && !!S && !!S._lnOpen && !!S.needDraft && !S.so; }   // v753 : entre les jeux / menu ouvert : la glace ne repond pas
 function lnTap(kind, v){ if(typeof S==='undefined' || !S || !S._lnOpen) return;
   if(kind==='F') lnApplyUnits(HUMAN_TEAM, +v, null); else if(kind==='D') lnApplyUnits(HUMAN_TEAM, null, +v); else lnApplySpecial(HUMAN_TEAM, v);
-  render(); lnRender(); }
-function lnShowPanel(){ var e=document.getElementById('lnPanel'); if(e) e.style.display='flex'; }
-function lnHidePanel(){ var e=document.getElementById('lnPanel'); if(e) e.style.display='none'; }
-function lnClose(){ if(typeof S!=='undefined' && S){ S._lnOpen=false; S._draftOpen=false; S._lnSkipDeploy=false; } lnHidePanel(); }
+  var pk=S._lnPick=S._lnPick||{f:false, d:false}; if(kind==='F') pk.f=true; else if(kind==='D') pk.d=true; else { pk.f=true; pk.d=true; }
+  render(); lnRender();
+  if(S._lnMenu && pk.f && pk.d){ S._lnMenu=false; S._lnSnap=null; lnReady(); } }
+function lnShowPanel(){ var m=!!(typeof S!=='undefined' && S && S._lnMenu), p=document.getElementById('lnPanel'), b=document.getElementById('lnBar'); if(p) p.style.display=m ? 'flex' : 'none'; if(b) b.style.display=m ? 'none' : 'flex'; }
+function lnHidePanel(){ var p=document.getElementById('lnPanel'), b=document.getElementById('lnBar'); if(p) p.style.display='none'; if(b) b.style.display='none'; }
+function lnMenuOpen(){ if(typeof S==='undefined' || !S || !S._lnOpen || S._lnMenu) return;
+  S._lnPick={f:false, d:false}; S._lnMenu=true;
+  var sn={lu:(S.lineup[HUMAN_TEAM]||[]).slice(), mode:S.lnMode ? S.lnMode[HUMAN_TEAM] : null, last:S.lnLast && S.lnLast[HUMAN_TEAM] ? {f:S.lnLast[HUMAN_TEAM].f, d:S.lnLast[HUMAN_TEAM].d} : null, skip:S._lnSkipDeploy, pcs:[]};   // pour Close : rien ne change
+  S.pieces.forEach(function(q){ if(q.team===HUMAN_TEAM && q.type==='sk') sn.pcs.push({q:q, c:q.c, r:q.r, onIce:q.onIce, role:q.role}); }); S._lnSnap=sn;
+  lnRender(); lnShowPanel(); }
+function lnMenuClose(){ if(typeof S==='undefined' || !S || !S._lnOpen || !S._lnMenu) return;
+  var sn=S._lnSnap; S._lnMenu=false; S._lnSnap=null; S._lnPick=null;
+  if(sn){ S.lineup[HUMAN_TEAM]=sn.lu; (S.lnMode=S.lnMode||{})[HUMAN_TEAM]=sn.mode; if(sn.last){ (S.lnLast=S.lnLast||{})[HUMAN_TEAM]=sn.last; } S._lnSkipDeploy=sn.skip;
+    sn.pcs.forEach(function(x){ x.q.c=x.c; x.q.r=x.r; x.q.onIce=x.onIce; x.q.role=x.role; }); }
+  render(); lnRender(); lnShowPanel(); }
+function lnClose(){ if(typeof S!=='undefined' && S){ S._lnOpen=false; S._lnMenu=false; S._lnBetween=false; S._draftOpen=false; S._lnSkipDeploy=false; } lnHidePanel(); }
 function lnOpen(dotC, dotR){   // le panneau s'ouvre : le visiteur choisit d'abord (l'ordi visiteur a deja posé sa ligne si je suis le local)
   var home=lnHome(), legacy=!!S._lnReset && !!S._lnSkipDeploy;   // reset : le panneau du debut d'une periode ; legacy : les 2 equipes d'origine au tout debut (rien ne bouge avant READY, comme l'ancien ecran)
   S.lnCtx={dotC:dotC, dotR:dotR, reset:!!S._lnReset}; if(!legacy){ S.puckOwner=null; S.puckLoose=null; }
+  S._lnMenu=false; S._lnPick=null; S._lnSnap=null;
+  S._lnBetween=!legacy && !S._lnReset && !S.autoSim;   // v753 : ENTRE LES JEUX (un sifflet en plein match) : les joueurs restent ou ils etaient, ils se placent seulement quand ca part (lnReady) ; le debut d'une periode : comme avant
   lnPenAutoAll();
   if(S.autoSim){ lnAutoBoth(home); S._lnOpen=false; S.needDraft=false; S._draftOpen=false; proceedFaceoff(dotC, dotR); return; }   // le pilote : pas de panneau
   if(home===HUMAN_TEAM) lnAiChoose(AI_TEAM, false);
   S.needDraft=true; S._draftOpen=true; S._lnOpen=true;
-  if(!legacy) repositionForFaceoff(dotC, dotR);
+  if(S._lnBetween){ if(S.pieces.some(function(q){ return q.type==='sk' && q.onIce && !(q.c>=0 && q.r>=0); })) repositionForFaceoff(dotC, dotR); }   // un patineur sans place (apres un but : les pieces neuves) : on les place comme avant
+  else if(!legacy) repositionForFaceoff(dotC, dotR);
   render(); lnRender(); lnShowPanel(); }
 function lnReady(){   // READY : si je suis le visiteur, l'ordi local change maintenant (on voit ses joueurs arriver), puis la mise au jeu
   if(typeof S==='undefined' || !S || !S._lnOpen || !S.needDraft) return;
-  var s0=S, ctx=S.lnCtx, home=lnHome(); S._lnOpen=false; lnHidePanel();
+  var s0=S, ctx=S.lnCtx, home=lnHome(), wasBetween=!!S._lnBetween; S._lnOpen=false; S._lnMenu=false; S._lnBetween=false; S._lnSnap=null; lnHidePanel();
+  if(wasBetween && ctx) repositionForFaceoff(ctx.dotC, ctx.dotR);   // v753 : ils se placent seulement maintenant
   if(S._lnSkipDeploy){ S._lnSkipDeploy=false; deployLineup(); }   // les roles (C, AG, AD, DG, DD) se posent maintenant (leur ligne 1 etait deja sur la glace)
   var go=function(){ if(S!==s0 || !S.needDraft) return; S.needDraft=false; S._draftOpen=false; proceedFaceoff(ctx.dotC, ctx.dotR); };
   if(home===AI_TEAM && lnAiChoose(AI_TEAM, true)){ render(); if(!(ctx && ctx.reset)){ setTimeout(go, LN_ARRIVE_MS); return; } }   // on voit ses joueurs arriver ; au debut d'une periode, le couloir / le discours / la mise en place le montrent deja
@@ -11123,6 +11163,7 @@ function tapNote(c,r){
   S._taps=S._taps||[]; S._taps.unshift(t); if(S._taps.length>6) S._taps.pop(); return t;
 }
 function onCell(c,r){
+  if(lnBlock()){ if(S._hold){ S._hold=null; renderOrbit(); } return; }   // v753 : entre les jeux et pendant le menu des lignes, toucher la glace ne fait rien
   if(S._hold){ S._hold=null; renderOrbit(); }   // v747 : un toucher (quel qu'il soit) ferme la bulle tenue ; le toucher fait ensuite ce qu'il faisait
   if(S.so && soTapCell(c, r)) return;   // v541 : la fusillade -- toucher la glace = son trajet en ligne droite
   if(S.tut && tutTap(c,r)) return;   // v451 : lecon -- seuls les gestes permis
@@ -11318,7 +11359,7 @@ function orbitHoldGet(sub){
 }
 // le doigt est tenu sur la case (c, r) : la 2D (souris / doigt) et la 3D (hj3d.hold) arrivent ici ; faux = rien de nouveau (le relachement agit comme un toucher)
 function holdOpen(c, r){
-  if(S.paused || S.gameEnded || S.animating || S.autoSim || S.tut) return false;
+  if(S.paused || S.gameEnded || S.animating || S.autoSim || S.tut || lnBlock()) return false;   // v753 : rien entre les jeux
   var sub=orbitSubject(); if(!sub) return false;
   var T=pieceAt(c, r) || (S.planning ? ghostAt(c, r) : null); if(!T || T.id===sub.p.id || !T.onIce) return false;
   if(S._holdTm){ clearTimeout(S._holdTm); S._holdTm=null; }
@@ -11702,6 +11743,7 @@ function dragTimerClear(){ if(_dragTimer!==null){ clearTimeout(_dragTimer); _dra
 function hj3dDrag(phase, c, r){   // meme logique que wireRouteDrag (glisser au doigt sur la 2D)
   if(soDrawing() || (S.so && S.so.run && S.so.run.drawing)) return soDrag(phase, c, r);   // v541 : le trajet du tireur de la fusillade
   if(phase==='start' || phase==='end') dragTimerClear();
+  if(lnBlock()) return false;   // v753 : pas de trace entre les jeux
   if(phase==='start'){
     _dragLast=0;
     if(!isHumanAttackPlan() && !isHumanAmbush() && !isHumanLoose()) return false;
