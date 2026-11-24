@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v753</title>
+<title>Deck 3D v754</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1576,7 +1576,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v753';
+var GAME_VERSION='v754';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -9061,16 +9061,35 @@ function repositionForFaceoff(dc,dr){
   function clampr(y){ return Math.max(0,Math.min(ROWS-1,y)); }
   function place(team,slots){ var n=0; for(var i=0;i<sk.length;i++){ if(sk[i].team!==team) continue; var s=slots[Math.min(n,slots.length-1)]; var d=clearDot(clampc(s[0]),clampr(s[1]),sk[i].id); sk[i].c=d.c; sk[i].r=d.r; n++; } }
   // formation par poste : les avants d abord, les defenseurs ensuite
+  // v754 (le concepteur) : la place vient du ROLE dans la ligne (C, AG, AD, DG, DD), plus du poste naturel (un D qui joue a l'aile en PP va a l'aile) ;
+  // 5 : cases d'avant (point, haut, bas) + 2 cases D ; 4 : l'ailier seul va a la case d'aile cote milieu de glace, le D seul a la case D cote milieu ;
+  // 6 : le sans-role (6e attaquant) sur la ligne des avants, une place (2 rangees) plus loin vers le milieu que l'ailier du milieu (point au milieu : cote haut)
   function placeByPos(team,fSlots,dSlots){
-    var f=0, dn=0, RF={C:0,AG:1,AD:2}, RD={DG:0,DD:1};   // le poste decide la place : C au centre, AG/DG en haut, AD/DD en bas
-    // v515 (le concepteur) : le centre au banc des punitions -> un ailier (AG, sinon AD) prend la mise au jeu
-    var fw=sk.filter(function(q){ return q.team===team && q.pos!=='D'; }), sub=null;
-    if(!fw.some(function(q){ return q.role==='C'; })) sub=fw.filter(function(q){ return q.role==='AG'; })[0] || fw.filter(function(q){ return q.role==='AD'; })[0] || null;
-    for(var i=0;i<sk.length;i++){
-      var q=sk[i]; if(q.team!==team) continue; var s;
-      if(q.pos==='D'){ var di=(q.role && RD[q.role]!=null)?RD[q.role]:(dn++); s=dSlots[Math.min(di,dSlots.length-1)]; }
-      else { var rl=(q===sub)?'C':q.role, fi=(rl && RF[rl]!=null)?RF[rl]:(f++); s=fSlots[Math.min(fi,fSlots.length-1)]; }
-      var dd=clearDot(clampc(s[0]),clampr(s[1]),q.id); q.c=dd.c; q.r=dd.r;
+    var who={}, free=[], mine=sk.filter(function(q){ return q.team===team; });
+    mine.forEach(function(q){ var r=q.role; if((r==='C'||r==='AG'||r==='AD'||r==='DG'||r==='DD') && !who[r]) who[r]=q; else free.push(q); });
+    function mid(s){ return Math.abs(clampr(s[1])-CTR_R); }
+    function put(q,s){ var dd=clearDot(clampc(s[0]),clampr(s[1]),q.id); q.c=dd.c; q.r=dd.r; }
+    var cq=who.C||null;
+    // sans role : un avant d'abord pour une place d'avant, un D d'abord pour une place D
+    function take(wantD){ for(var i=0;i<free.length;i++){ if((free[i].pos==='D')===wantD) return free.splice(i,1)[0]; } return free.shift()||null; }
+    if(!cq){ if(who.AG){ cq=who.AG; who.AG=null; } else if(who.AD){ cq=who.AD; who.AD=null; } else if(free.length) cq=take(false); }   // v515 : le centre au banc des punitions -> un ailier (AG, sinon AD) prend la mise au jeu
+    if(cq) put(cq,fSlots[0]);
+    // une paire (haut / bas) : les places manquantes se remplissent par les sans-role ; un seul joueur -> la case cote milieu (egalite : son cote)
+    function pair(a,b,sT,sB,wantD){
+      if(!a && !b){ a=take(wantD); b=take(wantD); }
+      else if(!a && free.length) a=take(wantD); else if(!b && free.length) b=take(wantD);
+      var used=[];
+      if(a && b){ put(a,sT); put(b,sB); used=[sT,sB]; }
+      else if(a||b){ var q=a||b, own=a?sT:sB, oth=a?sB:sT, s=(mid(oth)<mid(own))?oth:own; put(q,s); used=[s]; }
+      return used;
+    }
+    var wu=pair(who.AG||null, who.AD||null, fSlots[1], fSlots[2], false);
+    pair(who.DG||null, who.DD||null, dSlots[0], dSlots[1], true);
+    if(free.length && wu.length){   // le 6e : meme ligne, deux rangees plus loin vers le milieu que l'ailier du milieu
+      var wm=(wu.length===2 && mid(wu[1])<mid(wu[0]))?wu[1]:wu[0], rm=clampr(wm[1]), occ=[clampr(fSlots[0][1]),clampr(fSlots[1][1]),clampr(fSlots[2][1])];
+      var sg=(CTR_R>rm)?1:-1, ry=rm+2*sg;
+      if(ry<0||ry>ROWS-1||occ.indexOf(ry)>=0) ry=rm-2*sg;
+      for(var k=0;k<free.length;k++){ put(free[k],[fSlots[0][0],ry]); }
     }
   }
   var blueA=BLUE_A, blueB=BLUE_B;   // premiere colonne de chaque zone offensive
