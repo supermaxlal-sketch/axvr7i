@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v754</title>
+<title>Deck 3D v755</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1576,7 +1576,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v754';
+var GAME_VERSION='v755';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -4213,8 +4213,8 @@ function planWaitsForPlay(){ var L=null; if(S.atkPlan) for(var i=S.atkPlan.lengt
 function setSel(id){ if(S.animating)return;
   if(id && S.planning && downId(id) && planCount()===0){ setHint('He is down — he can act from the 2nd action.'); render(); return; }   // v679
   if(id && S.planning && brakeOn(id)){ delete S.brakes[id]; setHint('Brake cancelled.'); }   // v672 : retoucher un joueur qui freine annule son frein
-  if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S.dangle=false; S.saucerAim=false; S.flipAim=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
-function clearSel(){ S.sel=null; S.saucerAim=false; S.flipAim=false; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
+  if(planActed(id)){ setHint('Each player acts once per plan — pick another player.'); render(); return; } /* v386 */ S._grpAim=null; S.dangle=false; S.saucerAim=false; S.flipAim=false; S.sel=id; S.bankMode=false; S.bendVia=null; S.read=null;   /* v459 (ecart 10) : plus de tirage cache de pression */ computeOptions(); selectionHint(); render(); if(S.planning) renderPlanBar(); }
+function clearSel(){ S.sel=null; S._grpAim=null; S.saucerAim=false; S.flipAim=false; S.bankGoAim=null; S.bankGoRun=null; S.bankGoT=[]; S.routePassT=[]; S.moves=[];S.passT=[];S.duelT=[];S.bankT=[]; S.pokeT=[]; S.dumpT=[]; S.dumpAim=false; S.bankMode=false; S.dekeT=[]; S._dekeApp=[]; S.bendMode=false; S.bendVia=null; S.route=null; S.cycleAim=null; }   // le guide mauve d'approche doit disparaitre avec la selection
 function endTurn(){
     S.turn=S.turn==='A'?'B':'A'; S.gestes=5; S.coachPush=null; S.passBonus=null; S.aiming=null; clearSel(); render();
 }
@@ -11201,6 +11201,7 @@ function onCellCore(c,r,_tp){
   if(S.defCommit){ var _dp=pieceAt(c,r) || ghostAt(c,r);
     if(S.defCommit.markMode){ if(_dp && _dp.team!==HUMAN_TEAM && _dp.type==='sk') assignMark(_dp); return; }   // en mode Mark : tap un adversaire
     if(_dp){ defCommitPiece(_dp); } else { defCommitCell(c,r); } return; }
+  if(S._grpAim && groupAimTap(c,r)) return;   // v755 : Pass / Dump armes par la bulle
   if(S.saucerAim){ var _ssp=S.sel?byId(S.sel):null;   // v677 : la case de la passe soulevee (une case ou un joueur : il y va selon le plan)
     if(_ssp && onIce(c,r) && !(c===_ssp.c && r===_ssp.r)){ doSaucer(_ssp, c, r); return; }
     S.saucerAim=false; render(); renderPlanBar(); }
@@ -11281,7 +11282,7 @@ function orbitSubject(){
 function orbitSources(sub){
   var out=[];
   function add(el, key, ref){ var K=ORB_K[key]; if(!K) return; var txt=(el.textContent||'').replace(/\s+/g,' ').trim(), m=/(\d+)\s*%/.exec(txt), pc=m?m[1]:null;
-    if(key==='deke' && pc===null && !sub.def){ var dm=dekeMenu(sub.p), best=-1; for(var q=0;q<dm.length;q++){ if(dm[q].pct!=null && dm[q].pct>best) best=dm[q].pct; } if(best>=0) pc=String(best); }   // v746 : le Deke montre la meilleure chance de sa liste de feintes
+    if(key==='deke' && pc===null && !sub.def){ var db=orbitDekeBest(sub.p); if(db) pc=String(db.pct); }   // v746 : le Deke montre la meilleure chance de sa liste de feintes ; v755 : y compris le Deke simple
     out.push({key:key, ref:ref, pct:pc,on:/✓|cancel|tap receiver/i.test(txt) || el.classList.contains('on'), word:(key==='dump' && /Clear/.test(txt))?'CLEAR':K[1], title:txt, tk:tutBtnKey(el)}); }
   if(sub.def){
     var DB=document.querySelectorAll('#defbar button.perkbtn');
@@ -11303,7 +11304,97 @@ function orbitFire(ref){   // toucher la pastille = toucher le bouton d'avant (r
 }
 // v746 : l'ORDRE de la bulle -- le plus haut % en haut ; une action armee (cochee) reste tout en haut ; sans % apres celles qui en ont, dans
 // l'ordre de la table ORB_PRI (la passe soulevee et le tir d'abord : ce qu'il fait souvent)
-var ORB_PRI=['pass','shoot','slap','saucer','dump','drop','flip','bank','bankgo','deke','onetimer','redirect','wrap','cycle','call','poke','lift','check','block','sblock','protect','protnet','mark','brake','card'];
+var ORB_PRI=['pass','shoot','slap','saucer','dump','drop','flip','bank','bankgo','deke','shotready','onetimer','redirect','wrap','cycle','call','steal','poke','lift','check','block','sblock','protect','protnet','mark','brake','card'];
+// v755 (son choix : « regrouper les cousins », « le jeu choisit ») : la bulle montre des GROUPES, plus les variantes. Aucune regle ici : le groupe
+// choisit, parmi ses variantes disponibles, celle au meilleur % (egalite : l'ordre de ORB_PRI) et touche le vrai bouton d'avant.
+// groupe : [icone, mot, fond, texte, variantes]
+var ORB_G={
+  shoot:['🏒','SHOOT','#c0452f','#fff',['shoot','slap','wrap']],
+  pass:['→','PASS','#2a6fb0','#fff',['pass','saucer','bank','drop','cycle']],
+  dump:['⤒','DUMP','#4a6a80','#eafcff',['dump','flip']],
+  deke:['🌀','DEKE','#7a4fb0','#fff',['deke','bankgo']],
+  protect:['🛡','PROTECT','#2f6f4f','#e6fff0',['protect']],
+  shotready:['⚡','SHOT READY','#d1631a','#fff',['onetimer','redirect']],
+  call:['🙋','CALL','#2a6fb0','#fff',['call']],
+  steal:['🥍','STEAL','#7a4fb0','#f0e9ff',['poke','lift']],
+  check:['💪','CHECK','#b3402f','#fff',['check']],
+  block:['✋','BLOCK','#2a6fb0','#fff',['block','sblock']],
+  protnet:['🛡','PROTECT NET','#2f7a50','#fff',['protnet']],
+  mark:['🎯','MARK','#4a2f80','#e8dcff',['mark']],
+  brake:['⏹','BRAKE','#2f6f4f','#e6fff0',['brake']],
+  card:['🃏','CARD','#243a52','#dbe8f5',['card']]
+};
+var ORB_GOF=(function(){ var m={}; Object.keys(ORB_G).forEach(function(g){ ORB_G[g][4].forEach(function(k){ m[k]=g; }); }); return m; })();
+function orbitRank(a, b){   // le meilleur % d'abord (sans % = -1), egalite : l'ordre de ORB_PRI
+  var pa=(a.pct!==null && a.pct!==undefined) ? parseInt(a.pct, 10) : -1, pb=(b.pct!==null && b.pct!==undefined) ? parseInt(b.pct, 10) : -1;
+  if(pa!==pb) return pb-pa;
+  var ia=ORB_PRI.indexOf(a.key), ib=ORB_PRI.indexOf(b.key); return (ia<0?99:ia)-(ib<0?99:ib); }
+// la meilleure feinte de la liste Deke (index dans dekeMenu) ; le Deke simple compte avec son propre % ; egalite : l'ordre de la liste
+function orbitDekeBest(me){ var dm=dekeMenu(me), best=null;
+  for(var q=0;q<dm.length;q++){ var v=dm[q].pct;
+    if(v==null && dm[q].oc==='armDangle()'){ try{ var d=dekeFoe(me); v=d ? oddsFromPlanPos(me, function(){ return actionOdds(me, 'deke', d); }) : null; }catch(e){ v=null; } }
+    if(v!=null && (best===null || v>best.pct)) best={i:q, pct:v}; }
+  return best; }
+// tutoriel : une etape qui montre / permet un bouton precis d'un groupe -> ce bouton-la (comme avant) ; direct = on le touche tel quel
+function orbitTutPick(ms){
+  if(!(typeof tutGuided==='function' && tutGuided())) return {pool:ms, direct:false};
+  var A=tutAllowList(); if(!A) return {pool:ms, direct:false};
+  var ok=ms.filter(function(m){ return m.tk && tutAllow('b:'+m.tk); }); if(!ok.length) return {pool:ms, direct:false};
+  var hl=tutHL(), h=ok.filter(function(m){ return hl.indexOf('b:'+m.tk)>=0; }); return {pool:h.length ? h : ok, direct:true}; }
+// sources (variantes) -> groupes ; hold : les variantes du doigt tenu (chacune a son fire)
+function orbitGroup(src, sub, hold){
+  var by={}; src.forEach(function(s){ var g=ORB_GOF[s.key]; if(!g) return; (by[g]=by[g]||[]).push(s); });
+  var out=[];
+  Object.keys(ORB_G).forEach(function(g){ var ms=by[g]; if(!ms) return;
+    var tp=orbitTutPick(ms), best=tp.pool.slice().sort(orbitRank)[0], K=ORB_G[g], tgt=(g==='pass' || g==='dump') && !hold;
+    var it={key:g, ref:best.ref, pct:best.pct, on:!!(ms.some(function(m){ return m.on; }) || (S._grpAim && S._grpAim.g===g)), word:K[1], title:(hold ? best.title : K[1]), tk:(tgt && !tp.direct) ? null : (best.tk||null), members:ms, best:best, direct:tp.direct};
+    if(hold) it.fire=best.fire; else it.fire=function(){ orbitGroupFire(g, sub); };
+    out.push(it); });
+  return out; }
+// la passe n'a pas de bouton (toucher le receveur) : elle entre dans le groupe PASS comme variante sans bouton, avec le meilleur % des receveurs
+function orbitSourcesG(sub){
+  var src=orbitSources(sub).slice(), me=sub.p;
+  if(!sub.def && me.type==='sk' && ownsPuck(me.id) && S.passT && S.passT.length && !S.coachPush){
+    var pc=null; for(var i=0;i<S.passT.length;i++){ var T=byId(S.passT[i].id); if(!T) continue; var cl=S.planning ? ghostOf(T) : T, v=null;
+      try{ v=targetPct(me, cl.c, cl.r); }catch(e){ v=null; } if(v!=null && (pc===null || v>pc)) pc=v; }
+    src.push({key:'pass', ref:null, pct:pc===null ? null : String(pc), on:false, word:'PASS', title:'Pass', tk:null}); }
+  return src; }
+function orbitGroupFire(g, sub){
+  var me=sub.p, fresh=orbitGroup(orbitSourcesG(sub), sub, false).filter(function(x){ return x.key===g; })[0]; if(!fresh) return;
+  if(S._grpAim && S._grpAim.g!==g) S._grpAim=null;
+  if(g==='pass' || g==='dump'){
+    if(S._grpAim && S._grpAim.g===g){ S._grpAim=null; setHint(g==='pass' ? 'Pass cancelled.' : 'Dump cancelled.'); render(); return; }
+    var armed=fresh.members.filter(function(m){ return m.on && m.ref; })[0]; if(armed){ orbitFire(armed.ref); return; }   // une variante deja armee (bouton d'avant) : on la defait
+    if(fresh.direct){ orbitFire(fresh.best.ref); return; }   // tutoriel : le bouton de la lecon
+    if(typeof tutGuided==='function' && tutGuided()){ var A=tutAllowList(); if(A && !A.some(function(x){ return /^[pc]:/.test(x); })){ tutNudge(); return; } }
+    S.bankMode=false; S.saucerAim=false; S.dumpAim=false; S.flipAim=false; S.cycleAim=null; S.dangle=false; S.dekeT=[]; S.armedFeint=null;
+    S._grpAim={g:g, id:me.id};
+    setHint(g==='pass' ? 'Pass: tap a teammate, or a square for a lifted pass. The game picks the best chance.' : 'Dump: tap anywhere on the ice. The game picks the best of Dump in / Clear and Flip for that square.');
+    render(); return; }
+  if(g==='deke'){
+    if(S.dangle || fresh.members.some(function(m){ return m.on && m.key==='deke'; })){ var bd=document.getElementById('btnDeke'); if(bd) bd.click(); return; }
+    if(fresh.best.key==='deke'){ var db=orbitDekeBest(me); orbitFire(fresh.best.ref);   // la meilleure feinte de la liste : pas de 2e liste
+      if(db){ var bl=document.querySelectorAll('#dekeList button.dgl'); if(bl[db.i]) bl[db.i].click(); } return; } }
+  orbitFire(fresh.best.ref); }
+// pass / dump armes par la bulle : le toucher suivant (receveur, case) choisit la variante au meilleur % POUR CETTE cible
+function groupAimTap(c, r){
+  var a=S._grpAim; if(!a) return false;
+  var me=S.sel ? byId(S.sel) : null, sub=orbitSubject();
+  if(!me || me.id!==a.id || !ownsPuck(me.id) || !sub || sub.def){ S._grpAim=null; return false; }
+  var pos=S.planning ? ghostOf(me) : {c:me.c, r:me.r};
+  if((c===me.c && r===me.r) || (c===pos.c && r===pos.r)){ S._grpAim=null; return false; }   // retoucher le porteur : le geste d'avant (pivot)
+  if(!onIce(c, r)) return false;
+  var src=orbitSources(sub), by={}; src.forEach(function(s){ if(!by[s.key]) by[s.key]=s; });
+  if(a.g==='dump'){ var cs=[];
+    if(by.dump) cs.push({key:'dump', ref:by.dump.ref, pct:String(Math.round(100*oddsFromPlanPos(me, function(){ return dumpOdds(me, c, r).prob; })))});
+    if(by.flip) cs.push({key:'flip', ref:by.flip.ref, pct:String(Math.round(100*oddsFromPlanPos(me, function(){ return flipOdds(me, c, r).acc; })))});
+    if(!cs.length){ S._grpAim=null; return false; }
+    var bd=cs.sort(orbitRank)[0]; S._grpAim=null; orbitFire(bd.ref); onCell(c, r); return true; }
+  var T=pieceAt(c, r) || (S.planning ? ghostAt(c, r) : null), items=[];
+  if(T && T.team===me.team && T.onIce) items=orbitHoldItems(sub, T, c, r).filter(function(x){ return ORB_GOF[x.key]==='pass'; });
+  if(!items.length && by.saucer && (!T || T.team===me.team)) items=[{key:'saucer', pct:null, fire:function(){ orbitFire(by.saucer.ref); onCell(c, r); }}];
+  if(!items.length){ setHint('Tap a teammate, or an empty square for a lifted pass.'); render(); return true; }
+  var bp=items.sort(orbitRank)[0]; S._grpAim=null; bp.fire(); return true; }
 function orbitSorted(src){
   var L=src.map(function(s, i){ var pr=ORB_PRI.indexOf(s.key); return {s:s, i:i, pr:pr<0?99:pr, sc:s.on ? 1000 : (s.pct!==null && s.pct!==undefined ? parseInt(s.pct, 10) : -1)}; });
   L.sort(function(a, b){ return (b.sc-a.sc) || (a.pr-b.pr) || (a.i-b.i); });
@@ -11395,7 +11486,8 @@ function renderOrbit(){
   if(S._orbitSeen!==id){ S._orbitSeen=id; S._orbitShut=null; S._orbitMore=false; }   // un autre joueur (ou plus personne) : la bulle se rouvre, repliee
   var hold=orbitHoldGet(sub);   // v747 : le doigt tenu sur un autre joueur : la bulle va VERS lui
   if(!sub || (S._orbitShut===id && !hold)){ orbitClear(); return; }
-  var all=hold ? hold.items : orbitSources(sub); if(!all.length && !hold){ orbitClear(); return; }
+  if(S._grpAim && (S._grpAim.id!==id || sub.def || !ownsPuck(id))) S._grpAim=null;
+  var all=hold ? orbitGroup(hold.items, sub, true) : orbitGroup(orbitSourcesG(sub), sub, false); if(!all.length && !hold){ orbitClear(); return; }   // v755 : des groupes, plus les variantes
   var tgt=hold ? hold.T : sub.p;
   var list=orbitSorted(all), many=!hold && list.length>4, open=many && !!S._orbitMore, vis=many && !open ? list.slice(0, 4) : list;
   var nRows=vis.length+(many ? 1 : 0);
@@ -11420,10 +11512,10 @@ function renderOrbit(){
     orbitClear(); el=document.createElement('div'); el.id='abub'; el.className='abub'+(hold ? ' hold' : ''); el.setAttribute('data-k', key); bw.appendChild(el);
     if(hold){ var ti=document.createElement('div'); ti.className='abt'; ti.textContent=(sub.p.name+(tgt.team===sub.p.team ? ' → ' : ' vs ')+tgt.name).toUpperCase(); el.appendChild(ti);
       if(!vis.length){ var nt=document.createElement('div'); nt.className='abn'; nt.textContent='No action on him'; el.appendChild(nt); } }
-    vis.forEach(function(s){ var K=ORB_K[s.key], b=document.createElement('button'); b.type='button'; b.className='ab'+(s.on?' on':''); b.setAttribute('data-k', s.key); if(s.tk) b.setAttribute('data-orbk', s.tk);
+    vis.forEach(function(s){ var K=ORB_G[s.key], b=document.createElement('button'); b.type='button'; b.className='ab'+(s.on?' on':''); b.setAttribute('data-k', s.key); if(s.tk) b.setAttribute('data-orbk', s.tk);
       b.style.background=K[2]; b.style.color=K[3]; b.style.height=RH+'px'; b.title=s.title; b.setAttribute('aria-label', s.title);
       var ic=document.createElement('i'); ic.textContent=K[0]; b.appendChild(ic);
-      var wd=document.createElement('b'); wd.textContent=s.word.replace(/\n/g, ' ').replace('BLOCK PASS', 'BLK PASS').replace('BLOCK SHOT', 'BLK SHOT').replace('BANK & GO', 'BANK&GO');   /* mots courts : la bulle reste etroite */ b.appendChild(wd);
+      var wd=document.createElement('b'); wd.textContent=s.word;   /* mots courts : la bulle reste etroite */ b.appendChild(wd);
       if(s.pct){ var sm=document.createElement('small'); sm.textContent=s.pct+'%'; b.appendChild(sm); }
       b.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation();
         if(s.fire){ S._hold=null; try{ s.fire(); } finally { renderOrbit(); } } else orbitFire(s.ref); };   // v747 : tenu = le vieux bouton puis ce joueur ; la bulle tenue se ferme
