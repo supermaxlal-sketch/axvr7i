@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deck 3D v755</title>
+<title>Deck 3D v756</title>
 <style>
   :root{ --navy:#1b3a5b; --burg:#7a2233; --ice:#eef4fb; --blue:#1f6fb2; --red:#cf2d2d;
     --gold:#e8b84b; --amber:#e8a33a; --ink:#16314f; --teal:#1f8a8a; --grn:#3fb56b; --purp:#9b6cd6; }
@@ -1037,18 +1037,23 @@ body:not(.vrink) .thumbx{display:none !important;}
 .tbslot .tbw{white-space:normal;overflow:hidden;min-width:0;font-size:12px;line-height:1.1;max-height:2.3em;overflow-wrap:anywhere;}   /* v396 : « Skate + Shoot » sur 2 lignes */
 /* v751 : la rangee CHANGE sous les cases du plan */
 .tbslot.chg{border-color:#7fd8cf;} .tbslot .tbchgi{color:#ffd23e;font-size:16px;font-weight:800;line-height:1;flex:0 0 auto;}
-.chgrow{display:flex;flex-direction:column;gap:4px;}
-.chghd{display:flex;align-items:center;gap:6px;min-height:16px;font-family:var(--pxd);font-size:9px;color:#9fb6cd;}
-.chgw{letter-spacing:.06em;font-weight:800;color:#9fb6cd;} .chgw.low{color:#ffb36b;} .chgc{color:#bfeae4;}
-.chgtag{background:#c0392b;color:#fff;border-radius:4px;padding:1px 6px;font-family:var(--pxu);font-size:11px;font-weight:800;}
-.chgbs,.chgmenu{display:flex;gap:5px;align-items:stretch;}
-.chgsp{flex:0 0 8px;}
-.chgb{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:36px;padding:1px 2px;border:2px solid #2e4a63;border-radius:9px;background:#16273a;color:#fff;font-family:var(--pxu);font-size:12px;font-weight:700;cursor:pointer;}
-.chgb small{font-size:10px;font-weight:700;color:#7fe0a8;} .chgb small.orange{color:#ffb36b;} .chgb small.red{color:#ff6b6b;}
-.chgb.on{border-color:#4a5d73;background:#202c3a;color:#9aa4b2;} .chgb.sel{background:#1a8f86;border-color:#8ff0e6;color:#fff;}
-.chgb.rec{border-color:#ffb36b;box-shadow:0 0 0 2px #ffb36b;}
-.chgb.pp{background:#5a3aa8;border-color:#8a6ad8;} .chgb.pk{background:#8a3a3a;border-color:#c06a6a;}
-.chgb:disabled{opacity:.45;cursor:default;}
+/* v756 : la languette BENCH au bord de l'ecran cote banc + la bulle des lignes (le style de la bulle d'actions : .abub) */
+.benchtab{position:absolute;z-index:47;box-sizing:border-box;margin:0;padding:0;border:2px solid #7fd8cf;background:#16384a;color:#bfeae4;font-family:var(--pxd);font-size:10px;font-weight:800;letter-spacing:.12em;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+.benchtab.sL,.benchtab.sR{writing-mode:vertical-rl;} .benchtab.sL{border-left:0;border-radius:0 10px 10px 0;} .benchtab.sR{border-right:0;border-radius:10px 0 0 10px;} .benchtab.sT{border-top:0;border-radius:0 0 10px 10px;} .benchtab.sB{border-bottom:0;border-radius:10px 10px 0 0;}
+.benchtab.low{border-color:#ffb36b;background:#5a3410;color:#ffd9b0;box-shadow:0 0 12px 2px rgba(255,179,107,.85);}
+.benchtab.open{border-color:#ffd23e;} .benchtab.dim,.benchtab:disabled{opacity:.45;box-shadow:none;cursor:default;}
+.bbub{gap:5px;}
+.bbub .bbt{display:flex;align-items:center;justify-content:space-between;gap:6px;font-family:var(--pxu);font-weight:800;font-size:9px;color:#ffd23e;white-space:nowrap;}
+.bbub .bbx{flex:0 0 auto;width:24px;height:22px;padding:0;border:0;background:transparent;color:#ffd23e;font-size:14px;font-weight:800;cursor:pointer;}
+.bbub .bbr{display:flex;align-items:center;gap:5px;padding:2px;border:2px solid transparent;border-radius:9px;}
+.bbub .bbr.need{border-color:#ffb36b;} .bbub .bbr.need .bbl{color:#ffb36b;}
+.bbub .bbl{flex:0 0 54px;font-family:var(--pxd);font-size:7px;line-height:1.3;color:#9fb6cd;}
+.bbb{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:36px;padding:1px 2px;border:2px solid #2e4a63;border-radius:9px;background:#16273a;color:#fff;font-family:var(--pxu);font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;}
+.bbb small{font-size:10px;font-weight:700;color:#7fe0a8;} .bbb small.orange{color:#ffb36b;} .bbb small.red{color:#ff6b6b;}
+.bbb.on{border-color:#4a5d73;background:#202c3a;color:#9aa4b2;} .bbb.sel{background:#1a8f86;border-color:#8ff0e6;color:#fff;}
+.bbb.rec{border-color:#ffb36b;box-shadow:0 0 0 2px #ffb36b;}
+.bbb.pp{background:#5a3aa8;border-color:#8a6ad8;} .bbb.pk{background:#8a3a3a;border-color:#c06a6a;}
+.bbb:disabled{opacity:.45;cursor:default;}
 .tbgo{gap:8px;flex:0 0 auto;margin-top:auto;position:sticky;bottom:0;background:#0a1521;padding-top:4px;align-items:stretch;}
 .tbgo button{font-family:var(--pxu);border-radius:14px;cursor:pointer;min-height:50px;}
 .tbundo,.tbmirror{border:1px solid #2a4262;background:#182c45;color:#e9f2fb;font-size:12px;font-weight:700;padding:0 10px;}
@@ -1576,7 +1581,7 @@ function callStrategyDef(team,id){
   applyStratBonus(id, team);   // arme S._stratDef (intercept/block/pressure) + log
   return true;
 }
-var GAME_VERSION='v755';
+var GAME_VERSION='v756';
 /* ===== MOTEUR DE RESOLUTION v2 : greffe experimentale, v208 original intact ===== */
 var ENGINE_V2 = true;
 function newSeq(team, atkPlan, defMoves){
@@ -6069,6 +6074,7 @@ function renderResolveBar(top, go, seq){
   go.innerHTML='<button class="tbpause" onclick="togglePause()">'+(S.paused?'RESUME':'PAUSE')+'</button>'; go.style.display='flex';
 }
 function renderThumbBar(){
+  renderBench();   // v756 : la languette BENCH (et sa bulle) suivent le plan : souffle, cases libres, plan ouvert ou non
   var top=document.getElementById('tbTop'), go=document.getElementById('tbGo'); if(!top||!go) return;
   if(S.autoSim){ top.style.display='none'; go.style.display='none'; top.innerHTML=''; go.innerHTML=''; return; }   // v705 : periode simulee -- aucune barre de choix
   var dc=S.defCommit, atk=!!S.planning&&!dc;
@@ -6100,7 +6106,7 @@ function renderThumbBar(){
     else if(i===done.length && curId) h+=tbSlot(i, curId, '?', 'cur');
     else h+=tbSlot(i, null, '', 'empty');
   }
-  top.innerHTML=h+'</div>'+chgRowHtml(); top.style.display='flex';   // v751 : la rangee CHANGE sous les cases du plan
+  top.innerHTML=h+'</div>'; top.style.display='flex';   // v756 : la rangee CHANGE a disparu (la languette BENCH la remplace)
   var n=atk?planCount():dc.picks.length;   /* v396 : les jeux attaches ne comptent pas */
   var _canUndo=n || (atk ? freshSel() : !!(dc.selDef && !dc.pendingMove));   // v407 : Undo annule aussi une selection fraiche
   var g='<button class="tbundo" aria-label="Undo" onclick="'+(atk?'planUndo()':'undoDefPick()')+'"'+(_canUndo?'':' disabled')+'>&#8630;</button>';
@@ -9981,16 +9987,27 @@ function chgUsedBy(ids){   // des joueurs deja pris dans le plan (action, cible 
   if(S.ghost) for(var g in S.ghost) mark(g);
   if(dc){ dc.picks.forEach(function(k){ if(k.kind==='chg') return; mark(k.defId); mark(k.markId); if(k.mate) mark(k.mate.defId); }); mark(dc.selDef); }
   return hit; }
-function chgTap(kind, v){
+function chgTap(kind, v){   // un seul choix (garde l'autre moitie du changement deja pose) ; la bulle du banc passe par chgSet (v756)
   if(!chgAvail()) return;
-  var H=HUMAN_TEAM, old=chgHuman(), dc=S.defCommit, fi=old ? old.fi : null, di=old ? old.di : null, sp=old ? old.sp : null;
+  var old=chgHuman(), fi=old ? old.fi : null, di=old ? old.di : null, sp=old ? old.sp : null;
   if(kind==='F'){ fi=+v; sp=null; } else if(kind==='D'){ di=+v; sp=null; } else { sp=v; fi=null; di=null; }
+  chgSet(fi, di, sp, false); }
+// abs : fi / di sont les trios / paires CHOISIS dans la bulle du banc (absolus) ; celui deja sur la glace (apres avoir defait l'ancien changement) = on le garde (null) ; les deux gardes = rien
+function chgSet(fi, di, sp, abs){
+  if(!chgAvail()) return;
+  var H=HUMAN_TEAM, old=chgHuman(), dc=S.defCommit;
   if(!old && !chgFree()){ setHint('No action left in this plan — undo one to change players.'); renderThumbBar(); return; }
   var hit=old ? chgUsedBy(old.ins) : [];
   if(hit.length){ setHint('Undo '+byId(hit[0]).name+'\x27s action first — then change.'); return; }
   if(dc){ dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; dc.markMode=false; S.moves=[]; } else clearSel();
   var oldMeta=old ? {fi:old.fi, di:old.di, sp:old.sp} : null, oldSw=old ? {ids:old.ids.slice(), ins:old.ins.map(byId), outs:old.outs.map(byId)} : null;
   if(old) chgRevert(old);   // on refait le calcul depuis la glace d'avant
+  if(abs && !sp){   // v756 : la bulle du banc : l'unite deja sur la glace (d'avant) = la garder ; les deux gardees = pas de changement (l'ancien s'en va aussi)
+    var on0=chgOnIce(H), u0=!S.lnMode || !S.lnMode[H] || S.lnMode[H]==='U';
+    if(u0){ if(fi!=null && fi===chgUnitIdx(lnGroups(H, 'F'), on0.f)) fi=null; if(di!=null && di===chgUnitIdx(lnGroups(H, 'D'), on0.d)) di=null; }
+    if(fi==null && di==null){
+      if(old){ if(S.atkPlan) S.atkPlan=S.atkPlan.filter(function(a){ return a.kind!=='chg'; }); if(dc) dc.picks=dc.picks.filter(function(k){ return k.kind!=='chg'; }); S.chgMenu=false; }
+      setHint('Lines stay as they are.'); render(); if(dc) renderDefBar(); else renderPlanBar(); return; } }
   var ids=chgTarget(H, fi, di, sp), sw=ids ? chgSwap(H, ids) : null, bad=null;
   if(!sw || (!sw.ins.length && !sw.outs.length)) bad='No change possible there.';
   else { var u=chgUsedBy(sw.outs.map(function(q){ return q.id; })); if(u.length) bad='Undo '+byId(u[0]).name+'\x27s action first — then change.'; }
@@ -10001,7 +10018,6 @@ function chgTap(kind, v){
   render();
   if(dc){ renderDefBar(); defAutoConfirm(); }
   else { renderPlanBar(); if(planCount()>=planLimit() && !planWaitsForPlay()){ setHint('Plan complete — resolving...'); setTimeout(function(){ if(S.planning && planCount()>=planLimit() && !planWaitsForPlay()) resolvePlan(); }, 350); } } }
-function chgMenuToggle(){ if(!chgAvail()) return; S.chgMenu=!S.chgMenu; renderThumbBar(); }
 function chgSlide(q, from, to){ var L=Math.hypot(to.c-from.c, to.r-from.r), ms=Math.max(SKATE_MS_MIN, SKATE_MS_CELL*L)/ANIM_RATE;
   if(!S.slides) S.slides={}; S.slides[q.id]={dx:from.c-to.c, dy:from.r-to.r, ms:ms}; matchEv('skate', {id:q.id, pts:[[from.c, from.r],[to.c, to.r]]}); return ms; }
 function chgLeaving(q){ return !!q && (q._lv||0)>Date.now(); }
@@ -10015,17 +10031,74 @@ function chgRelease(anim){ var R=S.chgRec; if(!R) return; S.chgRec=null; S.chgMe
     S.defOrders=(S.defOrders||[]).filter(function(o){ return !(o.markId && oset[o.markId]); });
     if(ins.length || outs.length) pushLog('<b>'+TEAM_NAME[rec.team]+'</b> change ('+chgLabelOf(rec)+') — '+(ins.length ? ins.map(function(q){ return '<b>'+q.name+'</b>'; }).join(', ')+' jump'+(ins.length>1 ? '' : 's')+' on the ice' : '')+(ins.length && outs.length ? ', ' : '')+(outs.length ? outs.map(function(q){ return q.name; }).join(', ')+' go'+(outs.length>1 ? '' : 'es')+' to the bench' : '')+'.'); });
   S._chgGo=true; }
-function chgRowHtml(){
-  if(!chgAvail()) return '';
-  var H=HUMAN_TEAM, rec=chgHuman(), lu=S.lineup[H]||[], mode=lnMode(H), cur=(S.lnMode && S.lnMode[H]) || 'U', Fg=lnGroups(H, 'F'), Dg=lnGroups(H, 'D'), need=chgNeed(), free=!!rec || chgFree();
+// ===== v756 (docs/PROJECT-NOTES.md « Decision — v756 ») : LE BANC. La rangee CHANGE a disparu : une languette « BENCH » (#benchTab) au bord de l'ecran cote banc, a la hauteur de la porte
+// (ligne rouge) quand on la voit, sinon collee au bord le plus proche ; orange sous 50 % (chgNeed) ; grisee sans case libre. La toucher ouvre une bulle (#bbub, le style de la bulle d'actions)
+// a cote d'elle : un trio ET une paire (retoucher celle sur la glace = la garder ; « DEFENSE ? » en orange tant qu'il en manque un) -> elle se ferme, UNE case du plan (chgSet) ; une ligne
+// speciale (Game state / PP / PK) = tout de suite ; ✕ ou toucher la glace = fermer sans rien changer. Les regles des changements (v751) ne bougent pas.
+function chgBenchOpen(){
+  if(!chgAvail() || (!chgHuman() && !chgFree())) return;
+  var dc=S.defCommit; if(dc){ dc.selDef=null; dc.pendingMove=null; dc.extend=false; dc.lastIdx=null; dc.markMode=false; S.moves=[]; } else clearSel();   // le banc ne choisit personne : la bulle d'actions s'en va
+  S._hold=null; S._bb={f:null, d:null}; render(); if(dc) renderDefBar(); }
+function chgBenchClose(){ if(typeof S==='undefined' || !S || !S._bb) return; S._bb=null; renderBench(); }
+function chgBenchToggle(){ if(typeof S==='undefined' || !S) return; if(S._bb) chgBenchClose(); else chgBenchOpen(); }
+function chgBenchTap(kind, v){
+  var b=S._bb; if(!b || !chgAvail()) return;
+  if(kind==='S'){ S._bb=null; chgSet(null, null, v, true); return; }   // une ligne speciale : tout de suite
+  if(kind==='F') b.f=+v; else b.d=+v;
+  if(b.f!=null && b.d!=null){ S._bb=null; chgSet(b.f, b.d, null, true); }   // un trio ET une paire : ca prend UNE case
+  else renderBench(); }
+function chgBenchHide(){ var t=document.getElementById('benchTab'); if(t) t.style.display='none'; var e=document.getElementById('bbub'); if(e && e.parentNode) e.parentNode.removeChild(e); }
+function renderBench(){
+  if(typeof S==='undefined' || !S) return;
+  var bw=document.querySelector('.boardwrap');
+  if(!bw || !chgAvail()){ if(S._bb) S._bb=null; chgBenchHide(); return; }
+  var H=HUMAN_TEAM, B=bw.getBoundingClientRect(), W=B.width||bw.clientWidth||390, HH=B.height||bw.clientHeight||560;
+  var door=chgDoor(), P=screenOfCell(door.c, door.r, 0), C=screenOfCell(CTR_C_CELL, CTR_R, 0), side;
+  if(P && C){ var dx=P.x-C.x, dy=P.y-C.y; side=Math.abs(dx)>=Math.abs(dy) ? (dx<0 ? 'L' : 'R') : (dy<0 ? 'T' : 'B'); } else side=benchRow()===0 ? 'L' : 'R';   // le bord de l'ecran cote banc
+  if(!P) P={x:side==='R' ? W : 0, y:HH/2};
+  var TW=26, TL=92, sidew=(side==='L' || side==='R'), clamp=function(v, lo, hi){ return Math.max(lo, Math.min(Math.max(lo, hi), v)); };
+  var need=chgNeed(), rec=chgHuman(), free=!!rec || chgFree();
+  var tab=document.getElementById('benchTab');
+  if(!tab){ tab=document.createElement('button'); tab.type='button'; tab.id='benchTab'; tab.textContent='BENCH'; tab.setAttribute('aria-label', 'Bench: change lines'); tab.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); chgBenchToggle(); }; bw.appendChild(tab); }
+  tab.className='benchtab s'+side+(need.label ? ' low' : '')+(!free ? ' dim' : '')+(S._bb ? ' open' : ''); tab.setAttribute('data-side', side); tab.disabled=!free; tab.style.display='';
+  tab.title=need.label ? 'Bench — '+need.label : 'Bench — change lines';
+  var tx, ty, tcx, tcy;
+  if(sidew){ ty=clamp(P.y-TL/2, 4, HH-TL-4); tx=(side==='L') ? 0 : W-TW; tab.style.width=TW+'px'; tab.style.height=TL+'px'; tcx=tx+TW/2; tcy=ty+TL/2; }
+  else { tx=clamp(P.x-TL/2, 4, W-TL-4); ty=(side==='T') ? 0 : HH-TW; tab.style.width=TL+'px'; tab.style.height=TW+'px'; tcx=tx+TL/2; tcy=ty+TW/2; }
+  tab.style.left=tx.toFixed(1)+'px'; tab.style.top=ty.toFixed(1)+'px';
+  if(!S._bb){ var e0=document.getElementById('bbub'); if(e0 && e0.parentNode) e0.parentNode.removeChild(e0); return; }
+  // la bulle
+  var pk=S._bb, lu=S.lineup[H]||[], mode=lnMode(H), cur=(S.lnMode && S.lnMode[H]) || 'U', Fg=lnGroups(H, 'F'), Dg=lnGroups(H, 'D'), on=chgOnIce(H);
   var pct=function(g){ var v=Math.round(lnRest(g)); return '<small class="'+(souLevel(v)==='green' ? '' : souLevel(v))+'">'+v+'%</small>'; };
-  var unit=function(kind, g, i, onIds, selI, bestI){ var eq=cur==='U' && !!g && chgSetEq(onIds, chgIds(g)), sel=selI===i;
-    return '<button type="button" id="chg'+kind+(i+1)+'" class="chgb'+(eq ? ' on' : '')+(sel ? ' sel' : '')+(bestI===i ? ' rec' : '')+'" onclick="chgTap(\''+kind+'\','+i+')"'+((!g || eq || !free) ? ' disabled' : '')+'><b>'+kind+(i+1)+'</b>'+(g ? pct(g) : '')+'</button>'; };
-  var rowF=Fg.map(function(g, i){ return unit('F', g, i, lu.slice(0, 3), rec ? rec.fi : null, need.F ? need.F.best : null); }).join(''), rowD=Dg.map(function(g, i){ return unit('D', g, i, lu.slice(3, 5), rec ? rec.di : null, need.D ? need.D.best : null); }).join('');
-  var sps=(mode==='pp') ? ['pp1', 'pp2'] : (mode==='pk' ? ['pk1', 'pk2'] : ['late', 'lead', 'chase']);
-  var menu=S.chgMenu ? '<div class="chgmenu">'+sps.map(function(id){ return '<button type="button" id="chgS-'+id+'" class="chgb'+((rec && rec.sp===id) ? ' sel' : '')+(cur===id ? ' on' : '')+(mode==='pp' ? ' pp' : (mode==='pk' ? ' pk' : ''))+'" onclick="chgTap(\'S\',\''+id+'\')"'+(!free ? ' disabled' : '')+'>'+CHG_SP_NAME[id]+'</button>'; }).join('')+'</div>' : '';
-  return '<div class="chgrow"><div class="chghd"><span class="chgw'+(need.label ? ' low' : '')+'">CHANGE</span>'+(rec ? '<span class="chgc">1 action</span>' : '')+(need.label ? '<span class="chgtag">'+tbEsc(need.label)+'</span>' : '')+'</div>'
-    +'<div class="chgbs">'+rowF+'<i class="chgsp"></i>'+rowD+'<button type="button" id="chgMore" class="chgb chgmore'+(S.chgMenu ? ' sel' : '')+'" onclick="chgMenuToggle()">&middot;&middot;&middot;</button></div>'+menu+'</div>'; }
+  var unit=function(kind, g, i, onIds, selI, bestI){ var eq=cur==='U' && !!g && chgSetEq(onIds, chgIds(g));
+    return '<button type="button" id="bb'+kind+(i+1)+'" class="bbb'+(eq ? ' on' : '')+(selI===i ? ' sel' : '')+(bestI===i ? ' rec' : '')+'" data-bb="'+kind+'" data-v="'+i+'"'+((!g || !free) ? ' disabled' : '')+'><b>'+(i+1)+'</b>'+(g ? pct(g) : '')+'</button>'; };
+  var rowF=Fg.map(function(g, i){ return unit('F', g, i, lu.slice(0, 3), pk.f, need.F ? need.F.best : null); }).join(''), rowD=Dg.map(function(g, i){ return unit('D', g, i, lu.slice(3, 5), pk.d, need.D ? need.D.best : null); }).join('');
+  var needF=pk.d!=null && pk.f==null, needD=pk.f!=null && pk.d==null;   // un seul des deux : la rangee qui manque a un contour orange
+  var sps, lbl;
+  if(mode==='pp'){ sps=['pp1', 'pp2']; lbl='POWER PLAY'; } else if(mode==='pk'){ sps=['pk1', 'pk2']; lbl='PENALTY KILL'; } else { sps=['late', 'lead', 'chase']; lbl='GAME STATE'; }
+  var rowS=sps.map(function(id){ return '<button type="button" id="bbS-'+id+'" class="bbb'+(cur===id ? ' on' : '')+(mode==='pp' ? ' pp' : (mode==='pk' ? ' pk' : ''))+'" data-bb="S" data-v="'+id+'"'+(!free ? ' disabled' : '')+'>'+CHG_SP_NAME[id]+'</button>'; }).join('');
+  var html='<div class="bbt"><span>CHANGE LINES &middot; 1 action</span><button type="button" id="bbClose" class="bbx" aria-label="Close">&#10005;</button></div>'
+    +'<div class="bbr'+(needF ? ' need' : '')+'"><span class="bbl">'+(needF ? 'FORWARDS ?' : 'FORWARDS')+'</span>'+rowF+'</div>'
+    +'<div class="bbr'+(needD ? ' need' : '')+'"><span class="bbl">'+(needD ? 'DEFENSE ?' : 'DEFENSE')+'</span>'+rowD+'</div>'
+    +'<div class="bbr"><span class="bbl">'+lbl+'</span>'+rowS+'</div>';
+  var key=side+'|'+html, el=document.getElementById('bbub');
+  if(!el || el.getAttribute('data-k')!==key){
+    if(el && el.parentNode) el.parentNode.removeChild(el);
+    el=document.createElement('div'); el.id='bbub'; el.className='abub bbub'; el.setAttribute('data-k', key); el.innerHTML=html; bw.appendChild(el);
+    var bs=el.querySelectorAll('button[data-bb]'); for(var i=0;i<bs.length;i++){ (function(b){ b.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); chgBenchTap(b.getAttribute('data-bb'), b.getAttribute('data-v')); }; })(bs[i]); }
+    var cb=el.querySelector('#bbClose'); if(cb) cb.onclick=function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); chgBenchClose(); }; }
+  var BW=Math.min(300, W-TW-14), BH=el.offsetHeight||178, left, top;
+  if(sidew){ left=(side==='L') ? TW+8 : W-TW-8-BW; top=clamp(tcy-BH/2, 4, HH-BH-4); }
+  else { left=clamp(tcx-BW/2, 4, W-BW-4); top=(side==='T') ? TW+8 : HH-TW-8-BH; }
+  el.style.width=BW+'px'; el.style.left=left.toFixed(1)+'px'; el.style.top=top.toFixed(1)+'px';
+  var old=el.querySelector('.tip'); if(old) old.parentNode.removeChild(old);
+  var tip=document.createElement('div'); tip.className='tip'; var tcl=clamp(tcy-top, 12, BH-12), tcw=clamp(tcx-left, 12, BW-12);
+  if(side==='L') tip.style.cssText='top:'+(tcl-7)+'px;left:-10px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:8px solid #ffd23e;';
+  else if(side==='R') tip.style.cssText='top:'+(tcl-7)+'px;right:-10px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:8px solid #ffd23e;';
+  else if(side==='T') tip.style.cssText='left:'+(tcw-7)+'px;top:-10px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:8px solid #ffd23e;';
+  else tip.style.cssText='left:'+(tcw-7)+'px;bottom:-10px;border-left:7px solid transparent;border-right:7px solid transparent;border-top:8px solid #ffd23e;';
+  el.appendChild(tip);
+}
 // --- l'ordi (et le pilote automatique) ---
 function chgAiMaybe(team){
   if(typeof S==='undefined' || !S || S.tut || S.so || S.bonus || S.gameEnded || !lnWanted()) return false;
@@ -11182,6 +11255,7 @@ function tapNote(c,r){
   S._taps=S._taps||[]; S._taps.unshift(t); if(S._taps.length>6) S._taps.pop(); return t;
 }
 function onCell(c,r){
+  if(S._bb){ chgBenchClose(); return; }   // v756 : la bulle du banc est ouverte : toucher la glace la ferme, rien d'autre ne se passe
   if(lnBlock()){ if(S._hold){ S._hold=null; renderOrbit(); } return; }   // v753 : entre les jeux et pendant le menu des lignes, toucher la glace ne fait rien
   if(S._hold){ S._hold=null; renderOrbit(); }   // v747 : un toucher (quel qu'il soit) ferme la bulle tenue ; le toucher fait ensuite ce qu'il faisait
   if(S.so && soTapCell(c, r)) return;   // v541 : la fusillade -- toucher la glace = son trajet en ligne droite
@@ -11469,7 +11543,7 @@ function orbitHoldGet(sub){
 }
 // le doigt est tenu sur la case (c, r) : la 2D (souris / doigt) et la 3D (hj3d.hold) arrivent ici ; faux = rien de nouveau (le relachement agit comme un toucher)
 function holdOpen(c, r){
-  if(S.paused || S.gameEnded || S.animating || S.autoSim || S.tut || lnBlock()) return false;   // v753 : rien entre les jeux
+  if(S.paused || S.gameEnded || S.animating || S.autoSim || S.tut || lnBlock() || S._bb) return false;   // v753 : rien entre les jeux ; v756 : ni bulle du banc ouverte
   var sub=orbitSubject(); if(!sub) return false;
   var T=pieceAt(c, r) || (S.planning ? ghostAt(c, r) : null); if(!T || T.id===sub.p.id || !T.onIce) return false;
   if(S._holdTm){ clearTimeout(S._holdTm); S._holdTm=null; }
@@ -11482,6 +11556,7 @@ function orbitDefFlag(){   // la barre de l'embuscade cache ses ordres quand ils
 function renderOrbit(){
   var bw=document.querySelector('.boardwrap'); if(!bw) return;
   orbitDefFlag();
+  if(S._bb){ orbitClear(); return; }   // v756 : la bulle du banc est ouverte : jamais avec la bulle d'actions
   var sub=orbitSubject(), id=sub ? sub.p.id : null;
   if(S._orbitSeen!==id){ S._orbitSeen=id; S._orbitShut=null; S._orbitMore=false; }   // un autre joueur (ou plus personne) : la bulle se rouvre, repliee
   var hold=orbitHoldGet(sub);   // v747 : le doigt tenu sur un autre joueur : la bulle va VERS lui
@@ -11854,7 +11929,7 @@ function dragTimerClear(){ if(_dragTimer!==null){ clearTimeout(_dragTimer); _dra
 function hj3dDrag(phase, c, r){   // meme logique que wireRouteDrag (glisser au doigt sur la 2D)
   if(soDrawing() || (S.so && S.so.run && S.so.run.drawing)) return soDrag(phase, c, r);   // v541 : le trajet du tireur de la fusillade
   if(phase==='start' || phase==='end') dragTimerClear();
-  if(lnBlock()) return false;   // v753 : pas de trace entre les jeux
+  if(lnBlock() || S._bb) return false;   // v753 : pas de trace entre les jeux ; v756 : ni bulle du banc ouverte
   if(phase==='start'){
     _dragLast=0;
     if(!isHumanAttackPlan() && !isHumanAmbush() && !isHumanLoose()) return false;
@@ -11890,7 +11965,7 @@ var hj3d={
   office:function(o){ return offMsg(o); },   // v608 : le bureau -- arrivee a un objet (ses 4 coins a l'ecran) ou glissement (obj null)
   ver:function(v){ if(!/^v\d+$/.test(String(v))) return false; HJ3D.ver=String(v); return true; },   // v590 : la version de la 3D (Godot, au demarrage) -- Settings
   fodrop:function(){ var w=S.foWait; if(!w || w.done) return false; w.drop=true; if(w.min) w.go(); return true; },   // v561 : l'arbitre a laisse tomber la rondelle
-  cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); if(document.getElementById('abub')) renderOrbit(); return true; },   // v746 : la bulle se replace quand la camera bouge   // v494 : la camera 3D (les bulles se placent sur la 3D)
+  cam:function(m, w, h){ HJ3D.cam={m:m, w:w, h:h}; var cb=document.querySelector('.choicebub'); if(cb) placeDefChoice(cb); if(document.getElementById('abub')) renderOrbit(); if(document.getElementById('benchTab')) renderBench(); return true; },   // v746 : la bulle se replace quand la camera bouge   // v494 : la camera 3D (les bulles se placent sur la 3D)
   free:function(on, c0, c1, r0, r1){ HJ3D.free=on ? {c0:+c0, c1:+c1, r0:+r0, r1:+r1} : null; renderVMap(); return true; },   // v620 : la vue libre de la 3D (pincer, deux doigts, molette, clic droit) -- le cadre jaune de la mini-carte la montre
   aim:function(t){   // v479 : toucher une cible du filet 3D = toucher le bouton 2D du meme coin
     if(S.so && S.so.run && S.so.run.phase==='choose' && SO_TARGETS.indexOf(t)>=0){ soPick(t); return true; }   // v541 : la fusillade
